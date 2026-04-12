@@ -2653,6 +2653,53 @@ export default function AIEstimation({ onBack, onNavigate }) {
   const [q,setQ] = useState('');
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
+
+  useEffect(() => {
+    const loadFromSharePoint = async () => {
+      try {
+        const res = await fetch(
+          "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/web/lists/getbytitle('Estimation Requests')/items?$orderby=Created desc",
+          {
+            headers: { "Accept": "application/json;odata=nometadata" },
+            credentials: "include"
+          }
+        );
+        const data = await res.json();
+        const mapped = data.value.map(item => ({
+          id: item.Request_x0020_ID || item.ID?.toString(),
+          submittedBy: item.Title || "",
+          proj: item.Project || "",
+          mainContractor: item.Main_x0020_Contractor || "",
+          consultant: item.Consultant || "",
+          client: item.Client_x002f_Grantor || "",
+          email: item.Email || "",
+          mob: item.Mobile || "",
+          tel: item.Telephone || "",
+          deal: item.Request_x0020_Type || "",
+          leadTime: item.Deliver_x0020_Lead_x0020_Time || "",
+          supplyOnly: item.Supply_x0020_Type === "Supply Only",
+          supplyInstall: item.Supply_x0020_Type === "Supply and Install",
+          address: item.Address || "",
+          remarks: item.Remarks || "",
+          status: item.Status || "Pending Estimation",
+          date: new Date(item.Created).toLocaleDateString('en-GB'),
+          estimationFile: null,
+          estimator: null,
+          margin: '',
+          taggedAt: null,
+          reqStatus: 'not-started',
+          directorAction: null,
+          directorNote: '',
+          docs: []
+        }));
+        setRequests(mapped);
+      } catch(err) {
+        console.error("Failed to load from SharePoint:", err);
+      }
+    };
+    loadFromSharePoint();
+  }, []);
+
   const [foundReq,setFoundReq] = useState(null);
   const [revisedSource,setRevisedSource] = useState(null);       // original request being revised
   const [finalPriceSource,setFinalPriceSource] = useState(null); // original request for final price
