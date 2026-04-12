@@ -2679,7 +2679,7 @@ export default function AIEstimation({ onBack, onNavigate }) {
     goLoad(match ? match.id : t, match);
   };
 
-  const handleSubmit = (formData) => {
+const handleSubmit = async (formData) => {
     const newId = 'AX' + Math.floor(10000+Math.random()*90000);
     const entry = {
       id: newId,
@@ -2694,8 +2694,57 @@ export default function AIEstimation({ onBack, onNavigate }) {
       directorAction: null,
       directorNote: '',
     };
+
+    // Save to SharePoint
+    try {
+      await fetch(
+        "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/web/lists/getbytitle('Estimation Requests')/items",
+        {
+          method: "POST",
+          headers: {
+            "Accept": "application/json;odata=nometadata",
+            "Content-Type": "application/json;odata=nometadata",
+            "X-RequestDigest": await getRequestDigest()
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            Title: formData.requestorName || formData.submittedBy || "",
+            Project: formData.proj || "",
+            Main_x0020_Contractor: formData.mainContractor || "",
+            Consultant: formData.consultant || "",
+            Client_x002f_Grantor: formData.client || "",
+            Email: formData.email || "",
+            Mobile: formData.mob || "",
+            Telephone: formData.tel || "",
+            Request_x0020_Type: formData.deal || "",
+            Supply_x0020_Type: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
+            Address: formData.address || "",
+            Remarks: formData.remarks || "",
+            Status: "New",
+            Request_x0020_ID: newId
+          })
+        }
+      );
+    } catch(err) {
+      console.error("SharePoint save failed:", err);
+    }
+
     setRequests(prev => [entry, ...prev]);
     setView('relax');
+  };
+
+  // Helper to get SharePoint request digest
+  const getRequestDigest = async () => {
+    const res = await fetch(
+      "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/contextinfo",
+      {
+        method: "POST",
+        headers: { "Accept": "application/json;odata=nometadata" },
+        credentials: "include"
+      }
+    );
+    const data = await res.json();
+    return data.FormDigestValue;
   };
 
   const handleFinalPriceSubmit = (formData) => {
