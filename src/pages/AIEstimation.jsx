@@ -2658,7 +2658,7 @@ export default function AIEstimation({ onBack, onNavigate }) {
     const loadFromSharePoint = async () => {
       try {
         const res = await fetch(
-          "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/web/lists/getbytitle('Estimation Requests')/items?$orderby=Created desc",
+          "/api/sharepoint/web/lists/getbytitle('Estimation Requests')/items?$orderby=Created desc",
           {
             headers: { "Accept": "application/json;odata=nometadata" },
             credentials: "include"
@@ -2746,7 +2746,7 @@ const handleSubmit = async (formData) => {
     // Save to SharePoint
     try {
       await fetch(
-        "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/web/lists/getbytitle('Estimation Requests')/items",
+        "/api/sharepoint/web/lists/getbytitle('Estimation Requests')/items",
         {
           method: "POST",
           headers: {
@@ -2784,7 +2784,7 @@ const handleSubmit = async (formData) => {
   // Helper to get SharePoint request digest
   const getRequestDigest = async () => {
     const res = await fetch(
-      "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/contextinfo",
+      "/api/sharepoint/contextinfo",
       {
         method: "POST",
         headers: { "Accept": "application/json;odata=nometadata" },
