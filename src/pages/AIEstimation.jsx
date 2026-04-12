@@ -2680,7 +2680,8 @@ export default function AIEstimation({ onBack, onNavigate }) {
   };
 
 const handleSubmit = async (formData) => {
-    const newId = 'AX' + Math.floor(10000+Math.random()*90000);
+    const count = requests.length + 1;
+    const newId = 'AX' + String(count).padStart(4, '0');
     const entry = {
       id: newId,
       ...formData,
@@ -2748,7 +2749,8 @@ const handleSubmit = async (formData) => {
   };
 
   const handleFinalPriceSubmit = (formData) => {
-    const newId = 'AX' + Math.floor(10000+Math.random()*90000);
+    const count = requests.length + 1;
+    const newId = 'AX' + String(count).padStart(4, '0');
     const entry = {
       id: newId,
       ...formData,
@@ -2768,7 +2770,8 @@ const handleSubmit = async (formData) => {
   };
 
   const handleRevisedSubmit = (formData) => {
-    const newId = 'AX' + Math.floor(10000+Math.random()*90000);
+    const count = requests.length + 1;
+    const newId = 'AX' + String(count).padStart(4, '0');
     const entry = {
       id: newId,
       ...formData,
