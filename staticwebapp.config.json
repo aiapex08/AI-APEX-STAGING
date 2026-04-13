@@ -1,27 +1,4 @@
 {
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "enabled": true
-      }
-    }
-  },
-  "routes": [
-    {
-      "route": "/api/sharepoint/*",
-      "rewrite": "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/*"
-    },
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ],
-  "responseOverrides": {
-    "401": {
-      "redirect": "/.auth/login/aad",
-      "statusCode": 302
-    }
-  },
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/assets/*"]
