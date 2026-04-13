@@ -2762,56 +2762,57 @@ const handleSubmit = async (formData) => {
     directorNote: '',
   };
 
-  // Save to SharePoint via Power Automate
   try {
+    const digestRes = await fetch(
+      "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/contextinfo",
+      {
+        method: "POST",
+        headers: { "Accept": "application/json;odata=nometadata" },
+        credentials: "include",
+        mode: "cors"
+      }
+    );
+    const digestData = await digestRes.json();
+    const digest = digestData.FormDigestValue;
+
     await fetch(
-      "https://default6c5f12d07ab9463db9df7036176a06.85.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/07292f41d5e64003b7cee7b2582ecb27/triggers/manual/paths/invoke?api-version=1",
+      "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/web/lists/getbytitle('Estimation Requests')/items",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Accept": "application/json;odata=nometadata",
+          "Content-Type": "application/json;odata=nometadata",
+          "X-RequestDigest": digest
         },
+        credentials: "include",
+        mode: "cors",
         body: JSON.stringify({
-          requestId: newId,
-          requestorName: formData.submittedBy || "",
-          project: formData.proj || "",
-          mainContractor: formData.mainContractor || "",
-          consultant: formData.consultant || "",
-          clientGrantor: formData.client || "",
-          email: formData.email || "",
-          mobile: formData.mob || "",
-          telephone: formData.tel || "",
-          requestType: formData.deal || "",
-          supplyType: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
-          deliverLeadTime: formData.leadTime || "",
-          address: formData.address || "",
-          remarks: formData.remarks || "",
-          status: "Pending Estimation"
+          Title: formData.submittedBy || "",
+          Project: formData.proj || "",
+          Main_x0020_Contractor: formData.mainContractor || "",
+          Consultant: formData.consultant || "",
+          Client_x002f_Grantor: formData.client || "",
+          Email: formData.email || "",
+          Mobile: formData.mob || "",
+          Telephone: formData.tel || "",
+          Request_x0020_Type: formData.deal || "",
+          Supply_x0020_Type: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
+          Deliver_x0020_Lead_x0020_Time: formData.leadTime || "",
+          Address: formData.address || "",
+          Remarks: formData.remarks || "",
+          Status: "Pending Estimation",
+          Request_x0020_ID: newId
         })
       }
     );
-    console.log("Saved to SharePoint successfully!");
+    console.log("✅ Saved to SharePoint!");
   } catch(err) {
-    console.error("SharePoint save failed:", err);
+    console.error("❌ SharePoint save failed:", err);
   }
 
   setRequests(prev => [entry, ...prev]);
   setView('relax');
 };
-
-  // Helper to get SharePoint request digest
-  const getRequestDigest = async () => {
-    const res = await fetch(
-      "/api/sharepoint/contextinfo",
-      {
-        method: "POST",
-        headers: { "Accept": "application/json;odata=nometadata" },
-        credentials: "include"
-      }
-    );
-    const data = await res.json();
-    return data.FormDigestValue;
-  };
 
   const handleFinalPriceSubmit = (formData) => {
     const count = requests.length + 1;
