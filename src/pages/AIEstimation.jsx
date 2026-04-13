@@ -2672,52 +2672,41 @@ export default function AIEstimation({ onBack, onNavigate }) {
   const [q,setQ] = useState('');
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
+  const BIN_ID = "69dcdffeaaba882197f3c176";
+  const API_KEY = "$2a$10$kpIFmWCwfUxqOw.M.TfqcOyhGnnArBzDluhGquW2s/t.L3vQJtBqW";
 
+  // Load on startup
   useEffect(() => {
-    const loadFromSharePoint = async () => {
+    const load = async () => {
       try {
-        const res = await fetch(
-          "/api/sharepoint/web/lists/getbytitle('Estimation Requests')/items?$orderby=Created desc",
-          {
-            headers: { "Accept": "application/json;odata=nometadata" },
-            credentials: "include"
-          }
-        );
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { 'X-Master-Key': API_KEY }
+        });
         const data = await res.json();
-        const mapped = data.value.map(item => ({
-          id: item.Request_x0020_ID || item.ID?.toString(),
-          submittedBy: item.Title || "",
-          proj: item.Project || "",
-          mainContractor: item.Main_x0020_Contractor || "",
-          consultant: item.Consultant || "",
-          client: item.Client_x002f_Grantor || "",
-          email: item.Email || "",
-          mob: item.Mobile || "",
-          tel: item.Telephone || "",
-          deal: item.Request_x0020_Type || "",
-          leadTime: item.Deliver_x0020_Lead_x0020_Time || "",
-          supplyOnly: item.Supply_x0020_Type === "Supply Only",
-          supplyInstall: item.Supply_x0020_Type === "Supply and Install",
-          address: item.Address || "",
-          remarks: item.Remarks || "",
-          status: item.Status || "Pending Estimation",
-          date: new Date(item.Created).toLocaleDateString('en-GB'),
-          estimationFile: null,
-          estimator: null,
-          margin: '',
-          taggedAt: null,
-          reqStatus: 'not-started',
-          directorAction: null,
-          directorNote: '',
-          docs: []
-        }));
-        setRequests(mapped);
-      } catch(err) {
-        console.error("Failed to load from SharePoint:", err);
-      }
+        setRequests(data.record.requests || []);
+      } catch(err) { console.error('Load failed:', err); }
     };
-    loadFromSharePoint();
+    load();
   }, []);
+
+  // Save whenever requests change
+  useEffect(() => {
+    if (requests.length === 0) return;
+    const save = async () => {
+      try {
+        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+          },
+          body: JSON.stringify({ requests })
+        });
+        console.log('✅ Saved to cloud!');
+      } catch(err) { console.error('Save failed:', err); }
+    };
+    save();
+  }, [requests]);
 
   const [foundReq,setFoundReq] = useState(null);
   const [revisedSource,setRevisedSource] = useState(null);       // original request being revised
