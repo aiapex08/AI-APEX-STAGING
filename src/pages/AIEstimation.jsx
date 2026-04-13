@@ -2371,7 +2371,7 @@ const Dashboard = ({ requests, onUpdate }) => {
 
 
   // Unified column layout — same for all views
-  const COL = '120px 1fr 120px 120px 120px 120px 120px 100px 110px';
+  const COL = '100px 120px 1fr 120px 120px 120px 120px 120px 100px 110px';
 
   const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Director'};
   const VIEW_COLORS = {
@@ -2454,6 +2454,7 @@ const Dashboard = ({ requests, onUpdate }) => {
         <div style={{display:'flex',flexDirection:'column',gap:6,overflowX:'auto'}}>
           {/* ── Column headers ── */}
           <div style={{display:'grid',gridTemplateColumns:COL,gap:10,padding:'6px 16px',fontSize:'0.56rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.24)',minWidth:'fit-content'}}>
+            <span>Req #</span>
             <span>Status</span>
             <span>Project</span>
             <span>Main Contractor</span>
@@ -2473,6 +2474,9 @@ const Dashboard = ({ requests, onUpdate }) => {
                 onClick={()=>setOpen(realIdx)}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>
+
+                {/* Req # */}
+                <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.id||'—'}</span>
 
                 {/* Status */}
                 <div style={{display:'flex',flexDirection:'column',gap:3}}>
@@ -2742,59 +2746,58 @@ export default function AIEstimation({ onBack, onNavigate }) {
   };
 
 const handleSubmit = async (formData) => {
-    const count = requests.length + 1;
-    const newId = 'AX' + String(count).padStart(4, '0');
-    const entry = {
-      id: newId,
-      ...formData,
-      status: 'Pending Estimation',
-      date: new Date().toLocaleDateString('en-GB'),
-      estimationFile: null,
-      estimator: null,
-      margin: '',
-      taggedAt: null,
-      reqStatus: 'not-started',
-      directorAction: null,
-      directorNote: '',
-    };
-
-    // Save to SharePoint
-    try {
-      await fetch(
-        "/api/sharepoint/web/lists/getbytitle('Estimation Requests')/items",
-        {
-          method: "POST",
-          headers: {
-            "Accept": "application/json;odata=nometadata",
-            "Content-Type": "application/json;odata=nometadata",
-            "X-RequestDigest": await getRequestDigest()
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            Title: formData.requestorName || formData.submittedBy || "",
-            Project: formData.proj || "",
-            Main_x0020_Contractor: formData.mainContractor || "",
-            Consultant: formData.consultant || "",
-            Client_x002f_Grantor: formData.client || "",
-            Email: formData.email || "",
-            Mobile: formData.mob || "",
-            Telephone: formData.tel || "",
-            Request_x0020_Type: formData.deal || "",
-            Supply_x0020_Type: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
-            Address: formData.address || "",
-            Remarks: formData.remarks || "",
-            Status: "New",
-            Request_x0020_ID: newId
-          })
-        }
-      );
-    } catch(err) {
-      console.error("SharePoint save failed:", err);
-    }
-
-    setRequests(prev => [entry, ...prev]);
-    setView('relax');
+  const count = requests.length + 1;
+  const newId = 'AX' + String(count).padStart(4, '0');
+  const entry = {
+    id: newId,
+    ...formData,
+    status: 'Pending Estimation',
+    date: new Date().toLocaleDateString('en-GB'),
+    estimationFile: null,
+    estimator: null,
+    margin: '',
+    taggedAt: null,
+    reqStatus: 'not-started',
+    directorAction: null,
+    directorNote: '',
   };
+
+  // Save to SharePoint via Power Automate
+  try {
+    await fetch(
+      "https://default6c5f12d07ab9463db9df7036176a06.85.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/07292f41d5e64003b7cee7b2582ecb27/triggers/manual/paths/invoke?api-version=1",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          requestId: newId,
+          requestorName: formData.submittedBy || "",
+          project: formData.proj || "",
+          mainContractor: formData.mainContractor || "",
+          consultant: formData.consultant || "",
+          clientGrantor: formData.client || "",
+          email: formData.email || "",
+          mobile: formData.mob || "",
+          telephone: formData.tel || "",
+          requestType: formData.deal || "",
+          supplyType: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
+          deliverLeadTime: formData.leadTime || "",
+          address: formData.address || "",
+          remarks: formData.remarks || "",
+          status: "Pending Estimation"
+        })
+      }
+    );
+    console.log("Saved to SharePoint successfully!");
+  } catch(err) {
+    console.error("SharePoint save failed:", err);
+  }
+
+  setRequests(prev => [entry, ...prev]);
+  setView('relax');
+};
 
   // Helper to get SharePoint request digest
   const getRequestDigest = async () => {
