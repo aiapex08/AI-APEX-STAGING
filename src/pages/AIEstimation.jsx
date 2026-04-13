@@ -694,20 +694,35 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo}) => {
           <p className="brand">NAFFCO · AI SYSTEM</p>
           <h1 className="page-title">AI APEX<br/>ESTIMATION</h1>
           <p className="page-sub">Intelligent quotation generation powered<br/>by advanced AI analysis.</p>
-          <div style={{display:'flex', flexDirection:'column', gap:'10px', marginBottom:'34px'}}>
-            {/* Row 1 — New Quotation */}
-            <button className="btn-new" style={{marginBottom:0, width:'fit-content'}} onClick={onNew}>
-              <span className="btn-text-glow">Request a New Quotation</span> <span className="arr" style={{WebkitTextFillColor:'rgba(255,255,255,0.85)'}}>→</span>
+          <div style={{
+            display:'inline-flex', flexDirection:'row', alignItems:'stretch',
+            background:'linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%)',
+            backgroundSize:'220% 220%',
+            animation:'auroraShift 5s ease-in-out infinite',
+            border:'1px solid rgba(255,255,255,0.22)',
+            borderRadius:'100px',
+            boxShadow:'0 8px 36px rgba(109,40,217,0.5), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+            overflow:'hidden', marginBottom:'34px', position:'relative',
+          }}>
+            {/* shine overlay */}
+            <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.03) 55%,transparent 100%)',pointerEvents:'none',borderRadius:'100px'}}/>
+            <button onClick={onNew} style={{flex:2,background:'transparent',border:'none',padding:'10px 0',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',transition:'background 0.2s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <span className="btn-text-glow">Request a New Quotation</span>
             </button>
-            {/* Row 2 — Revised + Final Price */}
-            <div style={{display:'flex', flexDirection:'row', gap:'10px', flexWrap:'wrap'}}>
-              <button className="btn-new" style={{marginBottom:0, background:'linear-gradient(105deg,#0f4c75 0%,#1b6ca8 25%,#1e90ff 50%,#00c6ff 75%,#0072ff 100%)', backgroundSize:'220% 220%'}} onClick={onRevised}>
-                <span className="btn-text-glow">Revised Request</span> <span className="arr" style={{WebkitTextFillColor:'rgba(255,255,255,0.85)'}}>→</span>
-              </button>
-              <button className="btn-new" style={{marginBottom:0, background:'linear-gradient(105deg,#064e3b 0%,#065f46 20%,#047857 38%,#10b981 54%,#34d399 70%,#6ee7b7 85%,#a7f3d0 100%)', backgroundSize:'220% 220%'}} onClick={onFinalPrice}>
-                <span className="btn-text-glow">Final Price Request</span> <span className="arr" style={{WebkitTextFillColor:'rgba(255,255,255,0.85)'}}>→</span>
-              </button>
-            </div>
+            <div style={{width:'2.5px',background:'#000',alignSelf:'stretch',flexShrink:0}}/>
+            <button onClick={onRevised} style={{flex:1.5,background:'transparent',border:'none',padding:'10px 0',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',transition:'background 0.2s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <span className="btn-text-glow">Revised Request</span>
+            </button>
+            <div style={{width:'2.5px',background:'#000',alignSelf:'stretch',flexShrink:0}}/>
+            <button onClick={onFinalPrice} style={{flex:2,background:'transparent',border:'none',padding:'10px 0',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',transition:'background 0.2s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <span className="btn-text-glow">Final Price Request</span>
+            </button>
           </div>
           <p className="s-lbl">Search for Requested Quote</p>
           <div className="s-bar">
