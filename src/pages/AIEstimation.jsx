@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, Mail, X, FileText } from 'lucide-react';
+import Estimator from './Estimator';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const S = `
@@ -635,6 +636,157 @@ const FolderVisual = () => (
   </svg>
 );
 
+// ─── AI CHAT PANEL ────────────────────────────────────────────────────────────
+const AIChatPanel = ({ onClose }) => {
+  const F = "'Inter',sans-serif";
+  const apiKey = 'AIzaSyDTys_PKAvil7bGqkHlkFIczsUBD4xa_Yc';
+  const [messages, setMessages] = useState([
+    { role:'assistant', text:'Hello! I\'m your APEX AI assistant. How can I help you today?' }
+  ]);
+  const [input,   setInput]   = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef();
+  const inputRef  = useRef();
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages, loading]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput('');
+    setMessages(prev => [...prev, { role:'user', text }]);
+    setLoading(true);
+    try {
+      const history = messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.text }]
+      }));
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts:[{ text:'You are APEX AI, a smart assistant for NAFFCO\'s estimation and project management system. Be concise, professional, and helpful.' }] },
+            contents: [...history, { role:'user', parts:[{ text }] }]
+          })
+        }
+      );
+      const data = await res.json();
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, no response received.';
+      setMessages(prev => [...prev, { role:'assistant', text: reply }]);
+    } catch {
+      setMessages(prev => [...prev, { role:'assistant', text:'Connection error. Check your API key and try again.' }]);
+    }
+    setLoading(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  return (
+    /* ── Glass overlay — frosted backdrop ── */
+    <div
+      onClick={onClose}
+      style={{
+        position:'fixed', inset:0, zIndex:8000,
+        background:'rgba(5,3,20,0.55)',
+        backdropFilter:'blur(18px) saturate(160%)',
+        WebkitBackdropFilter:'blur(18px) saturate(160%)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        animation:'fadeUp 0.22s ease both',
+        fontFamily:F,
+      }}
+    >
+      {/* ── Glass card — stop click propagation so inner clicks don't close ── */}
+      <div
+        onClick={e=>e.stopPropagation()}
+        style={{
+          width:'min(680px,92vw)', height:'min(620px,86vh)',
+          display:'flex', flexDirection:'column',
+          background:'rgba(255,255,255,0.08)',
+          backdropFilter:'blur(24px) saturate(180%)',
+          WebkitBackdropFilter:'blur(24px) saturate(180%)',
+          borderRadius:24,
+          border:'1px solid rgba(255,255,255,0.18)',
+          boxShadow:'0 8px 48px rgba(31,38,135,0.45), 0 2px 0 rgba(255,255,255,0.10) inset',
+          overflow:'hidden',
+          position:'relative',
+        }}
+      >
+        {/* aurora accent line at top of card */}
+        <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,#6d28d9,#a855f7,#ec4899,#f97316,#fbbf24)',backgroundSize:'200% 100%',animation:'auroraShift 5s ease-in-out infinite',pointerEvents:'none',zIndex:1,borderRadius:'24px 24px 0 0'}}/>
+
+        {/* ── Header ── */}
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'18px 24px',borderBottom:'1px solid rgba(255,255,255,0.10)',flexShrink:0}}>
+          <div style={{width:8,height:8,borderRadius:'50%',background:'linear-gradient(135deg,#a855f7,#ec4899)',boxShadow:'0 0 10px rgba(168,85,247,0.90)',flexShrink:0}}/>
+          <span style={{fontSize:'1rem',fontWeight:700,color:'rgba(255,255,255,0.95)',letterSpacing:'0.03em'}}>APEX AI</span>
+          <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.14em',textTransform:'uppercase'}}>Intelligent Assistant</span>
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}}>
+            <span style={{fontSize:'0.62rem',color:'rgba(52,211,153,0.80)',letterSpacing:'0.08em'}}>● Connected</span>
+            <button onClick={onClose}
+              style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:8,color:'rgba(255,255,255,0.50)',fontFamily:F,fontSize:'0.82rem',width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',outline:'none',transition:'all 0.15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.16)';e.currentTarget.style.color='#fff';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.08)';e.currentTarget.style.color='rgba(255,255,255,0.50)';}}>✕</button>
+          </div>
+        </div>
+
+        {/* ── Messages area ── */}
+        <div style={{flex:1,overflowY:'auto',padding:'24px 28px',display:'flex',flexDirection:'column',gap:16}}>
+          {messages.map((m,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:m.role==='user'?'flex-end':'flex-start',alignItems:'flex-end',gap:10}}>
+              {m.role==='assistant' && (
+                <div style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#6d28d9,#ec4899)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.58rem',fontWeight:800,color:'#fff',flexShrink:0,boxShadow:'0 0 12px rgba(168,85,247,0.60)'}}>AI</div>
+              )}
+              <div style={{
+                maxWidth:'72%', padding:'11px 16px',
+                borderRadius:m.role==='user'?'18px 18px 4px 18px':'18px 18px 18px 4px',
+                background:m.role==='user'
+                  ?'linear-gradient(135deg,rgba(109,40,217,0.55),rgba(236,72,153,0.45))'
+                  :'rgba(255,255,255,0.10)',
+                border:m.role==='user'?'1px solid rgba(168,85,247,0.35)':'1px solid rgba(255,255,255,0.12)',
+                backdropFilter:'blur(8px)',
+                fontSize:'0.88rem', color:'rgba(255,255,255,0.90)', lineHeight:1.68,
+                whiteSpace:'pre-wrap', wordBreak:'break-word',
+                boxShadow:m.role==='user'?'0 4px 20px rgba(109,40,217,0.25)':'0 2px 12px rgba(0,0,0,0.20)',
+              }}>{m.text}</div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{display:'flex',alignItems:'flex-end',gap:10}}>
+              <div style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#6d28d9,#ec4899)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.58rem',fontWeight:800,color:'#fff',flexShrink:0,boxShadow:'0 0 12px rgba(168,85,247,0.60)'}}>AI</div>
+              <div style={{padding:'12px 18px',borderRadius:'18px 18px 18px 4px',background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.12)',backdropFilter:'blur(8px)',display:'flex',gap:6,alignItems:'center'}}>
+                {[0,1,2].map(d=>(
+                  <div key={d} style={{width:6,height:6,borderRadius:'50%',background:'rgba(168,85,247,0.75)',animation:`dotPulse 1.2s ease-in-out ${d*0.22}s infinite`}}/>
+                ))}
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef}/>
+        </div>
+
+        {/* ── Input bar ── */}
+        <div style={{padding:'16px 24px 20px',borderTop:'1px solid rgba(255,255,255,0.10)',flexShrink:0}}>
+          <div style={{display:'flex',gap:10,alignItems:'flex-end',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:14,padding:'10px 14px',transition:'border-color 0.2s',backdropFilter:'blur(8px)'}}
+            onFocusCapture={e=>e.currentTarget.style.borderColor='rgba(168,85,247,0.50)'}
+            onBlurCapture={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.14)'}>
+            <textarea ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}
+              placeholder='Ask anything… (Enter to send)'
+              rows={1}
+              style={{flex:1,background:'transparent',border:'none',outline:'none',resize:'none',fontFamily:F,fontSize:'0.90rem',color:'rgba(255,255,255,0.90)',lineHeight:1.55,maxHeight:130,overflowY:'auto',padding:0}}
+              onInput={e=>{e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px';}}
+            />
+            <button onClick={send} disabled={!input.trim()||loading}
+              style={{flexShrink:0,background:input.trim()&&!loading?'linear-gradient(135deg,#6d28d9,#a855f7,#ec4899)':'rgba(255,255,255,0.06)',border:'none',borderRadius:10,padding:'8px 20px',color:input.trim()&&!loading?'#fff':'rgba(255,255,255,0.22)',fontFamily:F,fontSize:'0.83rem',fontWeight:700,cursor:input.trim()&&!loading?'pointer':'not-allowed',outline:'none',transition:'all 0.2s',boxShadow:input.trim()&&!loading?'0 4px 16px rgba(168,85,247,0.50)':'none',letterSpacing:'0.04em'}}>
+              Send ↑
+            </button>
+          </div>
+          <div style={{fontSize:'0.54rem',color:'rgba(255,255,255,0.16)',marginTop:7,textAlign:'center',letterSpacing:'0.10em'}}>APEX AI · NAFFCO Intelligent Assistant</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
 const NavBar = ({ view, setView, onHome, onNavigate }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
@@ -660,6 +812,7 @@ const NavBar = ({ view, setView, onHome, onNavigate }) => {
           Analyse
         </button>
       </div>
+
 
       {/* Cross-app navigation */}
       {onNavigate && (
@@ -694,35 +847,20 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo}) => {
           <p className="brand">NAFFCO · AI SYSTEM</p>
           <h1 className="page-title">AI APEX<br/>ESTIMATION</h1>
           <p className="page-sub">Intelligent quotation generation powered<br/>by advanced AI analysis.</p>
-          <div style={{
-            display:'inline-flex', flexDirection:'row', alignItems:'stretch',
-            background:'linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%)',
-            backgroundSize:'220% 220%',
-            animation:'auroraShift 5s ease-in-out infinite',
-            border:'1px solid rgba(255,255,255,0.22)',
-            borderRadius:'100px',
-            boxShadow:'0 8px 36px rgba(109,40,217,0.5), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
-            overflow:'hidden', marginBottom:'34px', position:'relative',
-          }}>
-            {/* shine overlay */}
-            <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.03) 55%,transparent 100%)',pointerEvents:'none',borderRadius:'100px'}}/>
-            <button onClick={onNew} style={{flex:2,background:'transparent',border:'none',padding:'10px 0',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',transition:'background 0.2s'}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
-              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-              <span className="btn-text-glow">Request a New Quotation</span>
-            </button>
-            <div style={{width:'2.5px',background:'#000',alignSelf:'stretch',flexShrink:0}}/>
-            <button onClick={onRevised} style={{flex:1.5,background:'transparent',border:'none',padding:'10px 0',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',transition:'background 0.2s'}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
-              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-              <span className="btn-text-glow">Revised Request</span>
-            </button>
-            <div style={{width:'2.5px',background:'#000',alignSelf:'stretch',flexShrink:0}}/>
-            <button onClick={onFinalPrice} style={{flex:2,background:'transparent',border:'none',padding:'10px 0',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',transition:'background 0.2s'}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
-              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-              <span className="btn-text-glow">Final Price Request</span>
-            </button>
+          <div style={{display:'flex',flexDirection:'row',gap:8,marginBottom:'34px'}}>
+            {[
+              {label:'Request a New Quotation', onClick:onNew},
+              {label:'Revised Request',          onClick:onRevised},
+              {label:'Final Price Request',       onClick:onFinalPrice},
+            ].map(({label,onClick})=>(
+              <button key={label} onClick={onClick}
+                style={{flex:1,position:'relative',background:'linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%)',backgroundSize:'220% 220%',animation:'auroraShift 5s ease-in-out infinite',border:'1px solid rgba(255,255,255,0.22)',borderRadius:'100px',padding:'10px 20px',cursor:'pointer',color:'#fff',fontSize:'0.75rem',fontWeight:600,fontFamily:"'Inter',sans-serif",letterSpacing:'0.07em',whiteSpace:'nowrap',textAlign:'center',boxShadow:'0 8px 36px rgba(109,40,217,0.5), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',transition:'transform 0.15s, box-shadow 0.15s',overflow:'hidden'}}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 12px 40px rgba(109,40,217,0.65), 0 4px 14px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.20)';}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 8px 36px rgba(109,40,217,0.5), 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)';}}>
+                <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.03) 55%,transparent 100%)',borderRadius:'100px',pointerEvents:'none'}}/>
+                <span className="btn-text-glow">{label}</span>
+              </button>
+            ))}
           </div>
           <p className="s-lbl">Search for Requested Quote</p>
           <div className="s-bar">
@@ -732,15 +870,55 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo}) => {
           </div>
         </div>
       </div>
-      <div className="right-col">
-        <img src="/AIBOT.png" alt="AI Bot" style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',display:'block'}}/>
+      <div className="right-col" style={{position:'relative', background:'transparent'}}>
+        {/* ── Aurora glow — tightly behind bot body only, avoids edges/corners ── */}
+        {/* outer rainbow halo */}
+        <div style={{
+          position:'absolute',
+          top:'-10%', left:'0%', right:'0%', bottom:'-5%',
+          zIndex:0,
+          background:'conic-gradient(from 0deg at 50% 50%, #ff0000, #ff7700, #ffff00, #00ff88, #00cfff, #6d28d9, #a855f7, #ec4899, #ff0000)',
+          backgroundSize:'300% 300%',
+          animation:'auroraShift 6s ease-in-out infinite',
+          filter:'blur(55px)',
+          opacity:0.60,
+          WebkitMaskImage:'radial-gradient(ellipse 85% 90% at 50% 50%, black 5%, rgba(0,0,0,0.50) 50%, transparent 78%)',
+          maskImage:'radial-gradient(ellipse 85% 90% at 50% 50%, black 5%, rgba(0,0,0,0.50) 50%, transparent 78%)',
+        }}/>
+        {/* mid rainbow layer — offset angle */}
+        <div style={{
+          position:'absolute',
+          top:'-2%', left:'8%', right:'8%', bottom:'0%',
+          zIndex:0,
+          background:'linear-gradient(120deg,#ff0000 0%,#ff6600 12%,#ffcc00 24%,#00ff88 36%,#00bfff 48%,#3b82f6 58%,#8b5cf6 68%,#ec4899 80%,#ff3366 90%,#ff0000 100%)',
+          backgroundSize:'300% 300%',
+          animation:'auroraShift 4s ease-in-out infinite reverse',
+          filter:'blur(30px)',
+          opacity:0.70,
+          WebkitMaskImage:'radial-gradient(ellipse 72% 80% at 50% 44%, black 10%, rgba(0,0,0,0.55) 52%, transparent 78%)',
+          maskImage:'radial-gradient(ellipse 72% 80% at 50% 44%, black 10%, rgba(0,0,0,0.55) 52%, transparent 78%)',
+        }}/>
+        {/* inner bright core */}
+        <div style={{
+          position:'absolute',
+          top:'8%', left:'20%', right:'18%', bottom:'2%',
+          zIndex:0,
+          background:'linear-gradient(160deg,#ff4444 0%,#ff9900 20%,#ffee00 35%,#a855f7 55%,#ec4899 72%,#ff6600 88%,#ff0000 100%)',
+          backgroundSize:'250% 250%',
+          animation:'auroraShift 3.5s ease-in-out infinite',
+          filter:'blur(16px)',
+          opacity:0.80,
+          WebkitMaskImage:'radial-gradient(ellipse 55% 68% at 50% 42%, black 18%, rgba(0,0,0,0.45) 55%, transparent 78%)',
+          maskImage:'radial-gradient(ellipse 55% 68% at 50% 42%, black 18%, rgba(0,0,0,0.45) 55%, transparent 78%)',
+        }}/>
+        <img src="/AIBOT.png" alt="AI Bot" style={{position:'fixed',inset:0,zIndex:1,width:'100vw',height:'100vh',objectFit:'cover',objectPosition:'center top',display:'block',pointerEvents:'none'}}/>
       </div>
     </div>
   );
 };
 
 const Form = ({onSubmit, onBack}) => {
-  const [f,setF] = useState({submittedBy:'',proj:'',mainContractor:'',consultant:'',client:'',email:'',mob:'',tel:'',leadTime:'',address:'',remarks:'',supplyOnly:false,supplyInstall:false});
+  const [f,setF] = useState({submittedBy:'',proj:'',mainContractor:'',consultant:'',client:'',email:'',mob:'',tel:'',leadTime:'',address:'',remarks:'',supplyOnly:false,supplyInstall:false,customerRank:0});
   const [deal,setDeal] = useState('Job In Hand');
   const [files,setFiles] = useState([]);
   const [drag,setDrag] = useState(false);
@@ -816,6 +994,18 @@ const Form = ({onSubmit, onBack}) => {
         <input className="glass-input" placeholder="Main Contractor" value={f.mainContractor} onChange={u('mainContractor')}/>
         <input className="glass-input" placeholder="Consultant" value={f.consultant} onChange={u('consultant')}/>
         <input className="glass-input" placeholder="Client / Grantor" value={f.client} onChange={u('client')}/>
+
+        {/* Customer Ranking */}
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:9,backdropFilter:'blur(10px)'}}>
+          <span style={{fontSize:'0.65rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.32)',fontWeight:600,flexShrink:0}}>Customer Rank</span>
+          <div style={{display:'flex',gap:6}}>
+            {[1,2,3,4,5].map(n=>(
+              <button key={n} type="button" onClick={()=>setF(p=>({...p,customerRank:n}))}
+                style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'1.2rem',lineHeight:1,color:f.customerRank>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.18)',transition:'color 0.15s',filter:f.customerRank>=n?'drop-shadow(0 0 5px rgba(255,200,0,0.60))':'none'}}>★</button>
+            ))}
+          </div>
+          {f.customerRank>0 && <span style={{fontSize:'0.68rem',color:'rgba(255,200,0,0.55)',marginLeft:4}}>{['','Bronze','Silver','Gold','Platinum','Diamond'][f.customerRank]}</span>}
+        </div>
 
         {/* Email + Mob + Tel — 3 columns */}
         <div className="three-col-row">
@@ -1576,7 +1766,6 @@ const RelaxScreen = ({ onAnother, onHome }) => {
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const ESTIMATORS_LIST = ['Ahmed K.','Sara T.','Mohammed R.','Fatima K.','Ali H.','Noura Z.','Khalid M.','Omar F.','Reem A.'];
 const REQUESTERS_LIST  = ['John M.','Lara S.','Hassan A.','Diana R.','Yusuf T.','Priya N.','Carlos B.','Aisha O.','Felix W.'];
 const SLA_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
 
@@ -1747,23 +1936,32 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
                 {!req.supplyOnly && !req.supplyInstall && <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.22)'}}>—</span>}
               </div>
             </GC>
-            {/* Quotation files */}
+            {/* Quotation files — only available after director approves */}
             <GC>
               {lbl('Quotation Files')}
-              <div style={{display:'flex',gap:8,marginTop:7}}>
-                <button style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:7,background:'rgba(255,80,60,0.08)',border:'1px solid rgba(255,80,60,0.28)',color:'rgba(255,120,100,0.92)',fontFamily:F,fontSize:'0.75rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',backdropFilter:'blur(6px)'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='rgba(255,80,60,0.16)'}
-                  onMouseLeave={e=>e.currentTarget.style.background='rgba(255,80,60,0.08)'}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  PDF
-                </button>
-                <button style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:7,background:'rgba(0,180,80,0.08)',border:'1px solid rgba(0,200,100,0.28)',color:'rgba(60,220,130,0.92)',fontFamily:F,fontSize:'0.75rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',backdropFilter:'blur(6px)'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='rgba(0,180,80,0.16)'}
-                  onMouseLeave={e=>e.currentTarget.style.background='rgba(0,180,80,0.08)'}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  Excel
-                </button>
-              </div>
+              {(req.directorAction === 'approved' || req.reqStatus === 'completed') ? (
+                <div style={{display:'flex',gap:8,marginTop:7}}>
+                  <button onClick={()=>alert(`Download PDF: ${req.estimationFile||'quotation'}.pdf — integrate file hosting to serve real files.`)}
+                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:7,background:'rgba(255,80,60,0.10)',border:'1px solid rgba(255,80,60,0.32)',color:'rgba(255,120,100,0.95)',fontFamily:F,fontSize:'0.75rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'background 0.15s',backdropFilter:'blur(6px)'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(255,80,60,0.20)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(255,80,60,0.10)'}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    ↓ PDF
+                  </button>
+                  <button onClick={()=>alert(`Download Excel: ${req.estimationFile||'quotation'}.xlsx — integrate file hosting to serve real files.`)}
+                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:7,background:'rgba(0,180,80,0.10)',border:'1px solid rgba(0,200,100,0.32)',color:'rgba(60,220,130,0.95)',fontFamily:F,fontSize:'0.75rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'background 0.15s',backdropFilter:'blur(6px)'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(0,180,80,0.20)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(0,180,80,0.10)'}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    ↓ Excel
+                  </button>
+                </div>
+              ) : (
+                <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:7}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'rgba(255,180,0,0.70)',flexShrink:0}}/>
+                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>Available after Director approval</span>
+                </div>
+              )}
             </GC>
             {/* Total Amount */}
             <GC accent='rgba(0,220,130,0.06)' border='rgba(0,220,130,0.16)'>
@@ -1772,13 +1970,19 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
             </GC>
           </div>
 
-          {/* ── Attached Documents ── */}
+          {/* ── Attached Documents — downloadable for estimator/director ── */}
           {req.docs?.length > 0 && (
             <GC>
               {lbl('Attached Documents')}
-              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:7}}>
+              <div style={{display:'flex',gap:7,flexWrap:'wrap',marginTop:7}}>
                 {req.docs.map((d,i)=>(
-                  <span key={i} style={{fontSize:'0.72rem',color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.07)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:5,padding:'3px 10px'}}>{d}</span>
+                  <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                    style={{display:'flex',alignItems:'center',gap:6,fontSize:'0.72rem',color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.07)',border:'1px solid rgba(0,200,255,0.18)',borderRadius:6,padding:'4px 11px',cursor:'pointer',outline:'none',fontFamily:F,fontWeight:600,transition:'background 0.15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.15)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.07)'}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    {d}
+                  </button>
                 ))}
               </div>
             </GC>
@@ -1892,7 +2096,8 @@ const Dashboard = ({ requests, onUpdate }) => {
     );
     const F2 = "'Inter',sans-serif";
 
-    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
+    const rankLabels = ['','Bronze','Silver','Gold','Platinum','Diamond'];
+    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
       <div style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'70px 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
@@ -1927,7 +2132,20 @@ const Dashboard = ({ requests, onUpdate }) => {
             <div style={{fontSize:'1rem',fontWeight:700,color:rss.c}}>{rss.label}</div>
             {req.directorNote && <div style={{fontSize:'0.76rem',color:'rgba(255,140,100,0.85)',marginTop:3}}>{req.directorNote}</div>}
           </div>
-          <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
+          <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'center'}}>
+            {req.customerRank > 0 && (() => {
+              const rc = ['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
+              return (
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Customer Rank</div>
+                  <div style={{display:'flex',gap:2,justifyContent:'flex-end'}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <span key={n} style={{fontSize:'0.78rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.12)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <div style={{textAlign:'right'}}>
               <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Request ID</div>
               <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',fontFamily:'monospace'}}>{req.id}</div>
@@ -1938,7 +2156,7 @@ const Dashboard = ({ requests, onUpdate }) => {
             </div>}
             {req.margin && <div style={{textAlign:'right'}}>
               <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Margin</div>
-              <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(0,210,255,0.90)',fontFamily:'monospace'}}>{req.margin}%</div>
+              <div style={{fontSize:'1rem',fontWeight:800,color:'rgba(0,210,255,0.95)',fontFamily:'monospace'}}>{req.margin}%</div>
             </div>}
             {req.directorAction && <div style={{textAlign:'right'}}>
               <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Director</div>
@@ -1968,24 +2186,37 @@ const Dashboard = ({ requests, onUpdate }) => {
                   <p style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.28)',marginBottom:6,letterSpacing:'0.12em',textTransform:'uppercase'}}>
                     {req.requestType==='finalPrice' ? 'Final / Updated Documents' : req.requestType==='revised' ? 'New / Updated Documents' : 'Attached Files'}
                   </p>
-                  {req.docs.map((d,i)=>(
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0'}}>
-                      <FileText size={11} color={req.requestType==='finalPrice'?'rgba(52,211,153,0.7)':req.requestType==='revised'?'rgba(0,200,255,0.7)':'rgba(99,160,240,0.85)'}/>
-                      <span style={{fontSize:'0.74rem',color:req.requestType==='finalPrice'?'rgba(52,211,153,0.82)':req.requestType==='revised'?'rgba(0,200,255,0.82)':'rgba(99,160,240,0.85)'}}>{d}</span>
-                    </div>
-                  ))}
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    {req.docs.map((d,i)=>{
+                      const dc = req.requestType==='finalPrice'?'rgba(52,211,153,0.85)':req.requestType==='revised'?'rgba(0,200,255,0.85)':'rgba(99,160,240,0.90)';
+                      return (
+                        <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                          style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',cursor:'pointer',outline:'none',fontFamily:F2,transition:'background 0.15s',width:'100%',textAlign:'left'}}
+                          onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+                          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={dc} strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span style={{fontSize:'0.73rem',color:dc,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               {/* ── Revised / Final Price: original reference docs ── */}
               {(req.requestType==='revised'||req.requestType==='finalPrice') && req.originalDocs?.length > 0 && (
                 <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.07)'}}>
                   <p style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginBottom:6,letterSpacing:'0.12em',textTransform:'uppercase'}}>Original Documents (Reference)</p>
-                  {req.originalDocs.map((d,i)=>(
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',opacity:0.65}}>
-                      <FileText size={11} color="rgba(160,160,200,0.7)"/>
-                      <span style={{fontSize:'0.72rem',color:'rgba(160,190,230,0.75)',fontStyle:'italic'}}>{d}</span>
-                    </div>
-                  ))}
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    {req.originalDocs.map((d,i)=>(
+                      <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                        style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',cursor:'pointer',outline:'none',fontFamily:F2,transition:'background 0.15s',width:'100%',textAlign:'left',opacity:0.70}}
+                        onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}
+                        onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(160,190,230,0.65)" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span style={{fontSize:'0.72rem',color:'rgba(160,190,230,0.75)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -2122,18 +2353,32 @@ const Dashboard = ({ requests, onUpdate }) => {
                 {/* Assign Estimator */}
                 <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'16px 18px'}}>
                   <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:10}}>Assign Estimator</p>
-                  <select value={req.estimator||''} onChange={e=>{const est=e.target.value; onUpdate(open,{estimator:est||null,taggedAt:est&&!req.estimator?Date.now():req.taggedAt,reqStatus:est?'inprogress':'not-started'});}}
-                    style={{width:'100%',background:'rgba(0,10,30,0.70)',border:'1px solid rgba(99,160,240,0.30)',borderRadius:7,color:req.estimator?'rgba(99,200,255,0.9)':'rgba(255,255,255,0.4)',fontFamily:F2,fontSize:'0.88rem',padding:'10px 12px',outline:'none',cursor:'pointer'}}>
-                    <option value="">— Select Estimator —</option>
-                    {ESTIMATORS_LIST.map(n=><option key={n} value={n}>{n}</option>)}
-                  </select>
+                  <input type="text" value={req.estimator||''} onChange={e=>{const est=e.target.value; onUpdate(open,{estimator:est||null,taggedAt:est&&!req.estimator?Date.now():req.taggedAt,reqStatus:est?'inprogress':'not-started'});}}
+                    placeholder="Type estimator name…"
+                    style={{width:'100%',background:'rgba(0,10,30,0.70)',border:'1px solid rgba(99,160,240,0.30)',borderRadius:7,color:req.estimator?'rgba(99,200,255,0.9)':'rgba(255,255,255,0.4)',fontFamily:F2,fontSize:'0.88rem',padding:'10px 12px',outline:'none',boxSizing:'border-box'}}
+                    onFocus={e=>e.target.style.borderColor='rgba(99,160,240,0.60)'}
+                    onBlur={e=>e.target.style.borderColor='rgba(99,160,240,0.30)'}/>
                 </div>
 
                 {/* Upload + Margin % + Project Value in one card */}
                 <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}}>
                   <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:2}}>Quotation Details</p>
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                    <button style={{...btnStyle}}>↓ Download Request Documents</button>
+                    {/* Attached docs — each downloadable */}
+                    {req.docs?.length > 0 ? (
+                      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                        <p style={{fontSize:'0.52rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:3}}>Attached Documents</p>
+                        {req.docs.map((d,i)=>(
+                          <button key={i} onClick={()=>alert(`File "${d}" is stored by name only — integrate a file-hosting service to enable actual downloads.`)}
+                            style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <button style={{...btnStyle,opacity:0.45,cursor:'default'}}>↓ No Documents Attached</button>
+                    )}
                     <input type="file" ref={uploadRef} style={{display:'none'}} onChange={handleEstimatorUpload}/>
                     <button onClick={()=>uploadRef.current.click()}
                       disabled={req.status!=='Pending Estimation'&&req.status!=='Estimation Uploaded'&&req.reqStatus!=='inprogress'}
@@ -2190,27 +2435,44 @@ const Dashboard = ({ requests, onUpdate }) => {
             <div style={{display:'flex',flexDirection:'column',gap:10,width:'100%',flex:1,minHeight:0}}>
 
               {/* ── PROJECT BRIEF — single unified glassy card, read-only ── */}
-              <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:14,padding:'18px 22px',backdropFilter:'blur(20px) saturate(1.5)',WebkitBackdropFilter:'blur(20px) saturate(1.5)',boxShadow:'inset 0 1px 0 rgba(255,255,255,0.10), 0 8px 32px rgba(0,0,0,0.30)',flexShrink:0}}>
+              <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:14,padding:'20px 24px',backdropFilter:'blur(20px) saturate(1.5)',WebkitBackdropFilter:'blur(20px) saturate(1.5)',boxShadow:'inset 0 1px 0 rgba(255,255,255,0.10), 0 8px 32px rgba(0,0,0,0.30)',flexShrink:0}}>
 
-                {/* Title row */}
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:10}}>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <div style={{width:3,height:32,borderRadius:2,background:'linear-gradient(180deg,rgba(255,255,255,0.60),rgba(255,255,255,0.10))',flexShrink:0}}/>
+                {/* ── Customer Ranking strip — top ── */}
+                {req.customerRank > 0 && (() => {
+                  const rankLabel = ['','Bronze','Silver','Gold','Platinum','Diamond'][req.customerRank];
+                  const rankColor = ['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
+                  return (
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+                      <span style={{fontSize:'0.52rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:600,flexShrink:0}}>Customer Ranking</span>
+                      <div style={{display:'flex',gap:3}}>
+                        {[1,2,3,4,5].map(n=>(
+                          <span key={n} style={{fontSize:'1rem',color:req.customerRank>=n?rankColor:'rgba(255,255,255,0.12)',filter:req.customerRank>=n?`drop-shadow(0 0 6px ${rankColor})`:'none'}}>★</span>
+                        ))}
+                      </div>
+                      <span style={{fontSize:'0.72rem',fontWeight:700,color:rankColor,letterSpacing:'0.06em',background:`${rankColor.replace('0.95','0.10')}`,border:`1px solid ${rankColor.replace('0.95','0.35')}`,borderRadius:20,padding:'2px 10px'}}>{rankLabel}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Project name — large header ── */}
+                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:10}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <div style={{width:4,height:44,borderRadius:2,background:'linear-gradient(180deg,rgba(255,255,255,0.70),rgba(255,255,255,0.08))',flexShrink:0}}/>
                     <div>
-                      <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.32)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:2}}>Project Brief</div>
-                      <div style={{fontSize:'1.05rem',fontWeight:800,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 1px 8px rgba(255,255,255,0.20))',lineHeight:1.2}}>{req.proj||'—'}</div>
+                      <div style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Project Brief</div>
+                      <div style={{fontSize:'1.55rem',fontWeight:900,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 2px 12px rgba(255,255,255,0.22))',lineHeight:1.15,letterSpacing:'-0.01em'}}>{req.proj||'—'}</div>
                     </div>
                   </div>
                   {/* Deal type + category badges */}
-                  <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
-                    <span style={{fontSize:'0.70rem',fontWeight:700,color:'rgba(255,255,255,0.80)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:20,padding:'3px 12px'}}>{req.deal}</span>
-                    {req.supplyOnly && <span style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.70)',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:20,padding:'3px 12px'}}>Supply Only</span>}
-                    {req.supplyInstall && <span style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.75)',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:20,padding:'3px 12px'}}>Supply & Install</span>}
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center',paddingTop:4}}>
+                    <span style={{fontSize:'0.72rem',fontWeight:700,color:'rgba(255,255,255,0.82)',background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.20)',borderRadius:20,padding:'4px 13px'}}>{req.deal}</span>
+                    {req.supplyOnly && <span style={{fontSize:'0.72rem',fontWeight:600,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:20,padding:'4px 13px'}}>Supply Only</span>}
+                    {req.supplyInstall && <span style={{fontSize:'0.72rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.22)',borderRadius:20,padding:'4px 13px'}}>Supply & Install</span>}
                   </div>
                 </div>
 
-                {/* Info grid — 3 columns */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'10px 20px',marginBottom:14}}>
+                {/* ── Info grid — 3 columns with styled boxes ── */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:14}}>
                   {[
                     ['Client / Grantor',  req.client],
                     ['Main Contractor',   req.mainContractor],
@@ -2219,57 +2481,78 @@ const Dashboard = ({ requests, onUpdate }) => {
                     ['Lead Time',         req.leadTime],
                     ['Address',           req.address],
                   ].map(([k,v])=> v ? (
-                    <div key={k}>
-                      {lbl(k)}
-                      <span style={{fontSize:'0.88rem',fontWeight:600,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 1px 5px rgba(180,220,255,0.22))',display:'block',lineHeight:1.35}}>{v}</span>
+                    <div key={k} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:9,padding:'10px 13px'}}>
+                      <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>{k}</div>
+                      <div style={{fontSize:'0.95rem',fontWeight:700,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 1px 5px rgba(180,220,255,0.18))',lineHeight:1.3}}>{v}</div>
                     </div>
                   ) : null)}
                 </div>
 
-                {/* Contact inline strip */}
+                {/* ── Contact strip ── */}
                 {(req.email||req.mob||req.tel) && (
                   <div style={{display:'flex',gap:20,flexWrap:'wrap',marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                    {req.email && <div><span style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.32)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,display:'block',marginBottom:2}}>Email</span><span style={{fontSize:'0.82rem',color:'rgba(255,255,255,0.65)'}}>{req.email}</span></div>}
-                    {req.mob   && <div><span style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.32)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,display:'block',marginBottom:2}}>MOB</span><span style={{fontSize:'0.82rem',color:'rgba(255,255,255,0.65)'}}>{req.mob}</span></div>}
-                    {req.tel   && <div><span style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.32)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,display:'block',marginBottom:2}}>Tel</span><span style={{fontSize:'0.82rem',color:'rgba(255,255,255,0.65)'}}>{req.tel}</span></div>}
+                    {req.email && <div><div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Email</div><div style={{fontSize:'0.85rem',fontWeight:600,color:'rgba(255,255,255,0.70)'}}>{req.email}</div></div>}
+                    {req.mob   && <div><div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>MOB</div><div style={{fontSize:'0.85rem',fontWeight:600,color:'rgba(255,255,255,0.70)'}}>{req.mob}</div></div>}
+                    {req.tel   && <div><div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Tel</div><div style={{fontSize:'0.85rem',fontWeight:600,color:'rgba(255,255,255,0.70)'}}>{req.tel}</div></div>}
                   </div>
                 )}
 
-                {/* Estimator · Margin · SLA · Value — inline stat row */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:12,marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                  <div>
-                    {lbl('Estimator')}
-                    <span style={{fontSize:'0.88rem',fontWeight:700,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',display:'block'}}>{req.estimator||'—'}</span>
-                    {req.taggedAt && <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.20)',display:'block',marginTop:1}}>{tagDate}</span>}
+                {/* ── Estimator · Margin · SLA · Value — stat row with big numbers ── */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+                  <div style={{background:'rgba(100,160,255,0.05)',border:'1px solid rgba(100,160,255,0.14)',borderRadius:9,padding:'10px 13px'}}>
+                    <div style={{fontSize:'0.48rem',color:'rgba(100,160,255,0.50)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>Estimator</div>
+                    <div style={{fontSize:'0.96rem',fontWeight:800,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.2}}>{req.estimator||'—'}</div>
+                    {req.taggedAt && <div style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.20)',marginTop:3}}>{tagDate}</div>}
                   </div>
-                  <div>
-                    {lbl('Margin')}
-                    <span style={{fontSize:'1.05rem',fontWeight:800,fontFamily:'monospace',background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 1px 7px rgba(255,255,255,0.18))',display:'block'}}>{req.margin||'—'}{req.margin&&'%'}</span>
+                  <div style={{background:'rgba(0,200,255,0.05)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:9,padding:'10px 13px'}}>
+                    <div style={{fontSize:'0.48rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>Margin</div>
+                    <div style={{display:'flex',alignItems:'baseline',gap:3}}>
+                      <span style={{fontSize:'1.6rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 2px 8px rgba(0,200,255,0.30))',lineHeight:1}}>{req.margin||'—'}</span>
+                      {req.margin && <span style={{fontSize:'0.95rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace',fontWeight:700}}>%</span>}
+                    </div>
                   </div>
-                  <div>
-                    {lbl('SLA (2-day)')}
-                    <span style={{fontSize:'0.88rem',fontWeight:700,color:slaBarColor,fontFamily:'monospace',filter:`drop-shadow(0 1px 5px ${slaBarColor}50)`,display:'block',marginBottom:4}}>{slaHrs}h elapsed</span>
-                    <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.07)',overflow:'hidden'}}>
+                  <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:9,padding:'10px 13px'}}>
+                    <div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>SLA (2-day)</div>
+                    <div style={{fontSize:'1.1rem',fontWeight:800,color:slaBarColor,fontFamily:'monospace',filter:`drop-shadow(0 1px 6px ${slaBarColor}60)`,marginBottom:6,lineHeight:1}}>{slaHrs}h</div>
+                    <div style={{height:4,borderRadius:2,background:'rgba(255,255,255,0.07)',overflow:'hidden'}}>
                       <div style={{height:'100%',borderRadius:2,width:`${slaPct}%`,background:`linear-gradient(90deg,${slaBarColor}50,${slaBarColor})`}}/>
                     </div>
                   </div>
-                  <div>
-                    {lbl('Project Value (AED)')}
-                    <span style={{fontSize:'0.96rem',fontWeight:800,fontFamily:'monospace',background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 1px 7px rgba(255,255,255,0.15))',display:'block'}}>{req.projValue?Number(req.projValue).toLocaleString('en-AE'):'—'}</span>
+                  <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:9,padding:'10px 13px'}}>
+                    <div style={{fontSize:'0.48rem',color:'rgba(0,220,130,0.50)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>Project Value (AED)</div>
+                    <div style={{fontSize:'1.05rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,240,160,1) 0%,rgba(0,200,255,0.80) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',filter:'drop-shadow(0 1px 7px rgba(0,220,140,0.28))',lineHeight:1.2}}>{req.projValue?Number(req.projValue).toLocaleString('en-AE'):'—'}</div>
                   </div>
                 </div>
 
-                {/* Remarks */}
+                {/* ── Remarks — narrative block ── */}
                 {req.remarks && (
-                  <div style={{marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                    {lbl('Remarks')}
-                    <span style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.60)',lineHeight:1.6,display:'block'}}>{req.remarks}</span>
+                  <div style={{marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)',background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:9,padding:'12px 15px'}}>
+                    <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:7}}>Remarks</div>
+                    <div style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.65)',lineHeight:1.7,borderLeft:'2px solid rgba(255,255,255,0.12)',paddingLeft:12}}>{req.remarks}</div>
                   </div>
                 )}
 
-                {/* Quotation files */}
+                {/* ── Attached docs ── */}
+                {req.docs?.length > 0 && (
+                  <div style={{marginBottom:14,paddingBottom:12,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+                    <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:8}}>Attached Documents</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                      {req.docs.map((d,i)=>(
+                        <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                          style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:7,background:'rgba(0,200,255,0.07)',border:'1px solid rgba(0,200,255,0.20)',color:'rgba(0,200,255,0.85)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+                          onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.14)'}
+                          onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.07)'}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Quotation files ── */}
                 <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:14,paddingBottom:14,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                  <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.32)',letterSpacing:'0.13em',textTransform:'uppercase',fontWeight:700,flexShrink:0}}>Quotation Files</span>
+                  <span style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:700,flexShrink:0}}>Quotation Files</span>
                   <button style={{display:'flex',alignItems:'center',gap:6,padding:'6px 16px',borderRadius:7,background:'rgba(255,80,60,0.09)',border:'1px solid rgba(255,80,60,0.26)',color:'rgba(255,130,110,0.92)',fontFamily:F2,fontSize:'0.76rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
                     onMouseEnter={e=>e.currentTarget.style.background='rgba(255,80,60,0.18)'}
                     onMouseLeave={e=>e.currentTarget.style.background='rgba(255,80,60,0.09)'}>
@@ -2669,6 +2952,7 @@ const Analyse = ({ requests }) => {
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AIEstimation({ onBack, onNavigate }) {
   const [view,setView] = useState('landing');
+  const [aiOpen, setAiOpen] = useState(false);
   const [q,setQ] = useState('');
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
@@ -2858,6 +3142,37 @@ const handleSubmit = async (formData) => {
         <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
       </div>
       <NavBar view={view} setView={setView} onHome={onBack} onNavigate={onNavigate}/>
+
+      {/* ── Floating AI button — left edge, vertically centred ── */}
+      <button onClick={()=>setAiOpen(o=>!o)}
+        style={{
+          position:'fixed', left:0, top:'50%', transform:'translateY(-50%)',
+          zIndex:9500,
+          writingMode:'vertical-rl', textOrientation:'mixed',
+          background: aiOpen
+            ? 'linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)'
+            : 'rgba(10,6,30,0.85)',
+          backgroundSize:'100% 200%',
+          animation: aiOpen ? 'auroraShift 4s ease-in-out infinite' : 'none',
+          border:'1px solid rgba(168,85,247,0.45)',
+          borderLeft:'none',
+          borderRadius:'0 10px 10px 0',
+          padding:'18px 8px',
+          color: aiOpen ? '#fff' : 'rgba(200,160,255,0.85)',
+          fontFamily:"'Inter',sans-serif",
+          fontSize:'0.78rem', fontWeight:700, letterSpacing:'0.12em',
+          cursor:'pointer', outline:'none',
+          boxShadow: aiOpen
+            ? '4px 0 24px rgba(168,85,247,0.55)'
+            : '4px 0 12px rgba(168,85,247,0.20)',
+          backdropFilter:'blur(12px)',
+          transition:'all 0.2s',
+        }}
+        onMouseEnter={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(109,40,217,0.35)';e.currentTarget.style.color='#fff';}}}
+        onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';}}}
+      >✦ AI</button>
+
+      {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
       {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')}/>}
