@@ -264,11 +264,11 @@ const S = `
   /* AIBOT2 — left panel */
   .form-left {
     position: absolute; left: 0; top: 0; bottom: 0;
-    width: 30%;
+    width: 35%;
     background: url('/AIBOT2.png') left center / cover no-repeat;
     display: flex; flex-direction: column;
     justify-content: flex-start;
-    padding: 78px 28px 40px 28px;
+    padding: 78px 28px 36px 28px;
     overflow: hidden;
   }
   .form-left::before {
@@ -312,17 +312,18 @@ const S = `
   .upload-glass .u-text { font-size: 0.9rem; color: rgba(255,255,255,0.4); line-height: 1.6; }
   .upload-glass .u-text b { color: rgba(255,255,255,0.75); font-weight: 600; }
   .form-right {
-    position: absolute; left: 30%; right: 0; top: 58px; bottom: 0;
+    position: absolute; left: 35%; right: 0; top: 58px; bottom: 0;
     display: flex; flex-direction: column; gap: 7px;
     overflow: hidden;
-    padding: 18px 48px 16px 40px;
+    padding: 14px 44px 14px 36px;
   }
   .form-right::-webkit-scrollbar { display: none; }
   .form-right-hdr {
     display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 6px; padding-bottom: 12px;
+    margin-bottom: 4px; padding-bottom: 8px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
     gap: 12px;
+    flex-shrink: 0;
   }
   .form-right-hdr-text { display: flex; flex-direction: column; gap: 3px; }
   .form-right-hdr .fr-label {
@@ -352,10 +353,10 @@ const S = `
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 8px;
-    padding: 9px 14px;
-    color: rgba(255,255,255,0.8);
+    padding: 12px 16px;
+    color: rgba(255,255,255,0.85);
     font-family: 'Inter', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.93rem;
     outline: none;
     transition: border-color 0.2s, background 0.2s;
     backdrop-filter: blur(6px);
@@ -363,14 +364,14 @@ const S = `
   .glass-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.09); }
   .glass-input::placeholder { color: rgba(255,255,255,0.28); }
   .glass-textarea {
-    width: 100%; min-height: 60px; resize: none;
+    width: 100%; min-height: 52px; resize: none;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 8px;
-    padding: 9px 14px;
-    color: rgba(255,255,255,0.8);
+    padding: 12px 16px;
+    color: rgba(255,255,255,0.85);
     font-family: 'Inter', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.93rem;
     outline: none;
     transition: border-color 0.2s;
   }
@@ -391,14 +392,14 @@ const S = `
   .date-inner {
     flex: 1; background: transparent; border: none; outline: none;
     color: rgba(255,255,255,0.75); font-family: 'Inter', sans-serif;
-    font-size: 0.85rem; padding: 9px 0; min-width: 0;
+    font-size: 0.92rem; padding: 11px 0; min-width: 0;
   }
-  .remarks-box { flex: 1; min-height: 55px; resize: none; }
+  .remarks-box { flex: 1; min-height: 52px; resize: none; }
   .submit-glass { flex-shrink: 0; }
   .check-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 2px 0; }
   .glass-check {
     display: flex; align-items: center; gap: 10px; cursor: pointer;
-    font-family: 'Inter', sans-serif; font-size: 0.84rem; color: rgba(255,255,255,0.65);
+    font-family: 'Inter', sans-serif; font-size: 0.92rem; color: rgba(255,255,255,0.65);
     user-select: none;
   }
   .glass-check input[type="checkbox"] { display: none; }
@@ -479,9 +480,9 @@ const S = `
   .glow-toggle button {
     flex: 1; position: relative; z-index: 1;
     background: transparent; border: none;
-    padding: 8px 16px;
+    padding: 11px 16px;
     color: rgba(255,255,255,0.4);
-    font-family: 'Inter', sans-serif; font-size: 0.82rem;
+    font-family: 'Inter', sans-serif; font-size: 0.90rem;
     cursor: pointer; transition: color 0.25s;
     white-space: nowrap; font-weight: 500;
   }
@@ -550,7 +551,7 @@ const S = `
   @keyframes glassSheen { 0%{left:-80%} 100%{left:160%} }
   .submit-glass {
     position: relative; overflow: hidden;
-    width: 100%; padding: 13px 36px;
+    width: 100%; padding: 11px 36px;
     border-radius: 100px;
     background: linear-gradient(105deg,
       #1e1b6e 0%, #3730a3 18%, #6d28d9 36%,
@@ -585,6 +586,8 @@ const S = `
   .submit-glass:hover { transform: translateY(-3px); box-shadow: 0 14px 50px rgba(109,40,217,0.7), 0 4px 14px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2); }
   .submit-glass:active { transform: translateY(-1px); }
   @keyframes goldText { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes auroraFadeIn { from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
+  @keyframes introBotUp { from{opacity:0;transform:translateY(28px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
   .btn-text-glow {
     color: rgba(255,255,255,0.95);
     font-weight: 700;
@@ -791,7 +794,7 @@ const AIChatPanel = ({ onClose }) => {
 };
 
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, onHome, onNavigate }) => {
+const NavBar = ({ view, setView, onHome, onNavigate, onBack }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
@@ -836,7 +839,7 @@ const NavBar = ({ view, setView, onHome, onNavigate }) => {
         </div>
       )}
 
-      <button className="nav-back" onClick={onHome} style={{marginLeft:'auto'}}>← Back</button>
+      <button className="nav-back" onClick={onBack || onHome} style={{marginLeft:'auto'}}>← Back</button>
     </div>
   );
 };
@@ -932,19 +935,19 @@ const Form = ({onSubmit, onBack}) => {
   return (
     <div className="form-page">
 
-      {/* ── LEFT — AIBOT2 extreme left panel ── */}
+      {/* ── LEFT — AIBOT2 image panel ── */}
       <div className="form-left">
         <button onClick={onBack}
-          style={{alignSelf:'flex-start',background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.22)',cursor:'pointer',color:'rgba(255,255,255,0.88)',fontFamily:"'Inter',sans-serif",fontSize:'0.78rem',padding:'6px 14px',borderRadius:50,display:'flex',alignItems:'center',gap:6,marginBottom:20,backdropFilter:'blur(8px)',transition:'all 0.2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.18)';e.currentTarget.style.color='#fff';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.10)';e.currentTarget.style.color='rgba(255,255,255,0.88)';}}>
+          style={{alignSelf:'flex-start',background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.22)',cursor:'pointer',color:'rgba(255,255,255,0.85)',fontFamily:"'Inter',sans-serif",fontSize:'0.78rem',padding:'6px 14px',borderRadius:50,display:'flex',alignItems:'center',gap:6,marginBottom:18,backdropFilter:'blur(8px)',transition:'all 0.2s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.20)';e.currentTarget.style.color='#fff';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.10)';e.currentTarget.style.color='rgba(255,255,255,0.85)';}}>
           ← Back
         </button>
         <h2>Let's<br/>Quote a Best Offer</h2>
         <p className="sub">Upload your documents below</p>
 
         {/* Upload zone — fills remaining height */}
-        <div style={{marginTop:16,flex:1,display:'flex',flexDirection:'column'}}>
+        <div style={{marginTop:14,flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
           <div
             className={`upload-glass${drag?' drag':''}`}
             onClick={()=>ref.current.click()}
@@ -956,22 +959,22 @@ const Form = ({onSubmit, onBack}) => {
               onChange={e=>{if(e.target.files?.length)setFiles(p=>[...p,...Array.from(e.target.files)]);}}/>
             {files.length===0 ? (
               <>
-                <FileText size={34} className="u-icon" color="rgba(255,255,255,0.3)"/>
-                <p className="u-text">Drag & drop files, or <b>click to browse</b></p>
+                <FileText size={46} className="u-icon" color="rgba(255,255,255,0.35)"/>
+                <p className="u-text" style={{marginTop:8}}>Drag & drop files, or <b>click to browse</b></p>
               </>
             ) : (
-              <div style={{width:'100%',display:'flex',flexDirection:'column',gap:7}} onClick={e=>e.stopPropagation()}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                  <span style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.7)',fontWeight:600}}>{files.length} FILE{files.length>1?'S':''} ATTACHED</span>
-                  <span onClick={e=>{e.stopPropagation();ref.current.click();}} style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>+ Add More</span>
+              <div style={{width:'100%',display:'flex',flexDirection:'column',gap:6}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                  <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.7)',fontWeight:600}}>{files.length} FILE{files.length>1?'S':''}</span>
+                  <span onClick={e=>{e.stopPropagation();ref.current.click();}} style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>+ Add More</span>
                 </div>
                 {files.map((file,i)=>(
                   <div key={i} className="file-chip-g">
-                    <FileText size={13} color="rgba(255,255,255,0.5)"/>
-                    <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</span>
+                    <FileText size={12} color="rgba(255,255,255,0.5)"/>
+                    <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:'0.72rem'}}>{file.name}</span>
                     <button onClick={e=>{e.stopPropagation();setFiles(p=>p.filter((_,j)=>j!==i));}}
                       style={{background:'transparent',border:'none',cursor:'pointer',padding:2,display:'flex'}}>
-                      <X size={12} color="rgba(255,80,80,0.8)"/>
+                      <X size={11} color="rgba(255,80,80,0.8)"/>
                     </button>
                   </div>
                 ))}
@@ -981,47 +984,46 @@ const Form = ({onSubmit, onBack}) => {
         </div>
       </div>
 
-      {/* ── RIGHT — form fields, inputs start from row 4 ── */}
-      <div className="form-right">
+      {/* ── RIGHT — form fields ── */}
+      <div className="form-right" style={{gap:5}}>
 
-        {/* Header block with customer rank top-right */}
-        <div className="form-right-hdr">
+        {/* Header — NAFFCO label + title + Customer Rank top-right */}
+        <div className="form-right-hdr" style={{marginBottom:4,paddingBottom:10,flexShrink:0}}>
           <div className="form-right-hdr-text">
-            <span className="fr-label"><span className="brand-text-glow">NAFFCO APEX · AI Estimation</span></span>
+            <span className="fr-label"><span className="brand-text-glow">NAFFCO · AI ESTIMATION</span></span>
             <h3>Request Information</h3>
-            <p>Fill in the details below — our AI will analyze and generate the best quotation.</p>
+            <p>Fill in the details below — our AI will analyze and generate the best quotation for your project.</p>
           </div>
-          {/* Customer Rank — compact stars, top right */}
-          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0}}>
-            <span style={{fontSize:'0.52rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',fontWeight:600}}>Customer Rank</span>
-            <div style={{display:'flex',gap:3}}>
+          {/* Customer Rank stars — top right */}
+          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
+            <span style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:600}}>Customer Rank</span>
+            <div style={{display:'flex',gap:4}}>
               {[1,2,3,4,5].map(n=>(
                 <button key={n} type="button" onClick={()=>setF(p=>({...p,customerRank:n}))}
-                  style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'0.9rem',lineHeight:1,color:f.customerRank>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.18)',transition:'color 0.15s',filter:f.customerRank>=n?'drop-shadow(0 0 4px rgba(255,200,0,0.55))':'none'}}>★</button>
+                  style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'1rem',lineHeight:1,
+                    color:f.customerRank>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.15)',
+                    transition:'color 0.15s',
+                    filter:f.customerRank>=n?'drop-shadow(0 0 4px rgba(255,200,0,0.55))':'none'}}>★</button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Form inputs — compacted into 2-column rows */}
-        <div className="two-col-row">
-          <input className="glass-input" placeholder="Requestor Name" value={f.submittedBy} onChange={u('submittedBy')}/>
-          <input className="glass-input" placeholder="Project" value={f.proj} onChange={u('proj')}/>
-        </div>
-        <div className="two-col-row">
-          <input className="glass-input" placeholder="Main Contractor" value={f.mainContractor} onChange={u('mainContractor')}/>
-          <input className="glass-input" placeholder="Consultant" value={f.consultant} onChange={u('consultant')}/>
-        </div>
+        {/* ── Single-column fields ── */}
+        <input className="glass-input" placeholder="Requestor Name" value={f.submittedBy} onChange={u('submittedBy')}/>
+        <input className="glass-input" placeholder="Project" value={f.proj} onChange={u('proj')}/>
+        <input className="glass-input" placeholder="Main Contractor" value={f.mainContractor} onChange={u('mainContractor')}/>
+        <input className="glass-input" placeholder="Consultant" value={f.consultant} onChange={u('consultant')}/>
         <input className="glass-input" placeholder="Client / Grantor" value={f.client} onChange={u('client')}/>
 
-        {/* Email + Mob + Tel — 3 columns */}
+        {/* Email + MOB + Tel — 3 columns */}
         <div className="three-col-row">
           <input className="glass-input" placeholder="Email ID" type="email" value={f.email} onChange={u('email')}/>
           <input className="glass-input" placeholder="MOB" value={f.mob} onChange={u('mob')}/>
           <input className="glass-input" placeholder="Tel" value={f.tel} onChange={u('tel')}/>
         </div>
 
-        {/* Type + Deliver Lead Time + Supply — same row */}
+        {/* Type + Lead Time + Supply checkboxes */}
         <div className="type-lead-row">
           <div className="type-row">
             <span className="type-lbl">Type :</span>
@@ -1052,7 +1054,7 @@ const Form = ({onSubmit, onBack}) => {
         <input className="glass-input" placeholder="Address" value={f.address} onChange={u('address')}/>
         <textarea className="glass-textarea remarks-box" placeholder="Remarks" value={f.remarks} onChange={u('remarks')}/>
 
-        <button className="submit-glass" onClick={()=>onSubmit({...f,deal,docs:files.map(x=>x.name)})}>
+        <button className="submit-glass" style={{flexShrink:0}} onClick={()=>onSubmit({...f,deal,docs:files.map(x=>x.name)})}>
           <span className="btn-text-glow">Submit Request &nbsp;↗</span>
         </button>
       </div>
@@ -1176,8 +1178,8 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
         <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:0,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'12px 14px'}}>
           {infoRows.map(([k,v])=>(
             <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'6px 0',gap:8}}>
-              <span style={{fontSize:'0.69rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
-              <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.70)',textAlign:'right'}}>{v}</span>
+              <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.60)',flexShrink:0,fontWeight:500}}>{k}</span>
+              <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.88)',textAlign:'right'}}>{v}</span>
             </div>
           ))}
           {original.remarks && (
@@ -1422,8 +1424,8 @@ const FinalPriceForm = ({original, onSubmit, onBack}) => {
         <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:0,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'12px 14px'}}>
           {infoRows.map(([k,v])=>(
             <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'6px 0',gap:8}}>
-              <span style={{fontSize:'0.69rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
-              <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.70)',textAlign:'right'}}>{v}</span>
+              <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.60)',flexShrink:0,fontWeight:500}}>{k}</span>
+              <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.88)',textAlign:'right'}}>{v}</span>
             </div>
           ))}
           {original.remarks && (
@@ -3271,11 +3273,65 @@ function ToolOverlay({ onClose }) {
   );
 }
 
+// ─── INTRO SPLASH ─────────────────────────────────────────────────────────────
+const IntroSplash = ({ onDone }) => {
+  const [phase, setPhase] = useState(0); // 0=bot-only, 1=bot+aurora, 2=fade-out
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 700);
+    const t2 = setTimeout(() => setPhase(2), 2200);
+    const t3 = setTimeout(onDone, 2900);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex:9999,
+      background:'#000108',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      opacity: phase === 2 ? 0 : 1,
+      transition:'opacity 0.75s ease',
+      pointerEvents: phase === 2 ? 'none' : 'auto',
+    }}>
+      {/* Aurora rings — appear after bot */}
+      {phase >= 1 && (
+        <>
+          <div style={{
+            position:'absolute', width:'58vw', height:'58vw', borderRadius:'50%',
+            background:'conic-gradient(from 0deg at 50% 50%, #ff0000, #ff7700, #ffff00, #00ff88, #00cfff, #6d28d9, #a855f7, #ec4899, #ff0000)',
+            backgroundSize:'300% 300%', animation:'auroraFadeIn 0.9s ease forwards, auroraShift 4s ease-in-out 0.9s infinite',
+            filter:'blur(64px)', opacity:0,
+          }}/>
+          <div style={{
+            position:'absolute', width:'38vw', height:'38vw', borderRadius:'50%',
+            background:'linear-gradient(120deg,#ff0000,#ff6600,#ffcc00,#00ff88,#00bfff,#8b5cf6,#ec4899)',
+            backgroundSize:'300% 300%', animation:'auroraFadeIn 0.9s 0.2s ease forwards, auroraShift 3.5s ease-in-out 1.1s infinite reverse',
+            filter:'blur(38px)', opacity:0,
+          }}/>
+        </>
+      )}
+      {/* AIBOT image */}
+      <img src="/AIBOT.png" alt="AI Bot" style={{
+        height:'68vh', width:'auto', objectFit:'contain',
+        position:'relative', zIndex:1,
+        animation:'introBotUp 0.6s cubic-bezier(0.22,1,0.36,1) both',
+      }}/>
+    </div>
+  );
+};
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AIEstimation({ onBack, onNavigate }) {
+  const [intro,setIntro] = useState(true);
   const [view,setView] = useState('landing');
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
+
+  // Smart back — NavBar ← Back navigates to previous logical screen
+  const handleNavBack = () => {
+    if (view === 'revisedForm')       setView('revisedSearch');
+    else if (view === 'finalPriceForm') setView('finalPriceSearch');
+    else if (view === 'landing')      onBack();
+    else setView('landing');
+  };
   const [q,setQ] = useState('');
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
@@ -3460,59 +3516,64 @@ const handleSubmit = async (formData) => {
     <div className="root">
       <style>{S}</style>
       <div className="veil"/>
+
+      {/* ── Intro splash — AIBOT then aurora, fades into landing ── */}
+      {intro && <IntroSplash onDone={() => setIntro(false)}/>}
+
       {/* NN logo — faint watermark across all screens */}
       <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
       </div>
-      <NavBar view={view} setView={setView} onHome={onBack} onNavigate={onNavigate}/>
+      <NavBar view={view} setView={setView} onHome={onBack} onNavigate={onNavigate} onBack={handleNavBack}/>
 
-      {/* ── Floating AI Tool button — bottom-right ── */}
-      <button onClick={()=>setAiOpen(o=>!o)}
-        style={{
-          position:'fixed', bottom:28, right:28, zIndex:9500,
-          display:'inline-flex', alignItems:'center', gap:8,
-          background: aiOpen ? 'linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)' : 'rgba(10,6,30,0.82)',
-          backgroundSize:'200% 200%',
-          animation: aiOpen ? 'auroraShift 4s ease-in-out infinite' : 'none',
-          border:'1px solid rgba(168,85,247,0.50)', borderRadius:'100px',
-          padding:'12px 22px', color:'#fff',
-          fontFamily:"'Inter',sans-serif", fontSize:'0.82rem', fontWeight:700, letterSpacing:'0.10em',
-          cursor:'pointer', outline:'none',
-          boxShadow: aiOpen ? '0 6px 32px rgba(168,85,247,0.60)' : '0 4px 18px rgba(168,85,247,0.28)',
-          backdropFilter:'blur(16px)', transition:'all 0.22s',
-        }}
-        onMouseEnter={e=>{if(!aiOpen){e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.boxShadow='0 6px 32px rgba(168,85,247,0.55)';}}}
-        onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.boxShadow='0 4px 18px rgba(168,85,247,0.28)';}}}
-      >✦ AI Bot</button>
+      {/* ── Floating buttons — landing page only ── */}
+      {view === 'landing' && (
+        <>
+          <button onClick={()=>setAiOpen(o=>!o)}
+            style={{
+              position:'fixed', bottom:28, right:28, zIndex:9500,
+              display:'inline-flex', alignItems:'center', gap:8,
+              background: aiOpen ? 'linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)' : 'rgba(10,6,30,0.82)',
+              backgroundSize:'200% 200%',
+              animation: aiOpen ? 'auroraShift 4s ease-in-out infinite' : 'none',
+              border:'1px solid rgba(168,85,247,0.50)', borderRadius:'100px',
+              padding:'12px 22px', color:'#fff',
+              fontFamily:"'Inter',sans-serif", fontSize:'0.82rem', fontWeight:700, letterSpacing:'0.10em',
+              cursor:'pointer', outline:'none',
+              boxShadow: aiOpen ? '0 6px 32px rgba(168,85,247,0.60)' : '0 4px 18px rgba(168,85,247,0.28)',
+              backdropFilter:'blur(16px)', transition:'all 0.22s',
+            }}
+            onMouseEnter={e=>{if(!aiOpen){e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.boxShadow='0 6px 32px rgba(168,85,247,0.55)';}}}
+            onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.boxShadow='0 4px 18px rgba(168,85,247,0.28)';}}}
+          >✦ AI Bot</button>
 
-      {/* ── Floating Tool 2 button — left edge, vertically centred ── */}
-      <button onClick={()=>setToolOpen(o=>!o)}
-        style={{
-          position:'fixed', left:0, top:'50%', transform:'translateY(-50%)',
-          zIndex:9500,
-          writingMode:'vertical-rl', textOrientation:'mixed',
-          background: toolOpen ? 'linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)' : 'rgba(10,6,30,0.85)',
-          backgroundSize:'100% 200%',
-          animation: toolOpen ? 'auroraShift 4s ease-in-out infinite' : 'none',
-          border:'1px solid rgba(168,85,247,0.45)', borderLeft:'none',
-          borderRadius:'0 10px 10px 0',
-          padding:'18px 8px',
-          color: toolOpen ? '#fff' : 'rgba(200,160,255,0.85)',
-          fontFamily:"'Inter',sans-serif", fontSize:'0.78rem', fontWeight:700, letterSpacing:'0.12em',
-          cursor:'pointer', outline:'none',
-          boxShadow: toolOpen ? '4px 0 24px rgba(168,85,247,0.55)' : '4px 0 12px rgba(168,85,247,0.20)',
-          backdropFilter:'blur(12px)', transition:'all 0.2s',
-        }}
-        onMouseEnter={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(109,40,217,0.35)';e.currentTarget.style.color='#fff';}}}
-        onMouseLeave={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';}}}
-      >✦ AI Tool</button>
+          <button onClick={()=>setToolOpen(o=>!o)}
+            style={{
+              position:'fixed', left:0, top:'50%', transform:'translateY(-50%)',
+              zIndex:9500,
+              writingMode:'vertical-rl', textOrientation:'mixed',
+              background: toolOpen ? 'linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)' : 'rgba(10,6,30,0.85)',
+              backgroundSize:'100% 200%',
+              animation: toolOpen ? 'auroraShift 4s ease-in-out infinite' : 'none',
+              border:'1px solid rgba(168,85,247,0.45)', borderLeft:'none',
+              borderRadius:'0 10px 10px 0',
+              padding:'18px 8px',
+              color: toolOpen ? '#fff' : 'rgba(200,160,255,0.85)',
+              fontFamily:"'Inter',sans-serif", fontSize:'0.78rem', fontWeight:700, letterSpacing:'0.12em',
+              cursor:'pointer', outline:'none',
+              boxShadow: toolOpen ? '4px 0 24px rgba(168,85,247,0.55)' : '4px 0 12px rgba(168,85,247,0.20)',
+              backdropFilter:'blur(12px)', transition:'all 0.2s',
+            }}
+            onMouseEnter={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(109,40,217,0.35)';e.currentTarget.style.color='#fff';}}}
+            onMouseLeave={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';}}}
+          >✦ AI Tool</button>
 
-      {/* ── Full-screen iframe overlay ── */}
-      {toolOpen && <ToolOverlay onClose={()=>setToolOpen(false)}/>}
+          {toolOpen && <ToolOverlay onClose={()=>setToolOpen(false)}/>}
+          {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
+        </>
+      )}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
-
-      {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
       {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')}/>}
