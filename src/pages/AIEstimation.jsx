@@ -264,7 +264,7 @@ const S = `
   /* AIBOT2 — left panel */
   .form-left {
     position: absolute; left: 0; top: 0; bottom: 0;
-    width: 35%;
+    width: 40%;
     background: url('/AIBOT2.png') left center / cover no-repeat;
     display: flex; flex-direction: column;
     justify-content: flex-start;
@@ -297,9 +297,9 @@ const S = `
     backdrop-filter: blur(8px);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 16px; cursor: pointer;
+    gap: 20px; cursor: pointer;
     transition: all 0.25s;
-    padding: 40px 24px;
+    padding: 64px 32px;
     text-align: center;
     flex: 1;
     min-height: 0;
@@ -312,10 +312,10 @@ const S = `
   .upload-glass .u-text { font-size: 0.9rem; color: rgba(255,255,255,0.4); line-height: 1.6; }
   .upload-glass .u-text b { color: rgba(255,255,255,0.75); font-weight: 600; }
   .form-right {
-    position: absolute; left: 35%; right: 0; top: 58px; bottom: 0;
+    position: absolute; left: 40%; right: 0; top: 58px; bottom: 0;
     display: flex; flex-direction: column; gap: 7px;
     overflow: hidden;
-    padding: 14px 44px 14px 36px;
+    padding: 60px 44px 14px 36px;
   }
   .form-right::-webkit-scrollbar { display: none; }
   .form-right-hdr {
@@ -341,7 +341,7 @@ const S = `
     filter: drop-shadow(0 1px 6px rgba(160,200,255,0.35));
   }
   .form-right-hdr h3 {
-    font-size: clamp(1rem, 1.6vw, 1.3rem); font-weight: 700;
+    font-size: clamp(1.3rem, 2.2vw, 1.8rem); font-weight: 700;
     color: rgba(255,255,255,0.88); letter-spacing: 0.03em; margin: 0;
   }
   .form-right-hdr p {
@@ -352,11 +352,11 @@ const S = `
     width: 100%;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    padding: 12px 16px;
-    color: rgba(255,255,255,0.85);
+    border-radius: 10px;
+    padding: 15px 20px;
+    color: rgba(255,255,255,0.90);
     font-family: 'Inter', sans-serif;
-    font-size: 0.93rem;
+    font-size: 1.02rem;
     outline: none;
     transition: border-color 0.2s, background 0.2s;
     backdrop-filter: blur(6px);
@@ -364,14 +364,14 @@ const S = `
   .glass-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.09); }
   .glass-input::placeholder { color: rgba(255,255,255,0.28); }
   .glass-textarea {
-    width: 100%; min-height: 52px; resize: none;
+    width: 100%; min-height: 68px; resize: none;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    padding: 12px 16px;
-    color: rgba(255,255,255,0.85);
+    border-radius: 10px;
+    padding: 15px 20px;
+    color: rgba(255,255,255,0.90);
     font-family: 'Inter', sans-serif;
-    font-size: 0.93rem;
+    font-size: 1.02rem;
     outline: none;
     transition: border-color 0.2s;
   }
@@ -394,7 +394,7 @@ const S = `
     color: rgba(255,255,255,0.75); font-family: 'Inter', sans-serif;
     font-size: 0.92rem; padding: 11px 0; min-width: 0;
   }
-  .remarks-box { flex: 1; min-height: 52px; resize: none; }
+  .remarks-box { flex: none; min-height: 0; height: 72px; resize: none; }
   .submit-glass { flex-shrink: 0; }
   .check-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 2px 0; }
   .glass-check {
@@ -609,6 +609,99 @@ const S = `
     border-radius: 6px; padding: 7px 12px; font-size: 0.8rem;
     color: rgba(255,255,255,0.7);
   }
+
+  /* ── SALES STATUS VIEW ── */
+  .ss-page {
+    position: absolute; inset: 0; top: 58px;
+    display: flex; flex-direction: column;
+    padding: 28px 40px 24px;
+    overflow: hidden;
+    animation: fadeUp 0.4s ease both;
+  }
+  .ss-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-shrink: 0;
+  }
+  .ss-title {
+    font-size: 1.1rem; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(200,220,255,0.80) 40%, rgba(255,255,255,0.60) 70%, rgba(180,210,255,0.85) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .ss-count {
+    font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(255,255,255,0.3); font-weight: 600;
+  }
+  .ss-table-wrap {
+    flex: 1; overflow-y: auto; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,4,12,0.55);
+    backdrop-filter: blur(14px);
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
+  }
+  .ss-table-wrap::-webkit-scrollbar { width: 4px; }
+  .ss-table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+  .ss-table { width: 100%; border-collapse: collapse; }
+  .ss-table thead tr {
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    position: sticky; top: 0; z-index: 2;
+    background: rgba(0,4,14,0.80); backdrop-filter: blur(14px);
+  }
+  .ss-table th {
+    text-align: left; padding: 11px 16px;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+  }
+  .ss-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.18s;
+  }
+  .ss-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+  .ss-table td {
+    padding: 11px 16px;
+    font-size: 0.85rem; color: rgba(255,255,255,0.72);
+    vertical-align: middle;
+  }
+  .ss-id { font-weight: 700; letter-spacing: 0.08em; color: rgba(180,210,255,0.85); font-size: 0.82rem; }
+  .ss-status-select {
+    appearance: none;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50px;
+    padding: 7px 32px 7px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.80);
+    cursor: pointer; outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.4)' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+    transition: border-color 0.2s, background 0.2s;
+    min-width: 130px;
+  }
+  .ss-status-select option { background: #0d1117; }
+  .ss-status-select.won   { border-color: rgba(34,197,94,0.55);  color: #4ade80; background-color: rgba(34,197,94,0.10); }
+  .ss-status-select.lost  { border-color: rgba(239,68,68,0.55);  color: #f87171; background-color: rgba(239,68,68,0.10); }
+  .ss-status-select.hold  { border-color: rgba(251,191,36,0.55); color: #fbbf24; background-color: rgba(251,191,36,0.09); }
+  .ss-status-select.risk  { border-color: rgba(249,115,22,0.55); color: #fb923c; background-color: rgba(249,115,22,0.10); }
+  .ss-status-select.pending { border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.45); }
+  .ss-ts {
+    font-size: 0.72rem; color: rgba(255,255,255,0.28); letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .ss-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 50px;
+    text-transform: uppercase;
+  }
+  .ss-badge.won  { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.3);  color: #4ade80; }
+  .ss-badge.lost { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);  color: #f87171; }
+  .ss-badge.hold { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+  .ss-badge.risk { background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3); color: #fb923c; }
+  .ss-badge.pending { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.38); }
+  @keyframes ssRowFlash { 0%{background:rgba(168,85,247,0.12)} 100%{background:transparent} }
+  .ss-flash { animation: ssRowFlash 0.8s ease-out; }
 `;
 
 // ─── SHARED HELPERS ──────────────────────────────────────────────────────────
@@ -793,12 +886,354 @@ const AIChatPanel = ({ onClose }) => {
   );
 };
 
+// ─── SALES STATUS VIEW ───────────────────────────────────────────────────────
+const SALES_STATUSES = ['Pending', 'Won', 'Lost', 'Hold', 'Risk'];
+
+const statusDot = { Won: '🟢', Lost: '🔴', Hold: '🟡', Risk: '🟠', Pending: '⚪' };
+
+const SalesStatusView = ({ requests, onUpdate }) => {
+  const F2 = "'Inter',sans-serif";
+  const [spName, setSpName] = useState('');
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [loginInput, setLoginInput] = useState('');
+  const [loginError, setLoginError] = useState(false);
+  const [openIdx, setOpenIdx] = useState(null);   // global index in requests[]
+  const [flashId, setFlashId] = useState(null);
+  const [dsearch, setDsearch] = useState('');
+
+  const handleLogin = (e) => {
+    e && e.preventDefault();
+    const name = loginInput.trim();
+    if (!name) { setLoginError(true); return; }
+    // check if any request has this salesperson
+    const match = requests.find(r =>
+      (r.salesPerson || '').toLowerCase() === name.toLowerCase()
+    );
+    if (!match) { setLoginError(true); return; }
+    setSpName(match.salesPerson);
+    setLoggedIn(true);
+    setLoginError(false);
+  };
+
+  // filtered to this salesperson only
+  const myRequests = loggedIn
+    ? requests.filter(r => (r.salesPerson || '').toLowerCase() === spName.toLowerCase())
+    : [];
+
+  const filtered = dsearch.trim()
+    ? myRequests.filter(r => {
+        const lo = dsearch.toLowerCase();
+        return r.id.toLowerCase().includes(lo) ||
+          (r.proj || '').toLowerCase().includes(lo) ||
+          (r.client || '').toLowerCase().includes(lo);
+      })
+    : myRequests;
+
+  const statusClass = (s) => {
+    if (!s || s === 'Pending') return 'pending';
+    return s.toLowerCase();
+  };
+
+  const handleStatusChange = (globalIdx, newStatus) => {
+    const now = new Date();
+    const ts = now.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    });
+    onUpdate(globalIdx, { salesStatus: newStatus, salesStatusAt: ts });
+    setFlashId(requests[globalIdx].id);
+    setTimeout(() => setFlashId(null), 900);
+  };
+
+  /* ── login screen ── */
+  if (!loggedIn) {
+    return (
+      <div className="ss-page" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{
+          width: 'min(420px,92vw)',
+          background: 'rgba(0,4,14,0.75)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderRadius: 16,
+          padding: '40px 38px 36px',
+          backdropFilter: 'blur(20px)',
+          display: 'flex', flexDirection: 'column', gap: 22,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.50)',
+        }}>
+          <div>
+            <p style={{ fontSize: '0.58rem', letterSpacing: '0.26em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 8, fontWeight: 700 }}>NAFFCO · AI SYSTEM</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>Sales Dashboard</h2>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Enter your name as registered in a request to view your assigned requests.</p>
+          </div>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: '0.62rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.38)', fontWeight: 600 }}>Sales Person Name</label>
+              <input
+                value={loginInput}
+                onChange={e => { setLoginInput(e.target.value); setLoginError(false); }}
+                placeholder="e.g. John Smith"
+                autoFocus
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${loginError ? 'rgba(239,68,68,0.55)' : 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: 8, padding: '13px 16px',
+                  color: '#fff', fontFamily: F2, fontSize: '1rem', outline: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={e => e.target.style.borderColor = loginError ? 'rgba(239,68,68,0.70)' : 'rgba(255,255,255,0.35)'}
+                onBlur={e => e.target.style.borderColor = loginError ? 'rgba(239,68,68,0.55)' : 'rgba(255,255,255,0.12)'}
+              />
+              {loginError && (
+                <span style={{ fontSize: '0.72rem', color: '#f87171', letterSpacing: '0.06em' }}>Name not found — make sure it matches the Sales Person field on a request.</span>
+              )}
+            </div>
+            <button type="submit" style={{
+              background: 'linear-gradient(105deg,#1e1b6e,#3730a3,#6d28d9,#a855f7,#ec4899)',
+              backgroundSize: '220% 220%', animation: 'auroraShift 5s ease-in-out infinite',
+              border: '1px solid rgba(255,255,255,0.18)', borderRadius: 100,
+              color: '#fff', fontFamily: F2, fontSize: '0.92rem', fontWeight: 700,
+              padding: '13px 0', cursor: 'pointer', letterSpacing: '0.06em',
+              boxShadow: '0 6px 28px rgba(109,40,217,0.45)',
+            }}>View My Requests →</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── detail view ── */
+  if (openIdx !== null) {
+    const r = requests[openIdx];
+    const curStatus = r.salesStatus || 'Pending';
+    const statusColors = {
+      Won:  { c: '#4ade80', bg: 'rgba(34,197,94,0.10)',  bd: 'rgba(34,197,94,0.30)'  },
+      Lost: { c: '#f87171', bg: 'rgba(239,68,68,0.10)',  bd: 'rgba(239,68,68,0.30)'  },
+      Hold: { c: '#fbbf24', bg: 'rgba(251,191,36,0.09)', bd: 'rgba(251,191,36,0.30)' },
+      Risk: { c: '#fb923c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.30)' },
+      Pending: { c: 'rgba(255,255,255,0.40)', bg: 'rgba(255,255,255,0.04)', bd: 'rgba(255,255,255,0.12)' },
+    };
+    const sc2 = statusColors[curStatus] || statusColors.Pending;
+    const infoRows = [
+      ['Request ID', r.id], ['Project', r.proj || '—'], ['Client', r.client || '—'],
+      ['Main Contractor', r.mainContractor || '—'], ['Consultant', r.consultant || '—'],
+      ['Submitted By', r.submittedBy || '—'], ['Deal Type', r.deal || '—'],
+      ['Email', r.email || '—'], ['MOB', r.mob || '—'], ['Tel', r.tel || '—'],
+      ['Lead Time', r.leadTime || '—'], ['Address', r.address || '—'],
+      ['Submitted On', r.date || '—'],
+    ];
+
+    return (
+      <div className="ss-page" style={{ overflowY: 'auto', padding: '28px 40px 32px' }}>
+        <button onClick={() => setOpenIdx(null)}
+          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.82rem', fontFamily: F2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+          ← My Requests
+        </button>
+
+        {/* Status bar */}
+        <div style={{ background: sc2.bg, border: `1px solid ${sc2.bd}`, borderRadius: 10, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: sc2.c, boxShadow: `0 0 8px ${sc2.c}`, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '0.54rem', color: 'rgba(255,255,255,0.30)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 3 }}>Sales Status</div>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: sc2.c }}>{curStatus}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '0.54rem', color: 'rgba(255,255,255,0.28)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Request ID</div>
+            <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'rgba(220,165,0,0.90)', fontFamily: 'monospace' }}>{r.id}</div>
+          </div>
+          {r.salesStatusAt && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '0.54rem', color: 'rgba(255,255,255,0.28)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Updated At</div>
+              <div style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.55)' }}>{r.salesStatusAt}</div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 960 }}>
+          {/* Left — request info */}
+          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '18px 20px' }}>
+            <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 12 }}>Request Info</p>
+            {infoRows.map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0', gap: 12 }}>
+                <span style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.32)', flexShrink: 0 }}>{k}</span>
+                <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.78)', textAlign: 'right' }}>{v}</span>
+              </div>
+            ))}
+            {r.remarks && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                <p style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.28)', marginBottom: 5, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Remarks</p>
+                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.60)', lineHeight: 1.6 }}>{r.remarks}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right — update sales status */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '18px 20px' }}>
+              <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 14 }}>Update Sales Status</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {SALES_STATUSES.filter(s => s !== 'Pending').map(s => {
+                  const sColors = statusColors[s];
+                  const isActive = curStatus === s;
+                  return (
+                    <button key={s} onClick={() => handleStatusChange(openIdx, s)}
+                      style={{
+                        padding: '14px 0', borderRadius: 10, cursor: 'pointer',
+                        background: isActive ? sColors.bg : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${isActive ? sColors.bd : 'rgba(255,255,255,0.09)'}`,
+                        color: isActive ? sColors.c : 'rgba(255,255,255,0.40)',
+                        fontFamily: F2, fontSize: '0.88rem', fontWeight: isActive ? 700 : 500,
+                        letterSpacing: '0.06em', transition: 'all 0.2s',
+                        boxShadow: isActive ? `0 4px 18px ${sColors.c}22` : 'none',
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = sColors.bg; e.currentTarget.style.color = sColors.c; e.currentTarget.style.borderColor = sColors.bd; } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = 'rgba(255,255,255,0.40)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; } }}
+                    >
+                      {statusDot[s]} {s}
+                    </button>
+                  );
+                })}
+              </div>
+              {r.salesStatusAt && (
+                <p style={{ marginTop: 14, fontSize: '0.72rem', color: 'rgba(255,255,255,0.30)', letterSpacing: '0.06em' }}>
+                  Last updated: {r.salesStatusAt}
+                </p>
+              )}
+            </div>
+
+            {/* Estimation status (read-only) */}
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
+              <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 10 }}>Estimation Status</p>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 14px', borderRadius: 50, background: 'rgba(220,165,0,0.10)', border: '1px solid rgba(220,165,0,0.25)' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(220,185,80,0.9)', boxShadow: '0 0 6px rgba(220,165,0,0.55)' }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(220,185,80,0.90)' }}>{r.status || '—'}</span>
+              </div>
+              {r.directorNote && (
+                <p style={{ marginTop: 10, fontSize: '0.78rem', color: 'rgba(255,160,90,0.80)', lineHeight: 1.55 }}>{r.directorNote}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── list view ── */
+  const wonCount  = myRequests.filter(r => r.salesStatus === 'Won').length;
+  const lostCount = myRequests.filter(r => r.salesStatus === 'Lost').length;
+  const holdCount = myRequests.filter(r => r.salesStatus === 'Hold').length;
+  const riskCount = myRequests.filter(r => r.salesStatus === 'Risk').length;
+
+  return (
+    <div className="ss-page">
+      {/* Header */}
+      <div className="ss-hdr">
+        <div>
+          <span className="ss-title">Sales Dashboard</span>
+          <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
+            Logged in as <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>{spName}</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Summary chips */}
+          {[
+            { label: 'Won',  count: wonCount,  c: '#4ade80', bg: 'rgba(34,197,94,0.10)',  bd: 'rgba(34,197,94,0.25)'  },
+            { label: 'Lost', count: lostCount, c: '#f87171', bg: 'rgba(239,68,68,0.10)',  bd: 'rgba(239,68,68,0.25)'  },
+            { label: 'Hold', count: holdCount, c: '#fbbf24', bg: 'rgba(251,191,36,0.09)', bd: 'rgba(251,191,36,0.25)' },
+            { label: 'Risk', count: riskCount, c: '#fb923c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.25)' },
+          ].map(chip => (
+            <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 13px', borderRadius: 50, background: chip.bg, border: `1px solid ${chip.bd}` }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 800, color: chip.c }}>{chip.count}</span>
+              <span style={{ fontSize: '0.65rem', color: chip.c, fontWeight: 600, letterSpacing: '0.08em' }}>{chip.label}</span>
+            </div>
+          ))}
+          <button onClick={() => { setLoggedIn(false); setLoginInput(''); setSpName(''); }}
+            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 50, color: 'rgba(255,255,255,0.38)', fontFamily: F2, fontSize: '0.72rem', padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}>
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 8, marginBottom: 16, maxWidth: 440, overflow: 'hidden', flexShrink: 0 }}>
+        <span style={{ padding: '10px 13px', display: 'flex', alignItems: 'center' }}><Search size={14} color="rgba(255,255,255,0.35)" /></span>
+        <input value={dsearch} onChange={e => setDsearch(e.target.value)} placeholder="Search by ID, project or client..."
+          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'rgba(255,255,255,0.85)', fontFamily: F2, fontSize: '0.86rem', padding: '10px 0' }} />
+      </div>
+
+      {myRequests.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.22)', fontSize: '0.88rem', letterSpacing: '0.08em' }}>
+          No requests assigned to you yet.
+        </div>
+      ) : (
+        <div className="ss-table-wrap">
+          <table className="ss-table">
+            <thead>
+              <tr>
+                <th>Request #</th>
+                <th>Project</th>
+                <th>Client</th>
+                <th>Submitted By</th>
+                <th>Date</th>
+                <th>Est. Status</th>
+                <th>Sales Status</th>
+                <th>Updated At</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => {
+                const globalIdx = requests.findIndex(x => x.id === r.id);
+                const curStatus = r.salesStatus || 'Pending';
+                const sc = statusClass(curStatus);
+                return (
+                  <tr key={r.id} className={flashId === r.id ? 'ss-flash' : ''}>
+                    <td><span className="ss-id">{r.id}</span></td>
+                    <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.proj || '—'}</td>
+                    <td style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'rgba(255,255,255,0.60)' }}>{r.client || '—'}</td>
+                    <td style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem' }}>{r.submittedBy || '—'}</td>
+                    <td style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>{r.date || '—'}</td>
+                    <td>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(220,185,80,0.80)', letterSpacing: '0.04em' }}>{r.status || '—'}</span>
+                    </td>
+                    <td>
+                      <select className={`ss-status-select ${sc}`} value={curStatus}
+                        onChange={e => handleStatusChange(globalIdx, e.target.value)}>
+                        {SALES_STATUSES.map(s => <option key={s} value={s}>{statusDot[s]} {s}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      {r.salesStatusAt
+                        ? <span className="ss-ts">{r.salesStatusAt}</span>
+                        : <span className="ss-ts" style={{ opacity: 0.3 }}>—</span>}
+                    </td>
+                    <td>
+                      <button onClick={() => setOpenIdx(globalIdx)}
+                        style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: 'rgba(255,255,255,0.45)', fontFamily: F2, fontSize: '0.72rem', padding: '4px 11px', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}>
+                        View →
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, onHome, onNavigate, onBack }) => {
+const NavBar = ({ view, setView, onHome, onBack }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
-  const F = "'Inter',sans-serif";
+  const salesActive   = view === 'salesStatus';
   return (
     <div className="nav-bar">
       {/* Logo — always goes to main app intro */}
@@ -817,27 +1252,12 @@ const NavBar = ({ view, setView, onHome, onNavigate, onBack }) => {
         <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
           Analyse
         </button>
+        <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
+          Sales Status
+        </button>
       </div>
 
 
-      {/* Cross-app navigation */}
-      {onNavigate && (
-        <div style={{display:'flex',alignItems:'center',gap:4,marginLeft:16}}>
-          <div style={{width:1,height:22,background:'rgba(255,255,255,0.10)',marginRight:12,flexShrink:0}}/>
-          <button onClick={()=>onNavigate('New SHOWROOM')}
-            style={{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.48)',fontFamily:F,fontSize:'0.74rem',fontWeight:500,padding:'6px 14px',borderRadius:50,cursor:'pointer',transition:'all 0.2s',whiteSpace:'nowrap',letterSpacing:'0.04em'}}
-            onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.88)';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';e.currentTarget.style.background='rgba(255,255,255,0.06)';}}
-            onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.48)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';e.currentTarget.style.background='transparent';}}>
-            AI Marketing
-          </button>
-          <button onClick={()=>onNavigate('dataAnalysis')}
-            style={{background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.48)',fontFamily:F,fontSize:'0.74rem',fontWeight:500,padding:'6px 14px',borderRadius:50,cursor:'pointer',transition:'all 0.2s',whiteSpace:'nowrap',letterSpacing:'0.04em'}}
-            onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.88)';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';e.currentTarget.style.background='rgba(255,255,255,0.06)';}}
-            onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.48)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';e.currentTarget.style.background='transparent';}}>
-            Overall Dashboard
-          </button>
-        </div>
-      )}
 
       <button className="nav-back" onClick={onBack || onHome} style={{marginLeft:'auto'}}>← Back</button>
     </div>
@@ -923,8 +1343,30 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo}) => {
   );
 };
 
+// ─── FILE HELPERS ─────────────────────────────────────────────────────────────
+const readFileAsDoc = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+const readFilesToDocs = (files) => Promise.all(files.map(readFileAsDoc));
+
+const downloadDoc = (d) => {
+  if (!d || typeof d === 'string') return; // legacy name-only entry — no data
+  const link = document.createElement('a');
+  link.href = d.data;
+  link.download = d.name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
+// ──────────────────────────────────────────────────────────────────────────────
+
 const Form = ({onSubmit, onBack}) => {
-  const [f,setF] = useState({submittedBy:'',proj:'',mainContractor:'',consultant:'',client:'',email:'',mob:'',tel:'',leadTime:'',address:'',remarks:'',supplyOnly:false,supplyInstall:false,customerRank:0});
+  const [f,setF] = useState({submittedBy:'',salesPerson:'',proj:'',mainContractor:'',consultant:'',client:'',email:'',mob:'',tel:'',leadTime:'',address:'',remarks:'',supplyOnly:false,supplyInstall:false,customerRank:0});
   const [deal,setDeal] = useState('Job In Hand');
   const [files,setFiles] = useState([]);
   const [drag,setDrag] = useState(false);
@@ -1010,7 +1452,10 @@ const Form = ({onSubmit, onBack}) => {
         </div>
 
         {/* ── Single-column fields ── */}
-        <input className="glass-input" placeholder="Requestor Name" value={f.submittedBy} onChange={u('submittedBy')}/>
+        <div className="two-col-row">
+          <input className="glass-input" placeholder="Requestor Name" value={f.submittedBy} onChange={u('submittedBy')}/>
+          <input className="glass-input" placeholder="Sales Person" value={f.salesPerson} onChange={u('salesPerson')}/>
+        </div>
         <input className="glass-input" placeholder="Project" value={f.proj} onChange={u('proj')}/>
         <input className="glass-input" placeholder="Main Contractor" value={f.mainContractor} onChange={u('mainContractor')}/>
         <input className="glass-input" placeholder="Consultant" value={f.consultant} onChange={u('consultant')}/>
@@ -1054,7 +1499,7 @@ const Form = ({onSubmit, onBack}) => {
         <input className="glass-input" placeholder="Address" value={f.address} onChange={u('address')}/>
         <textarea className="glass-textarea remarks-box" placeholder="Remarks" value={f.remarks} onChange={u('remarks')}/>
 
-        <button className="submit-glass" style={{flexShrink:0}} onClick={()=>onSubmit({...f,deal,docs:files.map(x=>x.name)})}>
+        <button className="submit-glass" style={{flexShrink:0}} onClick={async()=>{const docs=await readFilesToDocs(files);onSubmit({...f,deal,docs});}}>
           <span className="btn-text-glow">Submit Request &nbsp;↗</span>
         </button>
       </div>
@@ -1195,7 +1640,7 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
               {original.docs.map((d,i)=>(
                 <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 0'}}>
                   <FileText size={11} color="rgba(99,160,240,0.7)"/>
-                  <span style={{fontSize:'0.72rem',color:'rgba(99,160,240,0.78)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d}</span>
+                  <span onClick={()=>downloadDoc(d)} style={{fontSize:'0.72rem',color:'rgba(99,160,240,0.78)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer'}}>{docName(d)}</span>
                 </div>
               ))}
             </div>
@@ -1272,8 +1717,9 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
 
         <button className="submit-glass"
           style={{background:'linear-gradient(105deg,#0f4c75,#1b6ca8 30%,#1e90ff 55%,#00c6ff 80%,#0072ff 100%)',backgroundSize:'220% 220%'}}
-          onClick={()=>{
+          onClick={async()=>{
             const revisedBy = document.getElementById('revisedByInput')?.value?.trim() || original.submittedBy;
+            const docs = await readFilesToDocs(newFiles);
             onSubmit({
               // Carry over original project fields
               proj: original.proj,
@@ -1298,7 +1744,7 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
                 submittedBy: original.submittedBy,
                 date: original.date,
               },
-              docs: newFiles.map(x=>x.name),
+              docs,
               remarks: revRemarks,
             });
           }}>
@@ -1441,7 +1887,7 @@ const FinalPriceForm = ({original, onSubmit, onBack}) => {
               {original.docs.map((d,i)=>(
                 <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'4px 0'}}>
                   <FileText size={11} color="rgba(99,160,240,0.7)"/>
-                  <span style={{fontSize:'0.72rem',color:'rgba(99,160,240,0.78)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d}</span>
+                  <span onClick={()=>downloadDoc(d)} style={{fontSize:'0.72rem',color:'rgba(99,160,240,0.78)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer'}}>{docName(d)}</span>
                 </div>
               ))}
             </div>
@@ -1518,8 +1964,9 @@ const FinalPriceForm = ({original, onSubmit, onBack}) => {
 
         <button className="submit-glass"
           style={{background:'linear-gradient(105deg,#064e3b,#065f46 20%,#047857 38%,#10b981 54%,#34d399 72%,#6ee7b7 88%,#a7f3d0 100%)',backgroundSize:'220% 220%'}}
-          onClick={()=>{
+          onClick={async()=>{
             const submittedBy = document.getElementById('finalPriceByInput')?.value?.trim() || original.submittedBy;
+            const docs = await readFilesToDocs(newFiles);
             onSubmit({
               proj: original.proj,
               client: original.client,
@@ -1543,7 +1990,7 @@ const FinalPriceForm = ({original, onSubmit, onBack}) => {
                 submittedBy: original.submittedBy,
                 date: original.date,
               },
-              docs: newFiles.map(x=>x.name),
+              docs,
               remarks: finalRemarks,
             });
           }}>
@@ -1987,12 +2434,12 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
               {lbl('Attached Documents')}
               <div style={{display:'flex',gap:7,flexWrap:'wrap',marginTop:7}}>
                 {req.docs.map((d,i)=>(
-                  <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                  <button key={i} onClick={()=>downloadDoc(d)}
                     style={{display:'flex',alignItems:'center',gap:6,fontSize:'0.72rem',color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.07)',border:'1px solid rgba(0,200,255,0.18)',borderRadius:6,padding:'4px 11px',cursor:'pointer',outline:'none',fontFamily:F,fontWeight:600,transition:'background 0.15s'}}
                     onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.15)'}
                     onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.07)'}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    {d}
+                    {docName(d)}
                   </button>
                 ))}
               </div>
@@ -2109,7 +2556,7 @@ const Dashboard = ({ requests, onUpdate }) => {
     const F2 = "'Inter',sans-serif";
 
     const rankLabels = ['','Bronze','Silver','Gold','Platinum','Diamond'];
-    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
+    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
       <div style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'70px 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
@@ -2166,7 +2613,7 @@ const Dashboard = ({ requests, onUpdate }) => {
               <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Estimator</div>
               <div style={{fontSize:'0.82rem',fontWeight:600,color:'rgba(100,190,255,0.90)'}}>{req.estimator}</div>
             </div>}
-            {req.margin && <div style={{textAlign:'right'}}>
+            {req.margin && viewMode !== 'requester' && <div style={{textAlign:'right'}}>
               <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Margin</div>
               <div style={{fontSize:'1rem',fontWeight:800,color:'rgba(0,210,255,0.95)',fontFamily:'monospace'}}>{req.margin}%</div>
             </div>}
@@ -2202,12 +2649,12 @@ const Dashboard = ({ requests, onUpdate }) => {
                     {req.docs.map((d,i)=>{
                       const dc = req.requestType==='finalPrice'?'rgba(52,211,153,0.85)':req.requestType==='revised'?'rgba(0,200,255,0.85)':'rgba(99,160,240,0.90)';
                       return (
-                        <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                        <button key={i} onClick={()=>downloadDoc(d)}
                           style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',cursor:'pointer',outline:'none',fontFamily:F2,transition:'background 0.15s',width:'100%',textAlign:'left'}}
                           onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
                           onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={dc} strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          <span style={{fontSize:'0.73rem',color:dc,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d}</span>
+                          <span style={{fontSize:'0.73rem',color:dc,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{docName(d)}</span>
                         </button>
                       );
                     })}
@@ -2220,12 +2667,12 @@ const Dashboard = ({ requests, onUpdate }) => {
                   <p style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginBottom:6,letterSpacing:'0.12em',textTransform:'uppercase'}}>Original Documents (Reference)</p>
                   <div style={{display:'flex',flexDirection:'column',gap:4}}>
                     {req.originalDocs.map((d,i)=>(
-                      <button key={i} onClick={()=>alert(`File "${d}" — integrate a file-hosting service to enable actual downloads.`)}
+                      <button key={i} onClick={()=>downloadDoc(d)}
                         style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',cursor:'pointer',outline:'none',fontFamily:F2,transition:'background 0.15s',width:'100%',textAlign:'left',opacity:0.70}}
                         onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}
                         onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(160,190,230,0.65)" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span style={{fontSize:'0.72rem',color:'rgba(160,190,230,0.75)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d}</span>
+                        <span style={{fontSize:'0.72rem',color:'rgba(160,190,230,0.75)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{docName(d)}</span>
                       </button>
                     ))}
                   </div>
@@ -2381,10 +2828,10 @@ const Dashboard = ({ requests, onUpdate }) => {
                       <div style={{display:'flex',flexDirection:'column',gap:5}}>
                         <p style={{fontSize:'0.52rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:3}}>Attached Documents</p>
                         {req.docs.map((d,i)=>(
-                          <button key={i} onClick={()=>alert(`File "${d}" is stored by name only — integrate a file-hosting service to enable actual downloads.`)}
+                          <button key={i} onClick={()=>downloadDoc(d)}
                             style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            {d}
+                            {docName(d)}
                           </button>
                         ))}
                       </div>
@@ -3517,14 +3964,11 @@ const handleSubmit = async (formData) => {
       <style>{S}</style>
       <div className="veil"/>
 
-      {/* ── Intro splash — AIBOT then aurora, fades into landing ── */}
-      {intro && <IntroSplash onDone={() => setIntro(false)}/>}
-
       {/* NN logo — faint watermark across all screens */}
       <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
       </div>
-      <NavBar view={view} setView={setView} onHome={onBack} onNavigate={onNavigate} onBack={handleNavBack}/>
+      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack}/>
 
       {/* ── Floating buttons — landing page only ── */}
       {view === 'landing' && (
@@ -3582,7 +4026,8 @@ const handleSubmit = async (formData) => {
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest}/>}
-      {view==='analyse'   && <Analyse requests={requests}/>}
+      {view==='analyse'      && <Analyse requests={requests}/>}
+      {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}/>}
       {view==='loading'   && <Loading id={id} q={q} setQ={setQ} go={handleSearch}/>}
       {view==='results'   && <Results id={id} req={foundReq} q={q} setQ={setQ} go={handleSearch}/>}
     </div>

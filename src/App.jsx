@@ -1201,6 +1201,151 @@ function MainSceneContent({ triggerAnimation, onNavigate, targetScreenIndex }) {
 }
 
 
+// --- ACCESS CODE SCREEN ---
+const AccessCodeScreen = ({ onAccepted }) => {
+  const [code, setCode] = useState('');
+  const [shake, setShake] = useState(false);
+  const [error, setError] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.focus();
+  }, []);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (code.trim().toUpperCase() === 'JAFZA') {
+      onAccepted();
+    } else {
+      setShake(true);
+      setError(true);
+      setTimeout(() => setShake(false), 600);
+      setTimeout(() => setError(false), 2000);
+      setCode('');
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999999,
+      background: '#000',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      gap: '32px',
+    }}>
+      <style>{`
+        @keyframes access-shake {
+          0%   { transform: translateX(0); }
+          15%  { transform: translateX(-10px); }
+          30%  { transform: translateX(10px); }
+          45%  { transform: translateX(-8px); }
+          60%  { transform: translateX(8px); }
+          75%  { transform: translateX(-4px); }
+          90%  { transform: translateX(4px); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes error-pulse {
+          0%   { box-shadow: 0 0 0px rgba(220,30,30,0); }
+          50%  { box-shadow: 0 0 22px rgba(220,30,30,0.7); }
+          100% { box-shadow: 0 0 8px rgba(220,30,30,0.3); }
+        }
+        .access-naffco {
+          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
+          font-size: clamp(56px, 9vw, 120px);
+          font-weight: 900;
+          letter-spacing: -0.03em;
+          line-height: 1;
+          color: #cc0000;
+          text-shadow: 0 0 40px rgba(200,0,0,0.5);
+        }
+        .access-label {
+          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
+          font-size: clamp(11px, 1.3vw, 17px);
+          font-weight: 500;
+          letter-spacing: 0.4em;
+          text-transform: uppercase;
+          color: #505060;
+          margin-bottom: 6px;
+        }
+        .access-input {
+          background: transparent;
+          border: none;
+          border-bottom: 2px solid #333;
+          outline: none;
+          color: #e0e0e0;
+          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
+          font-size: clamp(20px, 3vw, 36px);
+          font-weight: 600;
+          letter-spacing: 0.3em;
+          text-align: center;
+          text-transform: uppercase;
+          width: clamp(200px, 30vw, 360px);
+          padding: 8px 0;
+          transition: border-color 0.3s;
+          caret-color: #cc0000;
+        }
+        .access-input:focus {
+          border-bottom-color: #cc0000;
+        }
+        .access-input.error {
+          border-bottom-color: #dc1e1e;
+          color: #dc1e1e;
+          animation: error-pulse 0.5s ease forwards;
+        }
+        .access-form.shake {
+          animation: access-shake 0.6s cubic-bezier(0.36,0.07,0.19,0.97) both;
+        }
+        .access-error-msg {
+          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
+          font-size: clamp(11px, 1.2vw, 15px);
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+          color: #dc1e1e;
+          margin-top: 8px;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        .access-error-msg.visible {
+          opacity: 1;
+        }
+        .access-hint {
+          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
+          font-size: clamp(10px, 1vw, 13px);
+          letter-spacing: 0.3em;
+          color: #2a2a2a;
+          text-transform: uppercase;
+          margin-top: 28px;
+        }
+      `}</style>
+
+      <div className="access-naffco">NAFFCO</div>
+
+      <form
+        className={`access-form${shake ? ' shake' : ''}`}
+        onSubmit={handleSubmit}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}
+      >
+        <div className="access-label">Enter JAFZA Code</div>
+        <input
+          ref={inputRef}
+          className={`access-input${error ? ' error' : ''}`}
+          type="password"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="— — — — —"
+          maxLength={10}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <div className={`access-error-msg${error ? ' visible' : ''}`}>Invalid access code</div>
+      </form>
+
+      <div className="access-hint">Press Enter to confirm</div>
+    </div>
+  );
+};
+
+
 // --- INTRO SCREEN ---
 const IntroScreen = ({ onDone }) => {
   const [phase, setPhase] = useState('enter'); // 'enter' | 'exit'
@@ -1287,9 +1432,11 @@ const IntroScreen = ({ onDone }) => {
 };
 
 export default function App() {
-  const [showIntro, setShowIntro] = useState(true);
+  const [showAccess, setShowAccess] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [appState, setAppState] = useState('active');
   const [targetIndex, setTargetIndex] = useState(null);
+  const handleAccessAccepted = useCallback(() => { setShowAccess(false); setShowIntro(true); }, []);
   const handleIntroDone = useCallback(() => setShowIntro(false), []);
 
   const handleNavigation = (index, destination) => {
@@ -1311,6 +1458,7 @@ export default function App() {
 
   return (
     <>
+      {showAccess && <AccessCodeScreen onAccepted={handleAccessAccepted} />}
       {showIntro && <IntroScreen onDone={handleIntroDone} />}
 <div style={mainBackgroundStyle}></div>
       <TouchFeedback />
