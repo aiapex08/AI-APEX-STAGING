@@ -1,0 +1,122 @@
+/* NAFFCO Fire Door Quotation System — Design Tokens */
+
+:root {
+  --nf-red: #e8304a;
+  --nf-red-dark: #ff4d65;
+  --nf-red-dim: #1f0a0e;
+  --nf-bg: #0c0c0c;
+  --nf-surface: #161616;
+  --nf-surface-2: #1e1e1e;
+  --nf-border: #2a2a2a;
+  --nf-border-2: #333333;
+  --nf-text: #e8e6e3;
+  --nf-text-2: #b0ada8;
+  --nf-text-3: #6b6865;
+  --nf-green: #34c976;
+  --nf-green-dim: #081a10;
+  --nf-amber: #f5a623;
+  --nf-amber-dim: #1f1400;
+  --nf-blue: #5ba3ff;
+  --nf-blue-dim: #08152a;
+  --nf-radius: 10px;
+  --nf-radius-lg: 16px;
+}
+
+/* Base resets for quotation pages */
+.nf-page {
+  background: var(--nf-bg);
+  color: var(--nf-text);
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.nf-card {
+  background: var(--nf-surface);
+  border: 1px solid var(--nf-border);
+  border-radius: var(--nf-radius-lg);
+  padding: 28px;
+}
+
+.nf-btn-primary {
+  background: var(--nf-red);
+  color: #fff;
+  border: none;
+  border-radius: var(--nf-radius);
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.nf-btn-primary:hover { background: var(--nf-red-dark); }
+.nf-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.nf-btn-secondary {
+  background: var(--nf-surface-2);
+  color: var(--nf-text);
+  border: 1px solid var(--nf-border-2);
+  border-radius: var(--nf-radius);
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.nf-btn-secondary:hover { border-color: var(--nf-text-3); }
+
+.nf-btn-ghost {
+  background: transparent;
+  color: var(--nf-text-2);
+  border: 1px solid var(--nf-border);
+  border-radius: var(--nf-radius);
+  padding: 10px 22px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.nf-btn-ghost:hover { color: var(--nf-text); border-color: var(--nf-border-2); }
+
+.nf-input {
+  background: var(--nf-surface-2);
+  color: var(--nf-text);
+  border: 1px solid var(--nf-border-2);
+  border-radius: var(--nf-radius);
+  padding: 9px 13px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.nf-input:focus { border-color: var(--nf-red); }
+.nf-input.error { border-color: var(--nf-red); }
+
+.nf-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nf-text-2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Spinner */
+@keyframes nf-spin {
+  to { transform: rotate(360deg); }
+}
+.nf-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--nf-border-2);
+  border-top-color: var(--nf-red);
+  border-radius: 50%;
+  animation: nf-spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* Pulse animation for confidence badge */
+@keyframes nf-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
