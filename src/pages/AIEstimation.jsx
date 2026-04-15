@@ -1353,13 +1353,22 @@ const readFileAsDoc = (file) => new Promise((resolve, reject) => {
 const readFilesToDocs = (files) => Promise.all(files.map(readFileAsDoc));
 
 const downloadDoc = (d) => {
-  if (!d || typeof d === 'string') return; // legacy name-only entry — no data
+  if (!d || typeof d === 'string' || !d.data) return; // legacy name-only entry — no data
+  // Decode base64 data URL → Blob → object URL to preserve exact binary content
+  const [header, base64] = d.data.split(',');
+  const mime = (header.match(/:(.*?);/) || [])[1] || d.type || 'application/octet-stream';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mime });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = d.data;
+  link.href = url;
   link.download = d.name;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
@@ -2054,11 +2063,11 @@ const Results = ({id, req, q, setQ, go}) => {
               {canDownload && (
                 <div className="dl-row">
                   <p className="dl-lbl">Click here to Download</p>
-                  <button className="dl-btn">
+                  <button className="dl-btn" onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.55}}>
                     <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="5" fill="#C0392B"/><text x="16" y="22" textAnchor="middle" fill="white" fontSize="10" fontWeight="700" fontFamily="Arial">PDF</text></svg>
                     <span style={{fontWeight:600}}>PDF</span>
                   </button>
-                  <button className="dl-btn">
+                  <button className="dl-btn" onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.55}}>
                     <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="5" fill="#1D6F42"/><text x="16" y="22" textAnchor="middle" fill="white" fontSize="8" fontWeight="700" fontFamily="Arial">XLS</text></svg>
                     <span style={{fontWeight:600}}>Excel</span>
                   </button>
@@ -2398,21 +2407,9 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
             <GC>
               {lbl('Quotation Files')}
               {(req.directorAction === 'approved' || req.reqStatus === 'completed') ? (
-                <div style={{display:'flex',gap:8,marginTop:7}}>
-                  <button onClick={()=>alert(`Download PDF: ${req.estimationFile||'quotation'}.pdf — integrate file hosting to serve real files.`)}
-                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:7,background:'rgba(255,80,60,0.10)',border:'1px solid rgba(255,80,60,0.32)',color:'rgba(255,120,100,0.95)',fontFamily:F,fontSize:'0.75rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'background 0.15s',backdropFilter:'blur(6px)'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='rgba(255,80,60,0.20)'}
-                    onMouseLeave={e=>e.currentTarget.style.background='rgba(255,80,60,0.10)'}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    ↓ PDF
-                  </button>
-                  <button onClick={()=>alert(`Download Excel: ${req.estimationFile||'quotation'}.xlsx — integrate file hosting to serve real files.`)}
-                    style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:7,background:'rgba(0,180,80,0.10)',border:'1px solid rgba(0,200,100,0.32)',color:'rgba(60,220,130,0.95)',fontFamily:F,fontSize:'0.75rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'background 0.15s',backdropFilter:'blur(6px)'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='rgba(0,180,80,0.20)'}
-                    onMouseLeave={e=>e.currentTarget.style.background='rgba(0,180,80,0.10)'}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    ↓ Excel
-                  </button>
+                <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(52,211,153,0.06)',border:'1px solid rgba(52,211,153,0.22)',display:'flex',alignItems:'center',gap:7}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'rgba(52,211,153,0.85)',flexShrink:0}}/>
+                  <span style={{fontSize:'0.68rem',color:'rgba(52,211,153,0.85)',fontWeight:600}}>Quotation Approved — documents available above</span>
                 </div>
               ) : (
                 <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:7}}>
@@ -2531,9 +2528,11 @@ const Dashboard = ({ requests, onUpdate }) => {
 
   const req = open !== null ? requests[open] : null;
 
-  const handleEstimatorUpload = e => {
+  const handleEstimatorUpload = async e => {
     if (!e.target.files?.length) return;
-    onUpdate(open, { estimationFile: e.target.files[0].name, status: 'Pending Approval' });
+    const file = e.target.files[0];
+    const doc = await readFileAsDoc(file);
+    onUpdate(open, { estimationFile: file.name, estimationDoc: doc, status: 'Pending Approval' });
   };
 
   // ── Detail view ──
@@ -2701,8 +2700,8 @@ const Dashboard = ({ requests, onUpdate }) => {
                   <div style={{background:'rgba(0,40,20,0.50)',border:'1px solid rgba(0,200,100,0.28)',borderRadius:10,padding:'20px 22px'}}>
                     <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(0,200,100,0.60)',marginBottom:12}}>Download Quotation</p>
                     <div style={{display:'flex',gap:10}}>
-                      <button style={{...btnStyle,flex:1,color:'rgba(255,120,100,0.90)',border:'1px solid rgba(200,60,40,0.35)',background:'rgba(200,50,40,0.10)'}}>↓ PDF</button>
-                      <button style={{...btnStyle,flex:1,color:'rgba(60,220,130,0.90)',border:'1px solid rgba(0,180,80,0.35)',background:'rgba(0,160,70,0.10)'}}>↓ Excel</button>
+                      <button onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{...btnStyle,flex:1,color:'rgba(255,120,100,0.90)',border:'1px solid rgba(200,60,40,0.35)',background:'rgba(200,50,40,0.10)',cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.5}}>↓ PDF</button>
+                      <button onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{...btnStyle,flex:1,color:'rgba(60,220,130,0.90)',border:'1px solid rgba(0,180,80,0.35)',background:'rgba(0,160,70,0.10)',cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.5}}>↓ Excel</button>
                     </div>
                   </div>
                 ) : (
@@ -2841,9 +2840,15 @@ const Dashboard = ({ requests, onUpdate }) => {
                     <input type="file" ref={uploadRef} style={{display:'none'}} onChange={handleEstimatorUpload}/>
                     <button onClick={()=>uploadRef.current.click()}
                       disabled={req.status!=='Pending Estimation'&&req.status!=='Estimation Uploaded'&&req.reqStatus!=='inprogress'}
-                      style={{...btnStyle,opacity:1,cursor:'pointer'}}>
+                      style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(255,210,60,0.95)',border:'1px solid rgba(255,200,40,0.40)',background:'rgba(255,180,0,0.10)',fontWeight:700}}>
                       ↑ Upload Quotation {req.estimationFile?`(${req.estimationFile})`:''}
                     </button>
+                    {req.estimationDoc?.data && (
+                      <button onClick={()=>downloadDoc(req.estimationDoc)}
+                        style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(52,211,153,0.95)',border:'1px solid rgba(52,211,153,0.35)',background:'rgba(52,211,153,0.08)',fontWeight:700}}>
+                        ↓ Download Uploaded Quotation
+                      </button>
+                    )}
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
                     <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'10px 12px'}}>
@@ -2904,7 +2909,7 @@ const Dashboard = ({ requests, onUpdate }) => {
           const DlIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 
           const dlBtn = (label, accent, shade, ext) => (
-            <button onClick={()=>triggerDownload(req.estimationFile || `quotation_${req.id}`, ext)}
+            <button onClick={() => req.estimationDoc?.data ? downloadDoc(req.estimationDoc) : triggerDownload(req.estimationFile || `quotation_${req.id}`, ext)}
               style={{display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:6,background:shade,border:`1px solid ${accent}`,color:accent,fontFamily:F2,fontSize:'0.74rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'opacity 0.15s',whiteSpace:'nowrap'}}
               onMouseEnter={e=>e.currentTarget.style.opacity='0.75'} onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
               <DlIco/>{label}
@@ -3021,10 +3026,10 @@ const Dashboard = ({ requests, onUpdate }) => {
                       {req.docs?.length > 0 ? (
                         <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
                           {req.docs.map((d,i)=>(
-                            <button key={i} onClick={()=>triggerDownload(d)}
+                            <button key={i} onClick={()=>downloadDoc(d)}
                               style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.25)',color:'rgba(0,200,255,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
                               onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.08)'}>
-                              <DlIco/>{d}
+                              <DlIco/>{docName(d)}
                             </button>
                           ))}
                         </div>
@@ -3041,10 +3046,10 @@ const Dashboard = ({ requests, onUpdate }) => {
                         </div>
                         <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
                           {req.originalDocs.map((d,i)=>(
-                            <button key={i} onClick={()=>triggerDownload(d)}
+                            <button key={i} onClick={()=>downloadDoc(d)}
                               style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(160,190,230,0.07)',border:'1px solid rgba(160,190,230,0.22)',color:'rgba(160,190,230,0.84)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',fontStyle:'italic'}}
                               onMouseEnter={e=>e.currentTarget.style.background='rgba(160,190,230,0.15)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(160,190,230,0.07)'}>
-                              <DlIco/>{d}
+                              <DlIco/>{docName(d)}
                             </button>
                           ))}
                         </div>
@@ -3990,6 +3995,25 @@ const handleSubmit = async (formData) => {
             onMouseEnter={e=>{if(!aiOpen){e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.boxShadow='0 6px 32px rgba(168,85,247,0.55)';}}}
             onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.boxShadow='0 4px 18px rgba(168,85,247,0.28)';}}}
           >✦ AI Bot</button>
+
+          <button onClick={()=>window.open('https://estimator-ai-856505819639.us-west1.run.app','_blank')}
+            style={{
+              position:'fixed', top:'50%', right:0, transform:'translateY(-50%)',
+              zIndex:9500,
+              writingMode:'vertical-rl', textOrientation:'mixed',
+              background:'rgba(10,6,30,0.85)',
+              border:'1px solid rgba(168,85,247,0.45)', borderRight:'none',
+              borderRadius:'10px 0 0 10px',
+              padding:'18px 8px',
+              color:'rgba(200,160,255,0.85)',
+              fontFamily:"'Inter',sans-serif", fontSize:'0.78rem', fontWeight:700, letterSpacing:'0.12em',
+              cursor:'pointer', outline:'none',
+              boxShadow:'-4px 0 12px rgba(168,85,247,0.20)',
+              backdropFilter:'blur(12px)', transition:'all 0.2s',
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='-4px 0 24px rgba(168,85,247,0.55)';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';e.currentTarget.style.boxShadow='-4px 0 12px rgba(168,85,247,0.20)';}}
+          >✦ AI Tool Direct</button>
 
           <button onClick={()=>setToolOpen(o=>!o)}
             style={{
