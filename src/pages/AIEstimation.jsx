@@ -3702,7 +3702,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://estimator-ai-856505819639.us-west1.run.app"
+        src="https://estimation-tan.vercel.app/"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -3722,6 +3722,115 @@ function ToolOverlay({ onClose }) {
         @keyframes toolErrPulse  { 0%,100%{transform:scale(1);box-shadow:0 0 32px rgba(239,68,68,0.15)} 50%{transform:scale(1.06);box-shadow:0 0 48px rgba(239,68,68,0.28)} }
       `}</style>
     </div>
+  );
+}
+
+// ─── DIRECT TOOL MODAL ────────────────────────────────────────────────────────
+function DirectToolModal({ onClose }) {
+  const [status, setStatus] = useState('loading');
+  return (
+    <>
+      {/* Full-screen glassy surface */}
+      <div style={{
+        position:'fixed',inset:0,zIndex:9900,
+        display:'flex',flexDirection:'column',
+        background:'rgba(4,2,26,0.82)',
+        backdropFilter:'blur(32px) saturate(180%)',
+        WebkitBackdropFilter:'blur(32px) saturate(180%)',
+        animation:'dtmFadeIn 0.25s ease',
+      }}>
+        {/* Header */}
+        <div style={{
+          display:'flex',alignItems:'center',justifyContent:'space-between',
+          padding:'10px 16px',flexShrink:0,
+          background:'rgba(109,40,217,0.12)',
+          borderBottom:'1px solid rgba(168,85,247,0.18)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:9}}>
+            <span style={{fontSize:13}}>✦</span>
+            <span style={{
+              fontFamily:"'Inter',sans-serif",fontWeight:800,
+              fontSize:'0.74rem',letterSpacing:'0.14em',
+              background:'linear-gradient(135deg,#c4b5fd,#f9a8d4,#fdba74)',
+              WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
+            }}>AI TOOL DIRECT</span>
+            <span style={{
+              width:7,height:7,borderRadius:'50%',flexShrink:0,
+              background:status==='ready'?'#4ade80':status==='error'?'#f87171':'rgba(168,85,247,0.70)',
+              boxShadow:status==='ready'?'0 0 8px #4ade80':status==='error'?'0 0 8px #f87171':'0 0 8px rgba(168,85,247,0.70)',
+              animation:status==='loading'?'toolDotPulse 1.2s ease-in-out infinite':'none',
+            }}/>
+          </div>
+          <button onClick={onClose} style={{
+            display:'inline-flex',alignItems:'center',gap:6,
+            background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.12)',
+            borderRadius:9,padding:'6px 14px',
+            color:'rgba(255,255,255,0.60)',cursor:'pointer',
+            fontFamily:"'Inter',sans-serif",fontSize:'0.76rem',fontWeight:600,
+            transition:'all 0.15s',
+          }}
+            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.14)';e.currentTarget.style.color='#fff';}}
+            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.color='rgba(255,255,255,0.60)';}}
+          >✕ Close</button>
+        </div>
+
+        {/* Loading */}
+        {status==='loading' && (
+          <div style={{
+            position:'absolute',inset:0,top:45,zIndex:10,
+            display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',gap:24,
+            background:'#04021a',
+          }}>
+            <div style={{position:'relative',width:72,height:72}}>
+              <div style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid transparent',borderTopColor:'rgba(168,85,247,0.90)',borderRightColor:'rgba(168,85,247,0.30)',animation:'toolSpin 1s linear infinite'}}/>
+              <div style={{position:'absolute',inset:10,borderRadius:'50%',border:'2px solid transparent',borderTopColor:'rgba(236,72,153,0.70)',borderLeftColor:'rgba(236,72,153,0.20)',animation:'toolSpin 1.6s linear infinite reverse'}}/>
+              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,opacity:0.7}}>✦</div>
+            </div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontWeight:700,fontSize:'0.88rem',color:'rgba(196,181,253,0.85)',letterSpacing:'0.06em'}}>Connecting to workspace…</div>
+          </div>
+        )}
+
+        {/* Error */}
+        {status==='error' && (
+          <div style={{
+            position:'absolute',inset:0,top:45,zIndex:10,
+            display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center',gap:16,
+            background:'#04021a',
+          }}>
+            <div style={{fontSize:'2rem'}}>⚠</div>
+            <div style={{fontFamily:"'Inter',sans-serif",fontSize:'0.88rem',color:'rgba(248,113,113,0.90)'}}>Failed to load workspace</div>
+            <button onClick={()=>setStatus('loading')} style={{
+              padding:'8px 22px',borderRadius:9,
+              background:'linear-gradient(135deg,rgba(109,40,217,0.50),rgba(168,85,247,0.40))',
+              border:'1px solid rgba(168,85,247,0.35)',
+              color:'rgba(196,181,253,0.90)',
+              fontFamily:"'Inter',sans-serif",fontSize:'0.80rem',fontWeight:700,
+              cursor:'pointer',letterSpacing:'0.06em',transition:'all 0.18s',
+            }}>↺ Retry</button>
+          </div>
+        )}
+
+        {/* iframe */}
+        <iframe
+          src="https://estimation-tan.vercel.app/"
+          style={{
+            flex:1,width:'100%',border:'none',background:'#fff',
+            opacity:status==='ready'?1:0,
+            pointerEvents:status==='ready'?'auto':'none',
+            transition:'opacity 0.4s ease',
+          }}
+          allow="clipboard-read; clipboard-write; microphone; camera"
+          title="AI Tool Direct"
+          onLoad={()=>setStatus('ready')}
+          onError={()=>setStatus('error')}
+        />
+      </div>
+      <style>{`
+        @keyframes dtmFadeIn { from{opacity:0;transform:scale(0.985)} to{opacity:1;transform:scale(1)} }
+      `}</style>
+    </>
   );
 }
 
@@ -3776,6 +3885,7 @@ export default function AIEstimation({ onBack, onNavigate }) {
   const [view,setView] = useState('landing');
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
+  const [directOpen,  setDirectOpen]  = useState(false);
 
   // Smart back — NavBar ← Back navigates to previous logical screen
   const handleNavBack = () => {
@@ -3996,7 +4106,7 @@ const handleSubmit = async (formData) => {
             onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.boxShadow='0 4px 18px rgba(168,85,247,0.28)';}}}
           >✦ AI Bot</button>
 
-          <button onClick={()=>window.open('https://estimator-ai-856505819639.us-west1.run.app','_blank')}
+          <button onClick={()=>setDirectOpen(true)}
             style={{
               position:'fixed', top:'50%', right:0, transform:'translateY(-50%)',
               zIndex:9500,
@@ -4038,6 +4148,7 @@ const handleSubmit = async (formData) => {
 
           {toolOpen && <ToolOverlay onClose={()=>setToolOpen(false)}/>}
           {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
+          {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)}/>}
         </>
       )}
 

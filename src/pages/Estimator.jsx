@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Bot, X, Send, FileText, Zap, RotateCcw, Copy, Check, Sparkles } from 'lucide-react';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_KEY);
+const genAI = new GoogleGenerativeAI(import.meta.env.GEMINI_API_KEY);
 const model  = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 const SYSTEM = `You are APEX, an expert AI estimation assistant for NAFFCO — a world-leading fire protection and fire safety company.
