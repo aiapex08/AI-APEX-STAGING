@@ -1508,7 +1508,7 @@ const Form = ({onSubmit, onBack}) => {
         <input className="glass-input" placeholder="Address" value={f.address} onChange={u('address')}/>
         <textarea className="glass-textarea remarks-box" placeholder="Remarks" value={f.remarks} onChange={u('remarks')}/>
 
-        <button className="submit-glass" style={{flexShrink:0}} onClick={async()=>{const docs=await readFilesToDocs(files);onSubmit({...f,deal,docs});}}>
+        <button className="submit-glass" style={{flexShrink:0}} onClick={()=>onSubmit({...f,deal,docs:files.map(x=>x.name),docFiles:files})}>
           <span className="btn-text-glow">Submit Request &nbsp;↗</span>
         </button>
       </div>
@@ -3962,11 +3962,32 @@ export default function AIEstimation({ onBack, onNavigate }) {
 const handleSubmit = async (formData) => {
   const count = requests.length + 1;
   const newId = 'AX' + String(count).padStart(4, '0');
+  const uniqueId = `${newId}-00`;
+
+  // Convert files to base64 before building entry
+  const docsWithData = await Promise.all(
+    (formData.docFiles || []).map((file) =>
+      new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({
+          fileName: file.name,
+          fileContent: reader.result.split(',')[1]
+        });
+        reader.readAsDataURL(file);
+      })
+    )
+  );
+
   const entry = {
     id: newId,
+    uniqueId,
+    parentRequestId: null,
+    revisionNumber: 0,
+    requestVersion: 'New',
     ...formData,
     status: 'Pending Estimation',
     date: new Date().toLocaleDateString('en-GB'),
+    submittedAt: new Date().toISOString(),
     estimationFile: null,
     estimator: null,
     margin: '',
@@ -3974,54 +3995,51 @@ const handleSubmit = async (formData) => {
     reqStatus: 'not-started',
     directorAction: null,
     directorNote: '',
+    documentUrl: null,
   };
 
   try {
-    const digestRes = await fetch(
-      "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/contextinfo",
+    const res = await fetch(
+      "https://f6309d1f6d78e7b7ba1db3c8b4ec70.56.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9ff40681e88e4a018a15660d3589c9bb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6yardkIvyRDL-xbrW6hDFmidWpD9So7-IlXO2sjO6OY",
       {
         method: "POST",
-        headers: { "Accept": "application/json;odata=nometadata" },
-        credentials: "include",
-        mode: "cors"
-      }
-    );
-    const digestData = await digestRes.json();
-    const digest = digestData.FormDigestValue;
-
-    await fetch(
-      "https://naffcogroup.sharepoint.com/sites/AI-APEX/_api/web/lists/getbytitle('Estimation Requests')/items",
-      {
-        method: "POST",
-        headers: {
-          "Accept": "application/json;odata=nometadata",
-          "Content-Type": "application/json;odata=nometadata",
-          "X-RequestDigest": digest
-        },
-        credentials: "include",
-        mode: "cors",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          Title: formData.submittedBy || "",
-          Project: formData.proj || "",
-          Main_x0020_Contractor: formData.mainContractor || "",
-          Consultant: formData.consultant || "",
-          Client_x002f_Grantor: formData.client || "",
-          Email: formData.email || "",
-          Mobile: formData.mob || "",
-          Telephone: formData.tel || "",
-          Request_x0020_Type: formData.deal || "",
-          Supply_x0020_Type: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
-          Deliver_x0020_Lead_x0020_Time: formData.leadTime || "",
-          Address: formData.address || "",
-          Remarks: formData.remarks || "",
-          Status: "Pending Estimation",
-          Request_x0020_ID: newId
+          requestId: newId,
+          uniqueId,
+          parentRequestId: null,
+          revisionNumber: 0,
+          requestVersion: "New",
+          requestorName: formData.submittedBy || "",
+          project: formData.proj || "",
+          mainContractor: formData.mainContractor || "",
+          consultant: formData.consultant || "",
+          clientGrantor: formData.client || "",
+          email: formData.email || "",
+          mobile: formData.mob || "",
+          telephone: formData.tel || "",
+          requestType: formData.deal || "",
+          supplyType: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
+          deliverLeadTime: formData.leadTime || "",
+          address: formData.address || "",
+          remarks: formData.remarks || "",
+          status: "Pending Estimation",
+          submittedAt: new Date().toISOString(),
+          salesPerson: "",
+          documents: docsWithData
         })
       }
     );
-    console.log("✅ Saved to SharePoint!");
+
+    const result = await res.json();
+    console.log("✅ Saved to Dataverse!", result);
+
+    if (result.documentUrl) {
+      entry.documentUrl = result.documentUrl;
+    }
+
   } catch(err) {
-    console.error("❌ SharePoint save failed:", err);
+    console.error("❌ Power Automate failed:", err);
   }
 
   setRequests(prev => [entry, ...prev]);
