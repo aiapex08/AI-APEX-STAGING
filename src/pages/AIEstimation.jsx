@@ -1111,6 +1111,24 @@ const SalesStatusView = ({ requests, onUpdate }) => {
                 <p style={{ marginTop: 10, fontSize: '0.78rem', color: 'rgba(255,160,90,0.80)', lineHeight: 1.55 }}>{r.directorNote}</p>
               )}
             </div>
+
+            {/* Attached submitted files */}
+            {r.docs?.filter(d => d && typeof d === 'object' && d.data).length > 0 && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
+                <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 10 }}>Attached Documents</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {r.docs.filter(d => d && typeof d === 'object' && d.data).map((d, i) => (
+                    <button key={i} onClick={() => downloadDoc(d)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', borderRadius: 7, background: 'rgba(99,160,240,0.07)', border: '1px solid rgba(99,160,240,0.22)', color: 'rgba(99,160,240,0.88)', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', outline: 'none', fontFamily: F2, transition: 'background 0.15s', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,160,240,0.16)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,160,240,0.07)'}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      {d.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1354,21 +1372,15 @@ const readFilesToDocs = (files) => Promise.all(files.map(readFileAsDoc));
 
 const downloadDoc = (d) => {
   if (!d || typeof d === 'string' || !d.data) return; // legacy name-only entry — no data
-  // Decode base64 data URL → Blob → object URL to preserve exact binary content
-  const [header, base64] = d.data.split(',');
-  const mime = (header.match(/:(.*?);/) || [])[1] || d.type || 'application/octet-stream';
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const blob = new Blob([bytes], { type: mime });
-  const url = URL.createObjectURL(blob);
+  // Use the data URL directly — avoids Blob/ObjectURL revocation timing issues
+  // that caused corrupted files when revokeObjectURL fired before the browser
+  // finished writing the download.
   const link = document.createElement('a');
-  link.href = url;
+  link.href = d.data;
   link.download = d.name;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 
 const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
@@ -2088,6 +2100,23 @@ const Results = ({id, req, q, setQ, go}) => {
                   }}>{req.status}</span>
                 </div>
               )}
+              {/* ── Attached submitted files — visible to all users ── */}
+              {req.docs?.filter(d => d && typeof d === 'object' && d.data).length > 0 && (
+                <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:8}}>
+                  <p style={{fontSize:'0.60rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',margin:0}}>Attached Documents</p>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                    {req.docs.filter(d => d && typeof d === 'object' && d.data).map((d,i) => (
+                      <button key={i} onClick={()=>downloadDoc(d)}
+                        style={{display:'flex',alignItems:'center',gap:7,padding:'7px 14px',borderRadius:7,background:'rgba(99,160,240,0.08)',border:'1px solid rgba(99,160,240,0.25)',color:'rgba(99,160,240,0.90)',fontSize:'0.76rem',fontWeight:600,cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif",transition:'background 0.15s',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
+                        onMouseEnter={e=>e.currentTarget.style.background='rgba(99,160,240,0.18)'}
+                        onMouseLeave={e=>e.currentTarget.style.background='rgba(99,160,240,0.08)'}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -2497,7 +2526,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 };
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-const Dashboard = ({ requests, onUpdate }) => {
+const Dashboard = ({ requests, onUpdate, onDelete }) => {
   const [open, setOpen] = useState(null);
   const [reviewIdx, setReviewIdx] = useState(null);
   const [dsearch, setDsearch] = useState('');
@@ -2508,6 +2537,7 @@ const Dashboard = ({ requests, onUpdate }) => {
   const [pinValue, setPinValue] = useState('');
   const [pinError, setPinError] = useState(false);
   const [dirTab, setDirTab] = useState('history'); // 'history' | 'analysis'
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // realIdx to delete
 
   const PIN = { estimator: 'est', director: 'star' };
   const requestViewSwitch = (mode) => {
@@ -3246,8 +3276,10 @@ const Dashboard = ({ requests, onUpdate }) => {
   });
 
 
-  // Unified column layout — same for all views
-  const COL = '100px 120px 1fr 120px 120px 120px 120px 120px 100px 110px';
+  // Unified column layout — director gets an extra delete column
+  const COL = viewMode === 'director'
+    ? '100px 120px 1fr 120px 120px 120px 120px 120px 100px 110px 36px'
+    : '100px 120px 1fr 120px 120px 120px 120px 120px 100px 110px';
 
   const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Director'};
   const VIEW_COLORS = {
@@ -3340,6 +3372,7 @@ const Dashboard = ({ requests, onUpdate }) => {
             <span>Estimator</span>
             <span>Deliver Time</span>
             <span style={{textAlign:'right'}}>Value (AED)</span>
+            {viewMode === 'director' && <span/>}
           </div>
 
           {/* ── Rows ── */}
@@ -3390,9 +3423,52 @@ const Dashboard = ({ requests, onUpdate }) => {
                 <span style={{fontSize:'0.72rem',color:r.projValue?'rgba(255,230,100,0.85)':'rgba(255,255,255,0.2)',fontWeight:r.projValue?600:400,textAlign:'right',whiteSpace:'nowrap',fontFamily:'monospace'}}>
                   {r.projValue ? Number(r.projValue).toLocaleString('en-AE') : '—'}
                 </span>
+
+                {/* Delete — director only */}
+                {viewMode === 'director' && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setDeleteConfirm(realIdx); }}
+                    title="Delete request"
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.28)',color:'rgba(220,80,80,0.80)',cursor:'pointer',outline:'none',transition:'background 0.15s, color 0.15s',flexShrink:0}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';}}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                    </svg>
+                  </button>
+                )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteConfirm !== null && (
+        <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.60)',backdropFilter:'blur(6px)'}}>
+          <div style={{background:'rgba(12,18,30,0.97)',border:'1px solid rgba(220,60,60,0.35)',borderRadius:14,padding:'28px 32px',maxWidth:360,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.70)',display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span style={{width:10,height:10,borderRadius:'50%',background:'rgba(220,60,60,0.90)',boxShadow:'0 0 10px rgba(220,60,60,0.60)',flexShrink:0}}/>
+              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.75)',fontWeight:600}}>Director · Delete Request</span>
+            </div>
+            <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.80)',lineHeight:1.55,margin:0}}>
+              Are you sure you want to permanently delete request <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{requests[deleteConfirm]?.id}</strong>? This action cannot be undone.
+            </p>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button onClick={()=>setDeleteConfirm(null)}
+                style={{padding:'8px 20px',borderRadius:7,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.65)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:600,outline:'none',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
+                Cancel
+              </button>
+              <button onClick={()=>{ onDelete(deleteConfirm); setDeleteConfirm(null); }}
+                style={{padding:'8px 20px',borderRadius:7,background:'rgba(200,40,40,0.18)',border:'1px solid rgba(220,60,60,0.45)',color:'rgba(255,100,100,0.95)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(200,40,40,0.32)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(200,40,40,0.18)'}>
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -3964,19 +4040,7 @@ const handleSubmit = async (formData) => {
   const newId = 'AX' + String(count).padStart(4, '0');
   const uniqueId = `${newId}-00`;
 
-  // Convert files to base64 before building entry
-  const docsWithData = await Promise.all(
-    (formData.docFiles || []).map((file) =>
-      new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve({
-          fileName: file.name,
-          fileContent: reader.result.split(',')[1]
-        });
-        reader.readAsDataURL(file);
-      })
-    )
-  );
+  const localDocs = await readFilesToDocs(formData.docFiles || []);
 
   const entry = {
     id: newId,
@@ -3985,6 +4049,7 @@ const handleSubmit = async (formData) => {
     revisionNumber: 0,
     requestVersion: 'New',
     ...formData,
+    docs: localDocs,
     status: 'Pending Estimation',
     date: new Date().toLocaleDateString('en-GB'),
     submittedAt: new Date().toISOString(),
@@ -3999,47 +4064,59 @@ const handleSubmit = async (formData) => {
   };
 
   try {
-    const res = await fetch(
-      "https://f6309d1f6d78e7b7ba1db3c8b4ec70.56.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9ff40681e88e4a018a15660d3589c9bb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6yardkIvyRDL-xbrW6hDFmidWpD9So7-IlXO2sjO6OY",
+    const tokenRes = await fetch(
+      'https://org50114a58.crm4.dynamics.com/api/data/v9.2/WhoAmI',
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+        credentials: 'include',
+        mode: 'cors'
+      }
+    );
+    if (!tokenRes.ok) throw new Error('Auth failed');
+
+    const saveRes = await fetch(
+      'https://org50114a58.crm4.dynamics.com/api/data/v9.2/cr8a9_estimationrequests',
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        },
+        credentials: 'include',
+        mode: 'cors',
         body: JSON.stringify({
-          requestId: newId,
-          uniqueId,
-          parentRequestId: null,
-          revisionNumber: 0,
-          requestVersion: "New",
-          requestorName: formData.submittedBy || "",
-          project: formData.proj || "",
-          mainContractor: formData.mainContractor || "",
-          consultant: formData.consultant || "",
-          clientGrantor: formData.client || "",
-          email: formData.email || "",
-          mobile: formData.mob || "",
-          telephone: formData.tel || "",
-          requestType: formData.deal || "",
-          supplyType: formData.supplyOnly ? "Supply Only" : formData.supplyInstall ? "Supply and Install" : "",
-          deliverLeadTime: formData.leadTime || "",
-          address: formData.address || "",
-          remarks: formData.remarks || "",
-          status: "Pending Estimation",
-          submittedAt: new Date().toISOString(),
-          salesPerson: "",
-          documents: docsWithData
+          cr8a9_requestid: newId,
+          cr8a9_uniqueid: uniqueId,
+          cr8a9_requestorname: formData.submittedBy || '',
+          cr8a9_project: formData.proj || '',
+          cr8a9_maincontractor: formData.mainContractor || '',
+          cr8a9_consultant: formData.consultant || '',
+          cr8a9_clientgrantor: formData.client || '',
+          cr8a9_email: formData.email || '',
+          cr8a9_mobile: formData.mob || '',
+          cr8a9_telephone: formData.tel || '',
+          cr8a9_requesttype: formData.deal || '',
+          cr8a9_supplytype: formData.supplyOnly ? 'Supply Only' : formData.supplyInstall ? 'Supply and Install' : '',
+          cr8a9_deliverleadtime: formData.leadTime || '',
+          cr8a9_address: formData.address || '',
+          cr8a9_remarks: formData.remarks || '',
+          cr8a9_status: 'Pending Estimation',
+          cr8a9_submittedat: new Date().toISOString(),
         })
       }
     );
 
-    const result = await res.json();
-    console.log("✅ Saved to Dataverse!", result);
-
-    if (result.documentUrl) {
-      entry.documentUrl = result.documentUrl;
+    if (saveRes.ok) {
+      console.log('✅ Saved to Dataverse!');
+    } else {
+      const err = await saveRes.json();
+      console.error('❌ Dataverse error:', err);
     }
-
   } catch(err) {
-    console.error("❌ Power Automate failed:", err);
+    console.error('❌ Failed:', err);
   }
 
   setRequests(prev => [entry, ...prev]);
@@ -4090,6 +4167,10 @@ const handleSubmit = async (formData) => {
 
   const updateRequest = (idx, patch) => {
     setRequests(prev => prev.map((r,i) => i===idx ? {...r,...patch} : r));
+  };
+
+  const deleteRequest = (idx) => {
+    setRequests(prev => prev.filter((_,i) => i !== idx));
   };
 
   return (
@@ -4178,7 +4259,7 @@ const handleSubmit = async (formData) => {
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
-      {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest}/>}
+      {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
       {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}/>}
       {view==='loading'   && <Loading id={id} q={q} setQ={setQ} go={handleSearch}/>}
