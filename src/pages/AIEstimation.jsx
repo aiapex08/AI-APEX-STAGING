@@ -1113,7 +1113,7 @@ const SalesStatusView = ({ requests, onUpdate }) => {
             </div>
 
             {/* Attached submitted files */}
-            {r.docs?.filter(d => d && typeof d === 'object' && d.data).length > 0 && (
+            {r.docs?.filter(d => d && typeof d === 'object' && (d.data || d.url)).length > 0 && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
                 <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 10 }}>Attached Documents</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2150,7 +2150,7 @@ const Results = ({id, req, q, setQ, go}) => {
                 </div>
               )}
               {/* ── Attached submitted files — visible to all users ── */}
-              {req.docs?.filter(d => d && typeof d === 'object' && d.data).length > 0 && (
+              {req.docs?.filter(d => d && typeof d === 'object' && (d.data || d.url)).length > 0 && (
                 <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:8}}>
                   <p style={{fontSize:'0.60rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',margin:0}}>Attached Documents</p>
                   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
