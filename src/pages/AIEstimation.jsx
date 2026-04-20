@@ -1364,23 +1364,72 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo}) => {
 // ─── FILE HELPERS ─────────────────────────────────────────────────────────────
 const readFileAsDoc = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
-  reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+  reader.onload = () => resolve({
+    id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+    name: file.name,
+    type: file.type,
+    data: reader.result,
+  });
   reader.onerror = reject;
   reader.readAsDataURL(file);
 });
 const readFilesToDocs = (files) => Promise.all(files.map(readFileAsDoc));
 
+// ─── INDEXED DB: persist file data across page reloads ────────────────────────
+const _idbOpen = () => new Promise((res, rej) => {
+  const r = indexedDB.open('alex_docs_v1', 1);
+  r.onupgradeneeded = e => e.target.result.createObjectStore('files');
+  r.onsuccess = e => res(e.target.result);
+  r.onerror = e => rej(e.target.error);
+});
+const idbPut = async (key, value) => {
+  const db = await _idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put(value, key);
+    tx.oncomplete = res;
+    tx.onerror = e => rej(e.target.error);
+  });
+};
+const idbGet = async (key) => {
+  const db = await _idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('files', 'readonly');
+    const req = tx.objectStore('files').get(key);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e.target.error);
+  });
+};
+// Save a single doc's data URL to IndexedDB (keyed by doc.id)
+const saveDocToIDB = async (doc) => {
+  if (doc?.id && doc?.data) await idbPut(doc.id, doc.data);
+};
+// Restore data into a doc object from IndexedDB if it's missing
+const restoreDocFromIDB = async (doc) => {
+  if (!doc || typeof doc !== 'object' || doc.data || !doc.id) return doc;
+  const data = await idbGet(doc.id);
+  return data ? { ...doc, data } : doc;
+};
+// Strip data URL from a doc (keep id/name/type for JSONBin)
+const stripDocData = (doc) =>
+  doc && typeof doc === 'object' ? { id: doc.id, name: doc.name, type: doc.type } : doc;
+
 const downloadDoc = (d) => {
-  if (!d || typeof d === 'string' || !d.data) return; // legacy name-only entry — no data
-  // Use the data URL directly — avoids Blob/ObjectURL revocation timing issues
-  // that caused corrupted files when revokeObjectURL fired before the browser
-  // finished writing the download.
-  const link = document.createElement('a');
-  link.href = d.data;
-  link.download = d.name;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  if (!d) return;
+  // Azure URL download
+  if (d.url) {
+    window.open(d.url, '_blank');
+    return;
+  }
+  // Legacy base64 download
+  if (d.data) {
+    const link = document.createElement('a');
+    link.href = d.data;
+    link.download = d.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
 const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
@@ -3975,6 +4024,9 @@ export default function AIEstimation({ onBack, onNavigate }) {
   const [requests,setRequests] = useState([]);
   const BIN_ID = "69dcdffeaaba882197f3c176";
   const API_KEY = "$2a$10$kpIFmWCwfUxqOw.M.TfqcOyhGnnArBzDluhGquW2s/t.L3vQJtBqW";
+  const AZURE_ACCOUNT = "apexfilestorage2";
+  const AZURE_CONTAINER = "estimation-docs";
+  const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
 
   // Load on startup
   useEffect(() => {
@@ -3984,7 +4036,15 @@ export default function AIEstimation({ onBack, onNavigate }) {
           headers: { 'X-Master-Key': API_KEY }
         });
         const data = await res.json();
-        setRequests(data.record.requests || []);
+        const raw = data.record.requests || [];
+        // Restore file data from IndexedDB (stripped before JSONBin save to stay within size limits)
+        const enriched = await Promise.all(raw.map(async (req) => ({
+          ...req,
+          docs: await Promise.all((req.docs || []).map(restoreDocFromIDB)),
+          originalDocs: await Promise.all((req.originalDocs || []).map(restoreDocFromIDB)),
+          estimationDoc: req.estimationDoc ? await restoreDocFromIDB(req.estimationDoc) : req.estimationDoc,
+        })));
+        setRequests(enriched);
       } catch(err) { console.error('Load failed:', err); }
     };
     load();
@@ -3995,16 +4055,27 @@ export default function AIEstimation({ onBack, onNavigate }) {
     if (requests.length === 0) return;
     const save = async () => {
       try {
+        // Strip base64 data but keep Azure URLs
+        const stripped = requests.map(r => ({
+          ...r,
+          docs: (r.docs || []).map(d => ({ name: d.name, type: d.type, url: d.url || null })),
+          originalDocs: (r.originalDocs || []).map(d => ({ name: d.name, type: d.type, url: d.url || null })),
+          estimationDoc: r.estimationDoc ? {
+            name: r.estimationDoc.name,
+            type: r.estimationDoc.type,
+            url: r.estimationDoc.url || null,
+          } : null,
+        }));
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Master-Key': API_KEY
           },
-          body: JSON.stringify({ requests })
+          body: JSON.stringify({ requests: stripped })
         });
         console.log('✅ Saved to cloud!');
-      } catch(err) { console.error('Save failed:', err); }
+      } catch(err) { console.error('❌ Save failed:', err); }
     };
     save();
   }, [requests]);
@@ -4035,12 +4106,45 @@ export default function AIEstimation({ onBack, onNavigate }) {
     goLoad(match ? match.id : t, match);
   };
 
+const uploadToAzure = async (file, requestId) => {
+  try {
+    const blobName = `${requestId}/${file.name}`;
+    const url = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'x-ms-blob-type': 'BlockBlob',
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+      body: file,
+    });
+    if (res.ok) {
+      const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
+      console.log('✅ Uploaded:', downloadUrl);
+      return downloadUrl;
+    } else {
+      console.error('❌ Upload failed:', res.status);
+      return null;
+    }
+  } catch(err) {
+    console.error('❌ Azure upload error:', err);
+    return null;
+  }
+};
+
 const handleSubmit = async (formData) => {
   const count = requests.length + 1;
   const newId = 'AX' + String(count).padStart(4, '0');
   const uniqueId = `${newId}-00`;
 
-  const localDocs = await readFilesToDocs(formData.docFiles || []);
+  // Upload files to Azure and get download URLs
+  const docFiles = formData.docFiles || [];
+  const uploadedDocs = await Promise.all(
+    docFiles.map(async (file) => {
+      const url = await uploadToAzure(file, newId);
+      return { name: file.name, type: file.type, url };
+    })
+  );
 
   const entry = {
     id: newId,
@@ -4049,7 +4153,7 @@ const handleSubmit = async (formData) => {
     revisionNumber: 0,
     requestVersion: 'New',
     ...formData,
-    docs: localDocs,
+    docs: uploadedDocs,
     status: 'Pending Estimation',
     date: new Date().toLocaleDateString('en-GB'),
     submittedAt: new Date().toISOString(),
@@ -4060,72 +4164,19 @@ const handleSubmit = async (formData) => {
     reqStatus: 'not-started',
     directorAction: null,
     directorNote: '',
-    documentUrl: null,
+    documentUrl: `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${newId}/`,
   };
-
-  try {
-    const tokenRes = await fetch(
-      'https://org50114a58.crm4.dynamics.com/api/data/v9.2/WhoAmI',
-      {
-        method: 'GET',
-        headers: { 'Accept': 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
-        credentials: 'include',
-        mode: 'cors'
-      }
-    );
-    if (!tokenRes.ok) throw new Error('Auth failed');
-
-    const saveRes = await fetch(
-      'https://org50114a58.crm4.dynamics.com/api/data/v9.2/cr8a9_estimationrequests',
-      {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'OData-MaxVersion': '4.0',
-          'OData-Version': '4.0'
-        },
-        credentials: 'include',
-        mode: 'cors',
-        body: JSON.stringify({
-          cr8a9_requestid: newId,
-          cr8a9_uniqueid: uniqueId,
-          cr8a9_requestorname: formData.submittedBy || '',
-          cr8a9_project: formData.proj || '',
-          cr8a9_maincontractor: formData.mainContractor || '',
-          cr8a9_consultant: formData.consultant || '',
-          cr8a9_clientgrantor: formData.client || '',
-          cr8a9_email: formData.email || '',
-          cr8a9_mobile: formData.mob || '',
-          cr8a9_telephone: formData.tel || '',
-          cr8a9_requesttype: formData.deal || '',
-          cr8a9_supplytype: formData.supplyOnly ? 'Supply Only' : formData.supplyInstall ? 'Supply and Install' : '',
-          cr8a9_deliverleadtime: formData.leadTime || '',
-          cr8a9_address: formData.address || '',
-          cr8a9_remarks: formData.remarks || '',
-          cr8a9_status: 'Pending Estimation',
-          cr8a9_submittedat: new Date().toISOString(),
-        })
-      }
-    );
-
-    if (saveRes.ok) {
-      console.log('✅ Saved to Dataverse!');
-    } else {
-      const err = await saveRes.json();
-      console.error('❌ Dataverse error:', err);
-    }
-  } catch(err) {
-    console.error('❌ Failed:', err);
-  }
 
   setRequests(prev => [entry, ...prev]);
   setView('relax');
 };
 
-  const handleFinalPriceSubmit = (formData) => {
+  const handleFinalPriceSubmit = async (formData) => {
     const count = requests.length + 1;
     const newId = 'AX' + String(count).padStart(4, '0');
+    // Persist new docs + original reference docs to IndexedDB
+    await Promise.all((formData.docs || []).map(saveDocToIDB));
+    await Promise.all((formData.originalDocs || []).map(saveDocToIDB));
     const entry = {
       id: newId,
       ...formData,
@@ -4144,9 +4195,12 @@ const handleSubmit = async (formData) => {
     setView('relax');
   };
 
-  const handleRevisedSubmit = (formData) => {
+  const handleRevisedSubmit = async (formData) => {
     const count = requests.length + 1;
     const newId = 'AX' + String(count).padStart(4, '0');
+    // Persist new docs + original reference docs to IndexedDB
+    await Promise.all((formData.docs || []).map(saveDocToIDB));
+    await Promise.all((formData.originalDocs || []).map(saveDocToIDB));
     const entry = {
       id: newId,
       ...formData,
@@ -4165,7 +4219,11 @@ const handleSubmit = async (formData) => {
     setView('relax');
   };
 
-  const updateRequest = (idx, patch) => {
+  const updateRequest = async (idx, patch) => {
+    // Persist any doc data in patch to IndexedDB before it gets stripped on JSONBin save
+    if (patch.estimationDoc) await saveDocToIDB(patch.estimationDoc);
+    if (patch.docs) await Promise.all(patch.docs.map(saveDocToIDB));
+    if (patch.originalDocs) await Promise.all(patch.originalDocs.map(saveDocToIDB));
     setRequests(prev => prev.map((r,i) => i===idx ? {...r,...patch} : r));
   };
 
