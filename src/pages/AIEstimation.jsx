@@ -1416,12 +1416,7 @@ const stripDocData = (doc) =>
 
 const downloadDoc = (d) => {
   if (!d) return;
-  // Azure URL download
-  if (d.url) {
-    window.open(d.url, '_blank');
-    return;
-  }
-  // Legacy base64 download
+  if (d.url) { window.open(d.url, '_blank'); return; }
   if (d.data) {
     const link = document.createElement('a');
     link.href = d.data;
@@ -1430,6 +1425,16 @@ const downloadDoc = (d) => {
     link.click();
     document.body.removeChild(link);
   }
+}; legacy name-only entry — no data
+  // Use the data URL directly — avoids Blob/ObjectURL revocation timing issues
+  // that caused corrupted files when revokeObjectURL fired before the browser
+  // finished writing the download.
+  const link = document.createElement('a');
+  link.href = d.data;
+  link.download = d.name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
@@ -4055,27 +4060,23 @@ export default function AIEstimation({ onBack, onNavigate }) {
     if (requests.length === 0) return;
     const save = async () => {
       try {
-        // Strip base64 data but keep Azure URLs
-        const stripped = requests.map(r => ({
-          ...r,
-          docs: (r.docs || []).map(d => ({ name: d.name, type: d.type, url: d.url || null })),
-          originalDocs: (r.originalDocs || []).map(d => ({ name: d.name, type: d.type, url: d.url || null })),
-          estimationDoc: r.estimationDoc ? {
-            name: r.estimationDoc.name,
-            type: r.estimationDoc.type,
-            url: r.estimationDoc.url || null,
-          } : null,
-        }));
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Master-Key': API_KEY
           },
-          body: JSON.stringify({ requests: stripped })
+          body: JSON.stringify({
+            requests: requests.map(r => ({
+              ...r,
+              docs: (r.docs || []).map(stripDocData),
+              originalDocs: (r.originalDocs || []).map(stripDocData),
+              estimationDoc: r.estimationDoc ? stripDocData(r.estimationDoc) : r.estimationDoc,
+            }))
+          })
         });
         console.log('✅ Saved to cloud!');
-      } catch(err) { console.error('❌ Save failed:', err); }
+      } catch(err) { console.error('Save failed:', err); }
     };
     save();
   }, [requests]);
