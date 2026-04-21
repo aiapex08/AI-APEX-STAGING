@@ -891,10 +891,10 @@ const SALES_STATUSES = ['Pending', 'Won', 'Lost', 'Hold', 'Risk'];
 
 const statusDot = { Won: '🟢', Lost: '🔴', Hold: '🟡', Risk: '🟠', Pending: '⚪' };
 
-const SalesStatusView = ({ requests, onUpdate }) => {
+const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   const F2 = "'Inter',sans-serif";
-  const [spName, setSpName] = useState('');
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [spName, setSpName] = useState(autoSpName || '');
+  const [loggedIn, setLoggedIn] = useState(showAll || !!autoSpName);
   const [loginInput, setLoginInput] = useState('');
   const [loginError, setLoginError] = useState(false);
   const [openIdx, setOpenIdx] = useState(null);   // global index in requests[]
@@ -915,10 +915,15 @@ const SalesStatusView = ({ requests, onUpdate }) => {
     setLoginError(false);
   };
 
-  // filtered to this salesperson only
-  const myRequests = loggedIn
-    ? requests.filter(r => (r.salesPerson || '').toLowerCase() === spName.toLowerCase())
-    : [];
+  // filtered to this salesperson only (or all if director/showAll)
+  const myRequests = showAll
+    ? requests
+    : loggedIn
+      ? requests.filter(r =>
+          (r.salesPerson || '').toLowerCase() === spName.toLowerCase() ||
+          (r.salesPerson || '').toUpperCase() === spName.toUpperCase()
+        )
+      : [];
 
   const filtered = dsearch.trim()
     ? myRequests.filter(r => {
@@ -1146,9 +1151,12 @@ const SalesStatusView = ({ requests, onUpdate }) => {
       {/* Header */}
       <div className="ss-hdr">
         <div>
-          <span className="ss-title">Sales Dashboard</span>
+          <span className="ss-title">{showAll ? 'Sales Overview' : 'Sales Dashboard'}</span>
           <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
-            Logged in as <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>{spName}</span>
+            {showAll
+              ? <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>All Sales Requests</span>
+              : <>Logged in as <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>{spName}</span></>
+            }
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1164,12 +1172,14 @@ const SalesStatusView = ({ requests, onUpdate }) => {
               <span style={{ fontSize: '0.65rem', color: chip.c, fontWeight: 600, letterSpacing: '0.08em' }}>{chip.label}</span>
             </div>
           ))}
+          {!showAll && (
           <button onClick={() => { setLoggedIn(false); setLoginInput(''); setSpName(''); }}
             style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 50, color: 'rgba(255,255,255,0.38)', fontFamily: F2, fontSize: '0.72rem', padding: '5px 14px', cursor: 'pointer', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}>
             Sign Out
           </button>
+          )}
         </div>
       </div>
 
@@ -1246,38 +1256,194 @@ const SalesStatusView = ({ requests, onUpdate }) => {
 };
 
 
+// ─── ROLE LOGIN ───────────────────────────────────────────────────────────────
+const ROLE_CODES = {
+  SL1:'sales', SL2:'sales', SL3:'sales', SL4:'sales', SL5:'sales',
+  EST:'estimator',
+  STAR:'director',
+};
+
+const RoleLogin = ({ onLogin }) => {
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState(false);
+  const F2 = "'Inter',sans-serif";
+
+  const submit = () => {
+    const c = code.trim().toUpperCase();
+    const role = ROLE_CODES[c];
+    if (role) { onLogin(role, c); }
+    else { setErr(true); }
+  };
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex:200,
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,1,6,0.94)', backdropFilter:'blur(20px)',
+      animation:'fadeUp 0.4s ease both', fontFamily:F2,
+    }}>
+      <div style={{position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none',zIndex:0}}>
+        <div style={{position:'absolute',width:'60vw',height:'60vw',borderRadius:'50%',top:'-20vw',left:'-15vw',
+          background:'radial-gradient(circle,rgba(109,40,217,0.12) 0%,transparent 70%)',filter:'blur(40px)'}}/>
+        <div style={{position:'absolute',width:'50vw',height:'50vw',borderRadius:'50%',bottom:'-15vw',right:'-10vw',
+          background:'radial-gradient(circle,rgba(0,180,255,0.10) 0%,transparent 70%)',filter:'blur(40px)'}}/>
+      </div>
+      <div style={{
+        position:'relative', zIndex:1,
+        width:'min(460px,94vw)',
+        background:'rgba(0,4,16,0.82)',
+        border:'1px solid rgba(255,255,255,0.09)',
+        borderRadius:20, padding:'44px 40px 40px',
+        backdropFilter:'blur(24px)',
+        boxShadow:'0 24px 80px rgba(0,0,0,0.60), 0 0 0 1px rgba(255,255,255,0.04) inset',
+        display:'flex', flexDirection:'column', gap:26,
+      }}>
+        {/* Header */}
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+            <img src="/NN.png" alt="NAFFCO" style={{height:26,width:'auto',objectFit:'contain',filter:'brightness(10) saturate(0)',opacity:0.65}}/>
+            <span style={{fontSize:'0.58rem',letterSpacing:'0.24em',textTransform:'uppercase',
+              color:'rgba(255,255,255,0.28)',fontWeight:700}}>NAFFCO · AI ESTIMATION</span>
+          </div>
+          <h2 style={{fontSize:'1.55rem',fontWeight:800,color:'rgba(255,255,255,0.92)',margin:0,letterSpacing:'0.02em'}}>
+            Welcome Back
+          </h2>
+          <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.36)',marginTop:5,lineHeight:1.6}}>
+            Enter your access code to continue
+          </p>
+        </div>
+
+        {/* Role hints */}
+        <div style={{display:'flex',flexDirection:'column',gap:7}}>
+          {[
+            { label:'Sales',     hint:'SL1 – SL5', color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
+            { label:'Estimator', hint:'EST',        color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
+            { label:'Director',  hint:'STAR',       color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
+          ].map(({label,hint,color,bg,bd}) => (
+            <div key={label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+              background:bg, border:`1px solid ${bd}`, borderRadius:10, padding:'9px 14px'}}>
+              <span style={{fontSize:'0.78rem',fontWeight:600,color,letterSpacing:'0.04em'}}>{label}</span>
+              <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontFamily:'monospace',letterSpacing:'0.12em'}}>{hint}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Input + Submit */}
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <input
+            value={code}
+            onChange={e=>{ setCode(e.target.value); setErr(false); }}
+            onKeyDown={e=>e.key==='Enter'&&submit()}
+            placeholder="Enter access code..."
+            autoFocus
+            style={{
+              background:'rgba(255,255,255,0.06)',
+              border:`1px solid ${err?'rgba(239,68,68,0.55)':'rgba(255,255,255,0.14)'}`,
+              borderRadius:10, padding:'14px 18px',
+              color:'#fff', fontFamily:F2, fontSize:'1.05rem',
+              outline:'none', letterSpacing:'0.10em', textTransform:'uppercase',
+              transition:'border-color 0.2s',
+            }}
+            onFocus={e=>e.target.style.borderColor=err?'rgba(239,68,68,0.70)':'rgba(255,255,255,0.32)'}
+            onBlur={e=>e.target.style.borderColor=err?'rgba(239,68,68,0.55)':'rgba(255,255,255,0.14)'}
+          />
+          {err && <span style={{fontSize:'0.72rem',color:'#f87171',letterSpacing:'0.04em'}}>
+            Invalid access code. Please try again.
+          </span>}
+          <button onClick={submit} style={{
+            background:'linear-gradient(105deg,#1e1b6e,#3730a3,#6d28d9,#a855f7,#ec4899)',
+            backgroundSize:'220% 220%', animation:'auroraShift 5s ease-in-out infinite',
+            border:'1px solid rgba(255,255,255,0.18)', borderRadius:100,
+            color:'#fff', fontFamily:F2, fontSize:'0.92rem', fontWeight:700,
+            padding:'13px 0', cursor:'pointer', letterSpacing:'0.06em',
+            boxShadow:'0 6px 28px rgba(109,40,217,0.45)',
+          }}>
+            Continue →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, onHome, onBack }) => {
+const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
   const salesActive   = view === 'salesStatus';
   return (
     <div className="nav-bar">
-      {/* Logo — always goes to main app intro */}
+      {/* Logo */}
       <button onClick={onHome} style={{background:'transparent',border:'none',cursor:'pointer',padding:0,marginRight:20,flexShrink:0,display:'flex',alignItems:'center'}}>
         <img src="/NN.png" alt="NAFFCO Home" style={{height:36,width:'auto',objectFit:'contain',display:'block'}}/>
       </button>
 
-      {/* Internal nav pills */}
+      {/* Role-based nav pills */}
       <div className="nav-pills">
-        <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
-          Home
-        </button>
-        <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
-          Estimation Dashboard
-        </button>
-        <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
-          Analyse
-        </button>
-        <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
-          Sales Status
-        </button>
+        {/* ── Sales View ── */}
+        {userRole === 'sales' && <>
+          <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
+            New Request
+          </button>
+          <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
+            My Dashboard
+          </button>
+        </>}
+
+        {/* ── Estimator View ── */}
+        {userRole === 'estimator' && <>
+          <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
+            Estimator Dashboard
+          </button>
+        </>}
+
+        {/* ── Director View ── */}
+        {userRole === 'director' && <>
+          <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
+            New Request
+          </button>
+          <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
+            Director Dashboard
+          </button>
+          <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
+            Sales Analysis
+          </button>
+          <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
+            Sales View
+          </button>
+        </>}
       </div>
 
+      {/* Role badge */}
+      {userRole && (
+        <div style={{
+          marginLeft:16, display:'flex', alignItems:'center', gap:8,
+          padding:'4px 12px', borderRadius:50,
+          background: userRole==='sales'?'rgba(130,90,255,0.10)':userRole==='estimator'?'rgba(0,150,255,0.10)':'rgba(200,150,0,0.10)',
+          border: userRole==='sales'?'1px solid rgba(130,90,255,0.22)':userRole==='estimator'?'1px solid rgba(0,180,255,0.22)':'1px solid rgba(220,170,0,0.22)',
+          flexShrink:0,
+        }}>
+          <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
+            background:userRole==='sales'?'rgba(160,130,255,0.90)':userRole==='estimator'?'rgba(0,200,255,0.90)':'rgba(255,210,60,0.90)'}}/>
+          <span style={{fontSize:'0.62rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',
+            color:userRole==='sales'?'rgba(160,130,255,0.85)':userRole==='estimator'?'rgba(0,200,255,0.85)':'rgba(255,210,60,0.85)'}}>
+            {userRole === 'sales' ? 'Sales' : userRole === 'estimator' ? 'Estimator' : 'Director'}
+          </span>
+        </div>
+      )}
 
-
-      <button className="nav-back" onClick={onBack || onHome} style={{marginLeft:'auto'}}>← Back</button>
+      {userRole && (
+        <button onClick={onLogout}
+          style={{marginLeft:'auto', background:'transparent', border:'1px solid rgba(255,255,255,0.12)',
+            color:'rgba(255,255,255,0.38)', fontFamily:"'Inter',sans-serif", fontSize:'0.74rem',
+            padding:'6px 16px', borderRadius:50, cursor:'pointer', transition:'all 0.2s', whiteSpace:'nowrap'}}
+          onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
+          onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.38)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}>
+          Sign Out
+        </button>
+      )}
+      {!userRole && <button className="nav-back" onClick={onBack || onHome} style={{marginLeft:'auto'}}>← Back</button>}
     </div>
   );
 };
@@ -2646,12 +2812,13 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 };
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-const Dashboard = ({ requests, onUpdate, onDelete }) => {
+const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
   const [open, setOpen] = useState(null);
   const [reviewIdx, setReviewIdx] = useState(null);
   const [dsearch, setDsearch] = useState('');
   const [, setTick] = useState(0);
-  const [viewMode, setViewMode] = useState('requester'); // 'requester' | 'estimator' | 'director'
+  const lockViewMode = !!initialViewMode; // hide view switcher when role is set externally
+  const [viewMode, setViewMode] = useState(initialViewMode || 'requester'); // 'requester' | 'estimator' | 'director'
   const [requesterFilter, setRequesterFilter] = useState('');
   const [pinPrompt, setPinPrompt] = useState(null); // null | 'estimator' | 'director'
   const [pinValue, setPinValue] = useState('');
@@ -3431,7 +3598,7 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                   {/* ── ANALYSIS TAB ── */}
                   {dirTab === 'analysis' && (<>
 
-                    {/* TAT & status summary */}
+                    {/* SLA & status summary */}
                     <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'12px 14px'}}>
                       <div style={{fontSize:'0.50rem',color:'rgba(200,130,255,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:10}}>Request Analysis</div>
                       {[
@@ -3534,8 +3701,8 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
         <h2 style={{fontSize:'1.3rem',fontWeight:700,letterSpacing:'0.1em',color:'rgba(255,255,255,0.85)',textTransform:'uppercase',margin:0,flexShrink:0}}>Estimation Dashboard</h2>
 
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',flex:1,justifyContent:'flex-end'}}>
-          {/* View mode toggle */}
-          <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:3,gap:2,flexShrink:0}}>
+          {/* View mode toggle — hidden when role is set externally */}
+          {!lockViewMode && <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:3,gap:2,flexShrink:0}}>
             {(['requester','estimator','director']).map(vm=>{
               const vc = VIEW_COLORS[vm];
               const active = viewMode === vm;
@@ -3547,7 +3714,7 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
           {/* Requester name filter (only in requester mode) */}
           {viewMode === 'requester' && (
@@ -4170,12 +4337,25 @@ const IntroSplash = ({ onDone }) => {
 };
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function AIEstimation({ onBack, onNavigate }) {
+export default function AIEstimation({ onBack, onNavigate, initialRole, initialCode }) {
   const [intro,setIntro] = useState(true);
-  const [view,setView] = useState('landing');
+  const [userRole, setUserRole] = useState(initialRole || null);
+  const [userCode, setUserCode] = useState(initialCode || '');
+  const [view,setView] = useState(() => (initialRole === 'estimator' || initialRole === 'director') ? 'dashboard' : 'landing');
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
   const [directOpen,  setDirectOpen]  = useState(false);
+
+  const handleRoleLogin = (role, code) => {
+    setUserRole(role);
+    setUserCode(code);
+    if (role === 'estimator') setView('dashboard');
+    else setView('landing');
+  };
+
+  const handleLogout = () => {
+    onBack();
+  };
 
   // Smart back — NavBar ← Back navigates to previous logical screen
   const handleNavBack = () => {
@@ -4401,7 +4581,8 @@ const handleSubmit = async (formData) => {
       <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
       </div>
-      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack}/>
+      {!userRole && <RoleLogin onLogin={handleRoleLogin}/>}
+      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} onLogout={handleLogout}/>
 
       {/* ── Floating buttons — landing page only ── */}
       {view === 'landing' && (
@@ -4424,7 +4605,7 @@ const handleSubmit = async (formData) => {
             onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.boxShadow='0 4px 18px rgba(168,85,247,0.28)';}}}
           >✦ AI Bot</button>
 
-          <button onClick={()=>setDirectOpen(true)}
+          {userRole !== 'sales' && <button onClick={()=>setDirectOpen(true)}
             style={{
               position:'fixed', top:'50%', right:0, transform:'translateY(-50%)',
               zIndex:9500,
@@ -4441,9 +4622,9 @@ const handleSubmit = async (formData) => {
             }}
             onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='-4px 0 24px rgba(168,85,247,0.55)';}}
             onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';e.currentTarget.style.boxShadow='-4px 0 12px rgba(168,85,247,0.20)';}}
-          >✦ AI Tool Direct</button>
+          >✦ AI Tool Direct</button>}
 
-          <button onClick={()=>setToolOpen(o=>!o)}
+          {userRole !== 'sales' && <button onClick={()=>setToolOpen(o=>!o)}
             style={{
               position:'fixed', left:0, top:'50%', transform:'translateY(-50%)',
               zIndex:9500,
@@ -4462,7 +4643,7 @@ const handleSubmit = async (formData) => {
             }}
             onMouseEnter={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(109,40,217,0.35)';e.currentTarget.style.color='#fff';}}}
             onMouseLeave={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';}}}
-          >✦ AI Tool</button>
+          >✦ AI Tool</button>}
 
           {toolOpen && <ToolOverlay onClose={()=>setToolOpen(false)}/>}
           {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
@@ -4478,9 +4659,12 @@ const handleSubmit = async (formData) => {
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
-      {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}/>}
+      {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
+          initialViewMode={userRole==='estimator'?'estimator':userRole==='director'?'director':undefined}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
-      {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}/>}
+      {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}
+          autoSpName={userRole==='sales'?userCode:undefined}
+          showAll={userRole==='director'}/>}
       {view==='loading'   && <Loading id={id} q={q} setQ={setQ} go={handleSearch}/>}
       {view==='results'   && <Results id={id} req={foundReq} q={q} setQ={setQ} go={handleSearch}/>}
     </div>
