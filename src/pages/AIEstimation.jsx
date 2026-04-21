@@ -1117,7 +1117,7 @@ const SalesStatusView = ({ requests, onUpdate }) => {
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
                 <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 10 }}>Attached Documents</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {r.docs.filter(d => d && typeof d === 'object' && d.data).map((d, i) => (
+                  {r.docs.filter(d => d && typeof d === 'object' && (d.data || d.url)).map((d, i) => (
                     <button key={i} onClick={() => downloadDoc(d)}
                       style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', borderRadius: 7, background: 'rgba(99,160,240,0.07)', border: '1px solid rgba(99,160,240,0.22)', color: 'rgba(99,160,240,0.88)', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', outline: 'none', fontFamily: F2, transition: 'background 0.15s', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,160,240,0.16)'}
@@ -1412,7 +1412,7 @@ const restoreDocFromIDB = async (doc) => {
 };
 // Strip data URL from a doc (keep id/name/type for JSONBin)
 const stripDocData = (doc) =>
-  doc && typeof doc === 'object' ? { id: doc.id, name: doc.name, type: doc.type } : doc;
+  doc && typeof doc === 'object' ? { id: doc.id, name: doc.name, type: doc.type, url: doc.url || null } : doc;
 
 const downloadDoc = (d) => {
   if (!d) return;
@@ -1425,16 +1425,6 @@ const downloadDoc = (d) => {
     link.click();
     document.body.removeChild(link);
   }
-}; legacy name-only entry — no data
-  // Use the data URL directly — avoids Blob/ObjectURL revocation timing issues
-  // that caused corrupted files when revokeObjectURL fired before the browser
-  // finished writing the download.
-  const link = document.createElement('a');
-  link.href = d.data;
-  link.download = d.name;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 };
 
 const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
@@ -2159,7 +2149,7 @@ const Results = ({id, req, q, setQ, go}) => {
                 <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:8}}>
                   <p style={{fontSize:'0.60rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',margin:0}}>Attached Documents</p>
                   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                    {req.docs.filter(d => d && typeof d === 'object' && d.data).map((d,i) => (
+                    {req.docs.filter(d => d && typeof d === 'object' && (d.data || d.url)).map((d,i) => (
                       <button key={i} onClick={()=>downloadDoc(d)}
                         style={{display:'flex',alignItems:'center',gap:7,padding:'7px 14px',borderRadius:7,background:'rgba(99,160,240,0.08)',border:'1px solid rgba(99,160,240,0.25)',color:'rgba(99,160,240,0.90)',fontSize:'0.76rem',fontWeight:600,cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif",transition:'background 0.15s',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
                         onMouseEnter={e=>e.currentTarget.style.background='rgba(99,160,240,0.18)'}
