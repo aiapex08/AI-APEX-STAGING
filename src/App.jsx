@@ -15,6 +15,7 @@ import { EffectComposer, Bloom, DepthOfField } from '@react-three/postprocessing
 import * as THREE from 'three';
 import AIEstimation from './pages/AIEstimation.jsx';
 import DataDashboard from './pages/DataDashboard.jsx';
+import SalesForm from './pages/SalesForm.jsx';
 import VirtualShowroomDashboard from './pages/VirtualShowroomDashboard.jsx';
 import NewShowroom from './pages/NewShowroom.jsx';
 import AIContract from './pages/AIContract.jsx';
@@ -1212,10 +1213,19 @@ const AccessCodeScreen = ({ onAccepted }) => {
     if (inputRef.current) inputRef.current.focus();
   }, []);
 
+  const SALES_CODES = ['SL1','SL2','SL3','SL4','SL5'];
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (code.trim().toUpperCase() === 'JAFZA') {
-      onAccepted();
+    const entered = code.trim().toUpperCase();
+    if (entered === 'EST') {
+      onAccepted('estimation', 'estimator', 'EST', 'Estimator');
+    } else if (SALES_CODES.includes(entered)) {
+      onAccepted('estimation', 'sales', entered, '');
+    } else if (entered === 'STAR') {
+      onAccepted('estimation', 'director', 'STAR', 'Director');
+    // } else if (entered === 'JAFZA') {
+    //   onAccepted('mainScene', null, '', '');
     } else {
       setShake(true);
       setError(true);
@@ -1325,11 +1335,11 @@ const AccessCodeScreen = ({ onAccepted }) => {
         onSubmit={handleSubmit}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}
       >
-        <div className="access-label">Enter JAFZA Code</div>
+        <div className="access-label">Enter Access Code</div>
         <input
           ref={inputRef}
           className={`access-input${error ? ' error' : ''}`}
-          type="password"
+          type="text"
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="— — — — —"
@@ -1347,7 +1357,7 @@ const AccessCodeScreen = ({ onAccepted }) => {
 
 
 // --- INTRO SCREEN ---
-const IntroScreen = ({ onDone }) => {
+const IntroScreen = ({ onDone, welcomeName }) => {
   const [phase, setPhase] = useState('enter'); // 'enter' | 'exit'
 
   useEffect(() => {
@@ -1404,6 +1414,21 @@ const IntroScreen = ({ onDone }) => {
           color: #606060;
           margin-top: 10px;
         }
+        .intro-welcome {
+          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
+          font-size: clamp(14px, 1.8vw, 24px);
+          font-weight: 400;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          color: #cc0000;
+          margin-top: 28px;
+          opacity: 0;
+          animation: intro-welcome-in 0.6s ease 0.8s forwards;
+        }
+        @keyframes intro-welcome-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         .intro-beam {
           position: fixed;
           top: 0; bottom: 0; left: 0;
@@ -1426,6 +1451,9 @@ const IntroScreen = ({ onDone }) => {
         <span className="intro-apex">AI APEX</span>
       </div>
       <div className="intro-tagline">Passion to Protect</div>
+      <div className="intro-welcome">
+        {welcomeName ? `Welcome Back, ${welcomeName}` : 'Welcome Back!'}
+      </div>
       <div className="intro-beam" />
     </div>
   );
@@ -1434,22 +1462,47 @@ const IntroScreen = ({ onDone }) => {
 export default function App() {
   const [showAccess, setShowAccess] = useState(true);
   const [showIntro, setShowIntro] = useState(false);
+  const [welcomeName, setWelcomeName] = useState('');
   const [appState, setAppState] = useState('active');
   const [targetIndex, setTargetIndex] = useState(null);
-  const handleAccessAccepted = useCallback(() => { setShowAccess(false); setShowIntro(true); }, []);
-  const handleIntroDone = useCallback(() => setShowIntro(false), []);
+  const [initialRole, setInitialRole] = useState(null);
+  const [initialCode, setInitialCode] = useState('');
+  const pendingDestRef = useRef('active');
+
+  const handleAccessAccepted = useCallback((destination, role, code, welcome) => {
+    setShowAccess(false);
+    setWelcomeName(welcome);
+    setInitialRole(role);
+    setInitialCode(code);
+    pendingDestRef.current = destination;
+    setShowIntro(true);
+    // --- JAFZA main scene path (hidden for now) ---
+    // if (destination === 'mainScene') { ... }
+  }, []);
+
+  const handleIntroDone = useCallback(() => {
+    setShowIntro(false);
+    setAppState(pendingDestRef.current);
+  }, []);
+
+  const backToAccess = () => {
+    setShowAccess(true);
+    setAppState('active');
+    setInitialRole(null);
+    setInitialCode('');
+  };
 
   const handleNavigation = (index, destination) => {
       setTargetIndex(index);
       setTimeout(() => {
-          setAppState(destination); 
+          setAppState(destination);
           setTargetIndex(null);
-      }, 2500); 
+      }, 2500);
   };
 
   const backToHome = () => {
       setAppState('active');
-      setTargetIndex(null); 
+      setTargetIndex(null);
   };
 
   const startAnimations = ['active', 'estimation', 'dataAnalysis', 'VIRTUAL SHOWROOM','New SHOWROOM', 'AI CONTRACTS'].includes(appState);
@@ -1459,12 +1512,25 @@ export default function App() {
   return (
     <>
       {showAccess && <AccessCodeScreen onAccepted={handleAccessAccepted} />}
-      {showIntro && <IntroScreen onDone={handleIntroDone} />}
+      {showIntro && <IntroScreen onDone={handleIntroDone} welcomeName={welcomeName} />}
 <div style={mainBackgroundStyle}></div>
       <TouchFeedback />
 
       {appState === 'estimation' && (
-        <AIEstimation onBack={backToHome} onNavigate={(state) => setAppState(state)} />
+        <AIEstimation
+          onBack={backToAccess}
+          onNavigate={(state) => setAppState(state)}
+          initialRole={initialRole}
+          initialCode={initialCode}
+        />
+      )}
+
+      {appState === 'salesView' && (
+        <SalesForm onBack={backToAccess} />
+      )}
+
+      {appState === 'directorView' && (
+        <DataDashboard onBack={backToAccess} />
       )}
 
       {appState === 'dataAnalysis' && (
