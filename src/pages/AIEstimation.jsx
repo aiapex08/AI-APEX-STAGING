@@ -1367,7 +1367,7 @@ const RoleLogin = ({ onLogin }) => {
 };
 
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout }) => {
+const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectTool }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
@@ -1433,9 +1433,25 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout }) => {
         </div>
       )}
 
+      {userRole && userRole !== 'sales' && onDirectTool && (
+        <button onClick={onDirectTool}
+          style={{marginLeft:'auto', display:'inline-flex', alignItems:'center', gap:6,
+            background:'rgba(10,6,30,0.80)',
+            border:'1px solid rgba(168,85,247,0.50)',
+            borderRadius:50, padding:'6px 16px',
+            color:'rgba(200,160,255,0.90)',
+            fontFamily:"'Inter',sans-serif", fontSize:'0.74rem', fontWeight:700, letterSpacing:'0.08em',
+            cursor:'pointer', outline:'none',
+            boxShadow:'0 2px 12px rgba(168,85,247,0.22)',
+            backdropFilter:'blur(10px)', transition:'all 0.2s', whiteSpace:'nowrap',
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(168,85,247,0.55)';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.80)';e.currentTarget.style.color='rgba(200,160,255,0.90)';e.currentTarget.style.boxShadow='0 2px 12px rgba(168,85,247,0.22)';}}
+        >✦ AI Tool Direct</button>
+      )}
       {userRole && (
         <button onClick={onLogout}
-          style={{marginLeft:'auto', background:'transparent', border:'1px solid rgba(255,255,255,0.12)',
+          style={{marginLeft: userRole !== 'sales' ? 10 : 'auto', background:'transparent', border:'1px solid rgba(255,255,255,0.12)',
             color:'rgba(255,255,255,0.38)', fontFamily:"'Inter',sans-serif", fontSize:'0.74rem',
             padding:'6px 16px', borderRadius:50, cursor:'pointer', transition:'all 0.2s', whiteSpace:'nowrap'}}
           onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
@@ -4582,7 +4598,7 @@ const handleSubmit = async (formData) => {
         <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
       </div>
       {!userRole && <RoleLogin onLogin={handleRoleLogin}/>}
-      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} onLogout={handleLogout}/>
+      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} onLogout={handleLogout} onDirectTool={()=>setDirectOpen(true)}/>
 
       {/* ── Floating buttons — landing page only ── */}
       {view === 'landing' && (
@@ -4647,9 +4663,10 @@ const handleSubmit = async (formData) => {
 
           {toolOpen && <ToolOverlay onClose={()=>setToolOpen(false)}/>}
           {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
-          {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)}/>}
         </>
       )}
+
+      {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)}/>}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
       {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch}/>}

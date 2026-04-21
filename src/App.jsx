@@ -1224,6 +1224,8 @@ const AccessCodeScreen = ({ onAccepted }) => {
       onAccepted('estimation', 'sales', entered, '');
     } else if (entered === 'STAR') {
       onAccepted('estimation', 'director', 'STAR', 'Director');
+    } else if (entered === '9993') {
+      onAccepted('active', null, '9993', '');
     // } else if (entered === 'JAFZA') {
     //   onAccepted('mainScene', null, '', '');
     } else {
