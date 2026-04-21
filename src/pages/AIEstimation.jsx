@@ -1414,9 +1414,29 @@ const restoreDocFromIDB = async (doc) => {
 const stripDocData = (doc) =>
   doc && typeof doc === 'object' ? { id: doc.id, name: doc.name, type: doc.type, url: doc.url || null } : doc;
 
-const downloadDoc = (d) => {
+const downloadDoc = async (d) => {
   if (!d) return;
-  if (d.url) { window.open(d.url, '_blank'); return; }
+  // Azure URL — fetch as blob so browser triggers Save dialog instead of opening a new tab
+  if (d.url) {
+    try {
+      const res = await fetch(d.url);
+      if (!res.ok) throw new Error('Fetch failed');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = d.name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch(err) {
+      console.error('❌ Download failed:', err);
+      window.open(d.url, '_blank'); // fallback
+    }
+    return;
+  }
+  // Legacy base64 download
   if (d.data) {
     const link = document.createElement('a');
     link.href = d.data;
@@ -1471,20 +1491,28 @@ const Form = ({onSubmit, onBack}) => {
               </>
             ) : (
               <div style={{width:'100%',display:'flex',flexDirection:'column',gap:6}} onClick={e=>e.stopPropagation()}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
                   <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.7)',fontWeight:600}}>{files.length} FILE{files.length>1?'S':''}</span>
                   <span onClick={e=>{e.stopPropagation();ref.current.click();}} style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>+ Add More</span>
                 </div>
-                {files.map((file,i)=>(
-                  <div key={i} className="file-chip-g">
-                    <FileText size={12} color="rgba(255,255,255,0.5)"/>
-                    <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:'0.72rem'}}>{file.name}</span>
-                    <button onClick={e=>{e.stopPropagation();setFiles(p=>p.filter((_,j)=>j!==i));}}
-                      style={{background:'transparent',border:'none',cursor:'pointer',padding:2,display:'flex'}}>
-                      <X size={11} color="rgba(255,80,80,0.8)"/>
-                    </button>
-                  </div>
-                ))}
+                {/* Scrollable file list — fixed height when > 5 files to prevent overflow */}
+                <div style={{
+                  display:'flex',flexDirection:'column',gap:5,
+                  maxHeight: files.length > 5 ? 200 : 'none',
+                  overflowY: files.length > 5 ? 'auto' : 'visible',
+                  paddingRight: files.length > 5 ? 4 : 0,
+                }}>
+                  {files.map((file,i)=>(
+                    <div key={i} className="file-chip-g">
+                      <FileText size={12} color="rgba(255,255,255,0.5)"/>
+                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:'0.72rem'}}>{file.name}</span>
+                      <button onClick={e=>{e.stopPropagation();setFiles(p=>p.filter((_,j)=>j!==i));}}
+                        style={{background:'transparent',border:'none',cursor:'pointer',padding:2,display:'flex'}}>
+                        <X size={11} color="rgba(255,80,80,0.8)"/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -2307,7 +2335,17 @@ const RelaxScreen = ({ onAnother, onHome }) => {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const REQUESTERS_LIST  = ['John M.','Lara S.','Hassan A.','Diana R.','Yusuf T.','Priya N.','Carlos B.','Aisha O.','Felix W.'];
-const SLA_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+const TAT_MS = 2 * 24 * 60 * 60 * 1000; // 2-day TAT target
+
+// Format elapsed time as Dd HH:MM:SS
+const formatTAT = (ms) => {
+  if (!ms || ms < 0) return '0d 00:00:00';
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+};
 
 const REQ_STATUS_STYLE = {
   'not-started':      {c:'rgba(120,140,200,0.5)',  bg:'rgba(50,65,110,0.06)',    bd:'rgba(70,90,150,0.15)',    label:'Not Started'},
@@ -2323,7 +2361,7 @@ function getReqStatus(r, now) {
   if (!r.estimator) return 'not-started';
   if (r.reqStatus === 'completed' || r.reqStatus === 'onhold' || r.reqStatus === 'risky') return r.reqStatus;
   if (r.reqStatus === 'pending-director') return 'pending-director';
-  if (r.taggedAt && (now - r.taggedAt) > SLA_MS) return 'overdue';
+  if (r.taggedAt && (now - r.taggedAt) > TAT_MS) return 'overdue';
   return 'inprogress';
 }
 
@@ -2351,11 +2389,11 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
   const [revisedMargin, setRevisedMargin] = useState(req.revisedMargin||'');
   const [action, setAction] = useState(req.directorAction||null);
   const [note, setNote] = useState(req.directorNote||'');
+  const [submitted, setSubmitted] = useState(false);
 
-  const slaElapsed = req.taggedAt ? now - req.taggedAt : 0;
-  const slaHrs = (slaElapsed / 3600000).toFixed(1);
-  const slaPct = Math.min(100, (slaElapsed / SLA_MS) * 100);
-  const slaColor = slaPct >= 100 ? '#ff4d4d' : slaPct >= 75 ? '#ff7a30' : slaPct >= 50 ? '#ffb347' : '#00e5ff';
+  const tatElapsed = req.taggedAt ? now - req.taggedAt : 0;
+  const tatPct = Math.min(100, (tatElapsed / TAT_MS) * 100);
+  const tatColor = tatPct >= 100 ? '#ff4d4d' : tatPct >= 75 ? '#ff7a30' : tatPct >= 50 ? '#ffb347' : '#00e5ff';
   const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
 
   const ACTIONS = [
@@ -2368,8 +2406,9 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
     if (!action) return;
     const newStatus = action === 'approved' ? 'Approved' : action === 'rejected' ? 'Estimation Uploaded' : 'Pending Approval';
     const newReqStatus = action === 'approved' ? 'completed' : action === 'rejected' ? 'onhold' : 'inprogress';
-    onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus});
-    onClose();
+    onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
+      directorRespondedAt: new Date().toISOString()});
+    setSubmitted(true);
   };
 
   const F = "'Inter',sans-serif";
@@ -2430,7 +2469,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
             <GC><>{lbl('Lead Time')}{val(req.leadTime)}</></GC>
           </div>
 
-          {/* ── Row 3: Estimator · Margin · SLA ── */}
+          {/* ── Row 3: Estimator · Margin · TAT ── */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
             {/* Estimator card */}
             <GC accent='rgba(60,100,200,0.12)' border='rgba(80,140,255,0.20)'>
@@ -2446,14 +2485,14 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
                 {req.margin && <span style={{fontSize:'1rem',color:'rgba(0,210,255,0.60)',fontFamily:'monospace',fontWeight:700}}>%</span>}
               </div>
             </GC>
-            {/* SLA card */}
+            {/* TAT card */}
             <GC accent='rgba(255,255,255,0.03)' border='rgba(255,255,255,0.08)'>
-              {lbl('SLA (2-day timer)')}
-              <div style={{fontSize:'0.95rem',fontWeight:700,color:slaColor,fontFamily:'monospace',marginBottom:8}}>{slaHrs}h elapsed</div>
+              {lbl('TAT (2-day target)')}
+              <div style={{fontSize:'0.88rem',fontWeight:700,color:tatColor,fontFamily:'monospace',marginBottom:8,letterSpacing:'0.04em'}}>{formatTAT(tatElapsed)}</div>
               <div style={{height:5,borderRadius:3,background:'rgba(255,255,255,0.06)',overflow:'hidden'}}>
-                <div style={{height:'100%',borderRadius:3,width:`${slaPct}%`,background:`linear-gradient(90deg,${slaColor}70,${slaColor})`,transition:'width 0.4s'}}/>
+                <div style={{height:'100%',borderRadius:3,width:`${tatPct}%`,background:`linear-gradient(90deg,${tatColor}70,${tatColor})`,transition:'width 0.4s'}}/>
               </div>
-              <div style={{fontSize:'0.6rem',color:'rgba(255,255,255,0.22)',marginTop:5}}>{Math.round(slaPct)}% of SLA used</div>
+              <div style={{fontSize:'0.6rem',color:'rgba(255,255,255,0.22)',marginTop:5}}>{Math.round(tatPct)}% of TAT used</div>
             </GC>
           </div>
 
@@ -2501,8 +2540,25 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
           {/* ── Attached Documents — downloadable for estimator/director ── */}
           {req.docs?.length > 0 && (
             <GC>
-              {lbl('Attached Documents')}
-              <div style={{display:'flex',gap:7,flexWrap:'wrap',marginTop:7}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                {lbl(`Attached Documents (${req.docs.length})`)}
+                {req.docs.length > 1 && (
+                  <button onClick={()=>req.docs.forEach(d=>downloadDoc(d))}
+                    style={{display:'flex',alignItems:'center',gap:5,padding:'4px 12px',borderRadius:6,background:'rgba(52,211,153,0.08)',border:'1px solid rgba(52,211,153,0.30)',color:'rgba(52,211,153,0.90)',fontSize:'0.65rem',fontWeight:700,cursor:'pointer',outline:'none',fontFamily:F,transition:'background 0.15s',flexShrink:0}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(52,211,153,0.18)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(52,211,153,0.08)'}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download All
+                  </button>
+                )}
+              </div>
+              {/* Scrollable container when > 5 docs */}
+              <div style={{
+                display:'flex',gap:7,flexWrap:'wrap',
+                maxHeight: req.docs.length > 5 ? 140 : 'none',
+                overflowY: req.docs.length > 5 ? 'auto' : 'visible',
+                paddingRight: req.docs.length > 5 ? 2 : 0,
+              }}>
                 {req.docs.map((d,i)=>(
                   <button key={i} onClick={()=>downloadDoc(d)}
                     style={{display:'flex',alignItems:'center',gap:6,fontSize:'0.72rem',color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.07)',border:'1px solid rgba(0,200,255,0.18)',borderRadius:6,padding:'4px 11px',cursor:'pointer',outline:'none',fontFamily:F,fontWeight:600,transition:'background 0.15s'}}
@@ -2552,16 +2608,36 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
           </div>
 
           {/* ── Footer buttons ── */}
-          <div style={{display:'flex',gap:10,paddingTop:4}}>
-            <button onClick={onClose}
-              style={{flex:1,padding:'12px 0',borderRadius:10,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',color:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.85rem',fontWeight:600,cursor:'pointer',outline:'none',backdropFilter:'blur(8px)',transition:'background 0.15s'}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}
-              onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>Cancel</button>
-            <button onClick={submit} disabled={!action}
-              style={{flex:2,padding:'12px 0',borderRadius:10,background:action?'linear-gradient(105deg,#0f0c3a,#1e40af 35%,#6d28d9 65%,#00e5ff)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:action?'auroraShift 5s ease-in-out infinite':'none',border:action?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.06)',color:action?'#fff':'rgba(255,255,255,0.22)',fontFamily:F,fontSize:'0.9rem',fontWeight:700,cursor:action?'pointer':'not-allowed',outline:'none',boxShadow:action?'0 0 24px rgba(0,180,255,0.18)':'none',transition:'box-shadow 0.3s'}}>
-              Submit Decision
-            </button>
-          </div>
+          {submitted ? (
+            /* ── Confirmation banner after submit ── */
+            <div style={{display:'flex',flexDirection:'column',gap:10,paddingTop:4}}>
+              <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 18px',borderRadius:10,background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.30)'}}>
+                <span style={{fontSize:'1.3rem'}}>✓</span>
+                <div>
+                  <div style={{fontSize:'0.84rem',fontWeight:700,color:'rgba(0,230,150,0.95)',marginBottom:2}}>Response Submitted</div>
+                  <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.45)'}}>
+                    Decision: <strong style={{color:'rgba(255,255,255,0.70)'}}>{ACTIONS.find(a=>a.v===action)?.label}</strong>
+                    {note && <> · Note recorded</>}
+                  </div>
+                </div>
+              </div>
+              <button onClick={onClose}
+                style={{padding:'11px 0',borderRadius:10,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.60)',fontFamily:F,fontSize:'0.85rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>Close</button>
+            </div>
+          ) : (
+            <div style={{display:'flex',gap:10,paddingTop:4}}>
+              <button onClick={onClose}
+                style={{flex:1,padding:'12px 0',borderRadius:10,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',color:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.85rem',fontWeight:600,cursor:'pointer',outline:'none',backdropFilter:'blur(8px)',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>Cancel</button>
+              <button onClick={submit} disabled={!action}
+                style={{flex:2,padding:'12px 0',borderRadius:10,background:action?'linear-gradient(105deg,#0f0c3a,#1e40af 35%,#6d28d9 65%,#00e5ff)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:action?'auroraShift 5s ease-in-out infinite':'none',border:action?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.06)',color:action?'#fff':'rgba(255,255,255,0.22)',fontFamily:F,fontSize:'0.9rem',fontWeight:700,cursor:action?'pointer':'not-allowed',outline:'none',boxShadow:action?'0 0 24px rgba(0,180,255,0.18)':'none',transition:'box-shadow 0.3s'}}>
+                Submit Response
+              </button>
+            </div>
+          )}
 
         </div>
       </div>
@@ -2615,10 +2691,9 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
     const rss = REQ_STATUS_STYLE[rs];
 
 
-    const slaElapsed = req.taggedAt ? now - req.taggedAt : 0;
-    const slaHrs = (slaElapsed / 3600000).toFixed(1);
-    const slaPct = Math.min(100, (slaElapsed / SLA_MS) * 100);
-    const slaBarColor = slaPct >= 100 ? '#ff4d4d' : slaPct >= 75 ? '#ff7a30' : slaPct >= 50 ? '#ffb347' : '#00e5ff';
+    const tatElapsedDash = req.taggedAt ? now - req.taggedAt : 0;
+    const tatPctDash = Math.min(100, (tatElapsedDash / TAT_MS) * 100);
+    const tatBarColor = tatPctDash >= 100 ? '#ff4d4d' : tatPctDash >= 75 ? '#ff7a30' : tatPctDash >= 50 ? '#ffb347' : '#00e5ff';
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
     const canSendToDirector = req.estimationFile && req.margin && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
@@ -2633,6 +2708,23 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
 
     return (
       <div style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'70px 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
+
+        {/* ── Role watermark — top right ── */}
+        {(viewMode === 'director' || viewMode === 'estimator') && (
+          <div style={{
+            position:'absolute', top:14, right:22,
+            fontSize:'0.60rem', fontWeight:800,
+            letterSpacing:'0.22em', textTransform:'uppercase',
+            color: viewMode==='director' ? 'rgba(0,220,255,0.18)' : 'rgba(255,200,50,0.18)',
+            fontFamily:"'Inter',sans-serif",
+            userSelect:'none', pointerEvents:'none', zIndex:1,
+            border: `1px solid ${viewMode==='director'?'rgba(0,220,255,0.10)':'rgba(255,200,50,0.10)'}`,
+            borderRadius:4, padding:'3px 8px',
+          }}>
+            {viewMode === 'director' ? '⬡ Director View' : '◈ Estimator View'}
+          </div>
+        )}
+
         {reviewIdx !== null && (
           <DirectorReviewModal req={requests[reviewIdx]} idx={reviewIdx} now={now} onUpdate={onUpdate} onClose={()=>setReviewIdx(null)}/>
         )}
@@ -2874,7 +2966,69 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                   );
                 })()}
 
-                {/* Requester remarks — read-only reference */}
+                {/* ── Comment History thread ── */}
+                {(() => {
+                  const origReq = req.originalId ? requests.find(r => r.id === req.originalId) : null;
+                  const entries = [];
+
+                  // Original requestor remark
+                  if (origReq?.remarks) entries.push({
+                    role:'Requestor', label:'Original Remarks', text:origReq.remarks,
+                    dot:'rgba(180,180,255,0.80)', border:'rgba(120,120,255,0.20)', bg:'rgba(80,80,200,0.05)',
+                    ref: origReq.id, date: origReq.date,
+                  });
+                  // Original director note
+                  if (origReq?.directorNote) entries.push({
+                    role:'Director', label:'Director Response (Original)', text:origReq.directorNote,
+                    dot:'rgba(0,220,255,0.85)', border:'rgba(0,180,255,0.22)', bg:'rgba(0,150,255,0.05)',
+                    ref: origReq.id, date: origReq.directorRespondedAt ? new Date(origReq.directorRespondedAt).toLocaleDateString('en-GB') : origReq.date,
+                    extra: origReq.directorAction ? `Decision: ${origReq.directorAction.charAt(0).toUpperCase()+origReq.directorAction.slice(1)}` : null,
+                  });
+                  // Current requestor remark (revised/finalPrice)
+                  if (req.remarks && (req.requestType==='revised'||req.requestType==='finalPrice')) entries.push({
+                    role:'Requestor', label: req.requestType==='finalPrice'?'Final Price Remarks':'Revision Remarks', text:req.remarks,
+                    dot:'rgba(52,211,153,0.85)', border:'rgba(52,200,130,0.22)', bg:'rgba(16,185,129,0.05)',
+                    ref: req.id, date: req.date,
+                  });
+                  // Current director note (if already responded)
+                  if (req.directorNote) entries.push({
+                    role:'Director', label:'Director Response', text:req.directorNote,
+                    dot:'rgba(0,220,255,0.85)', border:'rgba(0,180,255,0.22)', bg:'rgba(0,150,255,0.05)',
+                    ref: req.id, date: req.directorRespondedAt ? new Date(req.directorRespondedAt).toLocaleDateString('en-GB') : req.date,
+                    extra: req.directorAction ? `Decision: ${req.directorAction.charAt(0).toUpperCase()+req.directorAction.slice(1)}` : null,
+                  });
+
+                  if (entries.length === 0) return null;
+                  return (
+                    <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'14px 16px'}}>
+                      <p style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:12,fontWeight:700}}>Comment History</p>
+                      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                        {entries.map((e,i)=>(
+                          <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                            {/* Timeline dot + line */}
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,paddingTop:3}}>
+                              <div style={{width:8,height:8,borderRadius:'50%',background:e.dot,boxShadow:`0 0 6px ${e.dot}`,flexShrink:0}}/>
+                              {i < entries.length-1 && <div style={{width:1,flex:1,minHeight:16,background:'rgba(255,255,255,0.08)',marginTop:4}}/>}
+                            </div>
+                            {/* Content */}
+                            <div style={{flex:1,background:e.bg,border:`1px solid ${e.border}`,borderRadius:8,padding:'8px 12px',minWidth:0}}>
+                              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,flexWrap:'wrap'}}>
+                                <span style={{fontSize:'0.58rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:e.dot}}>{e.role}</span>
+                                <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.28)'}}>·</span>
+                                <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.30)'}}>{e.label}</span>
+                                {e.date && <span style={{fontSize:'0.56rem',color:'rgba(255,255,255,0.20)',marginLeft:'auto'}}>{e.date}</span>}
+                              </div>
+                              {e.extra && <div style={{fontSize:'0.66rem',fontWeight:600,color:e.dot,marginBottom:4}}>{e.extra}</div>}
+                              <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.5,margin:0}}>{e.text}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Requester remarks — read-only reference (new requests only) */}
                 {req.remarks && req.requestType !== 'revised' && req.requestType !== 'finalPrice' && (
                   <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'12px 16px'}}>
                     <p style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:6}}>Requester Remarks</p>
@@ -2899,14 +3053,30 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                     {/* Attached docs — each downloadable */}
                     {req.docs?.length > 0 ? (
                       <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                        <p style={{fontSize:'0.52rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:3}}>Attached Documents</p>
-                        {req.docs.map((d,i)=>(
-                          <button key={i} onClick={()=>downloadDoc(d)}
-                            style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            {docName(d)}
-                          </button>
-                        ))}
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
+                          <p style={{fontSize:'0.52rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',margin:0}}>Attached Documents ({req.docs.length})</p>
+                          {req.docs.length > 1 && (
+                            <button onClick={()=>req.docs.forEach(d=>downloadDoc(d))}
+                              style={{...btnStyle,padding:'3px 10px',fontSize:'0.62rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.30)',background:'rgba(52,211,153,0.08)',fontWeight:700,flexShrink:0}}>
+                              ↓ Download All
+                            </button>
+                          )}
+                        </div>
+                        {/* Scrollable when > 5 docs */}
+                        <div style={{
+                          display:'flex',flexDirection:'column',gap:4,
+                          maxHeight: req.docs.length > 5 ? 160 : 'none',
+                          overflowY: req.docs.length > 5 ? 'auto' : 'visible',
+                          paddingRight: req.docs.length > 5 ? 2 : 0,
+                        }}>
+                          {req.docs.map((d,i)=>(
+                            <button key={i} onClick={()=>downloadDoc(d)}
+                              style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                              {docName(d)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <button style={{...btnStyle,opacity:0.45,cursor:'default'}}>↓ No Documents Attached</button>
@@ -3049,7 +3219,7 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                     </div>
                   )}
 
-                  {/* Stats: Estimator · Margin · SLA · Value */}
+                  {/* Stats: Estimator · Margin · TAT · Value */}
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
                     <div style={{background:'rgba(100,160,255,0.05)',border:'1px solid rgba(100,160,255,0.14)',borderRadius:8,padding:'9px 12px'}}>
                       <div style={{fontSize:'0.44rem',color:'rgba(100,160,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Estimator</div>
@@ -3064,10 +3234,10 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                       </div>
                     </div>
                     <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'9px 12px'}}>
-                      <div style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>SLA (2-day)</div>
-                      <div style={{fontSize:'1rem',fontWeight:800,color:slaBarColor,fontFamily:'monospace',marginBottom:5,lineHeight:1}}>{slaHrs}h</div>
+                      <div style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>TAT (2-day)</div>
+                      <div style={{fontSize:'0.78rem',fontWeight:800,color:tatBarColor,fontFamily:'monospace',marginBottom:5,lineHeight:1,letterSpacing:'0.03em'}}>{formatTAT(tatElapsedDash)}</div>
                       <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.07)',overflow:'hidden'}}>
-                        <div style={{height:'100%',borderRadius:2,width:`${slaPct}%`,background:`linear-gradient(90deg,${slaBarColor}50,${slaBarColor})`}}/>
+                        <div style={{height:'100%',borderRadius:2,width:`${tatPctDash}%`,background:`linear-gradient(90deg,${tatBarColor}50,${tatBarColor})`}}/>
                       </div>
                     </div>
                     <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:8,padding:'9px 12px'}}>
@@ -3186,10 +3356,10 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                       </button>
                     ))}
                   </div>
-                  <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':'Pending Estimation';const nr=req.directorAction==='approved'?'completed':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true});}}}
+                  <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':'Pending Estimation';const nr=req.directorAction==='approved'?'completed':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString()});}}}
                     disabled={!req.directorAction}
                     style={{width:'100%',padding:'11px 0',borderRadius:100,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.90rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 6px 24px rgba(120,60,255,0.30)':'none',outline:'none'}}>
-                    Submit Decision
+                    Submit Response
                   </button>
                 </div>
 
@@ -3261,11 +3431,11 @@ const Dashboard = ({ requests, onUpdate, onDelete }) => {
                   {/* ── ANALYSIS TAB ── */}
                   {dirTab === 'analysis' && (<>
 
-                    {/* SLA & status summary */}
+                    {/* TAT & status summary */}
                     <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'12px 14px'}}>
                       <div style={{fontSize:'0.50rem',color:'rgba(200,130,255,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:10}}>Request Analysis</div>
                       {[
-                        ['SLA Elapsed', `${slaHrs}h / 48h (${Math.round(slaPct)}%)`, slaPct>=100?'rgba(255,77,77,0.90)':slaPct>=75?'rgba(255,122,48,0.90)':'rgba(0,229,176,0.85)'],
+                        ['TAT Elapsed', `${formatTAT(tatElapsedDash)} (${Math.round(tatPctDash)}%)`, tatPctDash>=100?'rgba(255,77,77,0.90)':tatPctDash>=75?'rgba(255,122,48,0.90)':'rgba(0,229,176,0.85)'],
                         ['Request Type', req.requestType==='revised'?'Revised':req.requestType==='finalPrice'?'Final Price':'New Request', 'rgba(255,255,255,0.75)'],
                         ['Deal Category', req.deal||'—', 'rgba(255,255,255,0.75)'],
                         ['Supply Mode', req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'Not specified', 'rgba(255,255,255,0.65)'],
