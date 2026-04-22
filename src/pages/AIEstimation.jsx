@@ -928,9 +928,10 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   const filtered = dsearch.trim()
     ? myRequests.filter(r => {
         const lo = dsearch.toLowerCase();
-        return r.id.toLowerCase().includes(lo) ||
-          (r.proj || '').toLowerCase().includes(lo) ||
-          (r.client || '').toLowerCase().includes(lo);
+        return [r.id, r.proj, r.client, r.submittedBy, r.salesPerson, r.estimator,
+          r.mainContractor, r.consultant, r.deal, r.status, r.email, r.mob,
+          r.tel, r.address, r.remarks, r.leadTime, r.projValue]
+          .some(v => (v||'').toLowerCase().includes(lo));
       })
     : myRequests;
 
@@ -2591,6 +2592,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
     onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
       directorRespondedAt: new Date().toISOString()});
     setSubmitted(true);
+    setTimeout(() => onClose(), 1800);
   };
 
   const F = "'Inter',sans-serif";
@@ -3277,20 +3279,55 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                       </button>
                     )}
                   </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
-                    <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'10px 12px'}}>
-                      <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,255,0.45)',marginBottom:6}}>Margin %</p>
-                      <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                        <input type="number" value={req.margin||''} onChange={e=>onUpdate(open,{margin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
-                          style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.95)',fontFamily:'monospace',fontSize:'1.3rem',fontWeight:700,width:'100%'}}/>
-                        <span style={{fontSize:'0.9rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace',fontWeight:700}}>%</span>
+                  {/* ── Margin breakdown ── */}
+                  <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'12px 14px',marginTop:4}}>
+                    <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,255,0.45)',marginBottom:10}}>Margin Breakdown</p>
+                    {/* Total — big */}
+                    <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:10,borderBottom:'1px solid rgba(0,200,255,0.12)',paddingBottom:8}}>
+                      <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.40)',textTransform:'uppercase',letterSpacing:'0.10em',marginRight:6}}>Total</span>
+                      <span style={{fontFamily:'monospace',fontSize:'2rem',fontWeight:800,color:'rgba(0,210,255,0.95)',lineHeight:1}}>
+                        {(() => { const t = (parseFloat(req.overhead||0)+parseFloat(req.profit||0)).toFixed(1); return t === '0.0' ? '—' : t+'%'; })()}
+                      </span>
+                    </div>
+                    {/* 3 sub-fields row */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 80px',gap:8}}>
+                      <div>
+                        <p style={{fontSize:'0.52rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:4}}>Overhead %</p>
+                        <div style={{display:'flex',alignItems:'baseline',gap:3}}>
+                          <input type="number" value={req.overhead||''} onChange={e=>onUpdate(open,{overhead:e.target.value, margin:(parseFloat(e.target.value||0)+parseFloat(req.profit||0)).toFixed(1)})} placeholder="0.0" min="0" max="100" step="0.5"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.90)',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%'}}/>
+                          <span style={{fontSize:'0.75rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{fontSize:'0.52rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:4}}>Profit %</p>
+                        <div style={{display:'flex',alignItems:'baseline',gap:3}}>
+                          <input type="number" value={req.profit||''} onChange={e=>onUpdate(open,{profit:e.target.value, margin:(parseFloat(req.overhead||0)+parseFloat(e.target.value||0)).toFixed(1)})} placeholder="0.0" min="0" max="100" step="0.5"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.90)',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%'}}/>
+                          <span style={{fontSize:'0.75rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{fontSize:'0.52rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:4}}>Warranty</p>
+                        <div style={{display:'flex',alignItems:'baseline',gap:3}}>
+                          <input type="number" value={req.warranty||''} onChange={e=>onUpdate(open,{warranty:e.target.value})} placeholder="0" min="0" max="20" step="1"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.90)',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%'}}/>
+                          <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>yr</span>
+                        </div>
                       </div>
                     </div>
-                    <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
-                      <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
-                      <input type="number" value={req.projValue||''} onChange={e=>onUpdate(open,{projValue:e.target.value})} placeholder="0.00" min="0"
-                        style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%'}}/>
-                    </div>
+                  </div>
+                  {/* Project Value */}
+                  <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
+                    <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
+                    <input type="number" value={req.projValue||''} onChange={e=>onUpdate(open,{projValue:e.target.value})} placeholder="0.00" min="0"
+                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%'}}/>
+                  </div>
+                  {/* Estimator Comments */}
+                  <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(255,200,80,0.22)',borderRadius:8,padding:'10px 12px'}}>
+                    <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,200,80,0.45)',marginBottom:6}}>Estimator Comments</p>
+                    <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(open,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3}
+                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(255,230,140,0.88)',fontFamily:F2,fontSize:'0.84rem',fontWeight:400,width:'100%',resize:'vertical',lineHeight:1.55}}/>
                   </div>
                 </div>
 
@@ -3488,13 +3525,17 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                       <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.60)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                         <span style={{fontSize:'0.50rem',color:'rgba(0,220,130,0.65)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Quotation Documents</span>
-                        {req.estimationFile && <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic',marginLeft:'auto'}}>{req.estimationFile}</span>}
+                        <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.estimationDoc ? '1 file' : '0 files'}</span>
                       </div>
-                      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                        {dlBtn('↓ PDF',   'rgba(255,130,110,0.92)', 'rgba(255,80,60,0.09)',  'pdf')}
-                        {dlBtn('↓ Excel', 'rgba(60,225,135,0.92)',  'rgba(0,180,80,0.09)',   'xlsx')}
-                        {dlBtn('↓ Word',  'rgba(120,170,255,0.90)', 'rgba(80,130,255,0.09)', 'docx')}
-                      </div>
+                      {req.estimationDoc?.data || req.estimationDoc?.url ? (
+                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                          <button onClick={()=>downloadDoc(req.estimationDoc)}
+                            style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.30)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.08)'}>
+                            <DlIco/>{req.estimationFile || docName(req.estimationDoc)}
+                          </button>
+                        </div>
+                      ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
                     </div>
 
                   </div>
@@ -3667,7 +3708,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
   // ── List view ──
   const lo = dsearch.toLowerCase();
   const filtered = requests.filter(r => {
-    if (lo && !r.id.toLowerCase().includes(lo) && !(r.client||'').toLowerCase().includes(lo) && !(r.proj||'').toLowerCase().includes(lo)) return false;
+    if (lo) {
+      const fields = [r.id, r.proj, r.client, r.submittedBy, r.salesPerson, r.estimator,
+        r.mainContractor, r.consultant, r.deal, r.status, r.reqStatus, r.email, r.mob,
+        r.tel, r.address, r.remarks, r.leadTime, r.projValue].map(v => (v||'').toLowerCase());
+      if (!fields.some(f => f.includes(lo))) return false;
+    }
     if (viewMode === 'requester' && requesterFilter && r.submittedBy !== requesterFilter) return false;
     return true;
   });
@@ -3675,8 +3721,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
 
   // Unified column layout — director gets an extra delete column
   const COL = viewMode === 'director'
-    ? '100px 120px 1fr 120px 120px 120px 120px 120px 100px 110px 36px'
-    : '100px 120px 1fr 120px 120px 120px 120px 120px 100px 110px';
+    ? '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px 36px'
+    : '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px';
 
   const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Director'};
   const VIEW_COLORS = {
@@ -3776,7 +3822,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
           {filtered.map(r => {
             const realIdx = requests.indexOf(r);
             return (
-              <div key={r.id} style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'center',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
+              <div key={r.id} style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
                 onClick={()=>setOpen(realIdx)}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>
@@ -3785,18 +3831,29 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                 <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.id||'—'}</span>
 
                 {/* Status */}
-                <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                <div style={{display:'flex',flexDirection:'column',gap:3,overflow:'hidden',minWidth:0}}>
                   <Badge s={r.status}/>
+                  {(() => {
+                    const subMap = {
+                      'not-started':   {label:'Pending Assignment', c:'rgba(255,200,50,0.60)'},
+                      'inprogress':    {label:'Estimator Review',   c:'rgba(100,200,255,0.70)'},
+                      'pending-director':{label:'Director Review',  c:'rgba(180,130,255,0.80)'},
+                      'completed':     {label:'Completed',          c:'rgba(52,211,153,0.80)'},
+                      'onhold':        {label:'On Hold',            c:'rgba(255,120,60,0.70)'},
+                    };
+                    const sub = subMap[r.reqStatus];
+                    return sub ? <span style={{fontSize:'0.52rem',color:sub.c,fontWeight:600,letterSpacing:'0.05em'}}>{sub.label}</span> : null;
+                  })()}
                   {r.requestType==='revised' && (
-                    <span style={{fontSize:'0.55rem',color:'rgba(0,200,255,0.70)',fontWeight:600,letterSpacing:'0.06em'}}>REVISED</span>
+                    <span style={{fontSize:'0.52rem',color:'rgba(0,200,255,0.70)',fontWeight:600,letterSpacing:'0.06em'}}>REVISED</span>
                   )}
                   {r.requestType==='finalPrice' && (
-                    <span style={{fontSize:'0.55rem',color:'rgba(52,211,153,0.80)',fontWeight:600,letterSpacing:'0.06em'}}>FINAL</span>
+                    <span style={{fontSize:'0.52rem',color:'rgba(52,211,153,0.80)',fontWeight:600,letterSpacing:'0.06em'}}>FINAL</span>
                   )}
                 </div>
 
                 {/* Project */}
-                <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.75)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</span>
+                <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.75)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block',minWidth:0}}>{r.proj||'—'}</span>
 
                 {/* Main Contractor */}
                 <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.50)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.mainContractor||'—'}</span>
@@ -3808,7 +3865,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                 <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.client||'—'}</span>
 
                 {/* Requested By */}
-                <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.55)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.submittedBy||'—'}</span>
+                <div style={{display:'flex',flexDirection:'column',gap:1,overflow:'hidden'}}>
+                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.60)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.submittedBy||'—'}</span>
+                  {r.salesPerson && <span style={{fontSize:'0.58rem',color:'rgba(255,200,80,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.salesPerson}</span>}
+                </div>
 
                 {/* Estimator */}
                 <span style={{fontSize:'0.72rem',color:r.estimator?'rgba(100,180,255,0.85)':'rgba(255,255,255,0.22)',fontStyle:r.estimator?'normal':'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.estimator||'Unassigned'}</span>
@@ -4175,7 +4235,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://estimation-tan.vercel.app/"
+        src="https://estv7-338841056432.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,

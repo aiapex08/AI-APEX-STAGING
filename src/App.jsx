@@ -1207,6 +1207,7 @@ const AccessCodeScreen = ({ onAccepted }) => {
   const [code, setCode] = useState('');
   const [shake, setShake] = useState(false);
   const [error, setError] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -1338,17 +1339,41 @@ const AccessCodeScreen = ({ onAccepted }) => {
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}
       >
         <div className="access-label">Enter Access Code</div>
-        <input
-          ref={inputRef}
-          className={`access-input${error ? ' error' : ''}`}
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="— — — — —"
-          maxLength={10}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <input
+            ref={inputRef}
+            className={`access-input${error ? ' error' : ''}`}
+            type={showCode ? 'text' : 'password'}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="— — — — —"
+            maxLength={10}
+            autoComplete="off"
+            spellCheck={false}
+            style={{ paddingRight: '36px' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowCode(v => !v)}
+            style={{
+              position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+              color: showCode ? '#cc0000' : '#444', outline: 'none', lineHeight: 0,
+              transition: 'color 0.2s',
+            }}
+          >
+            {showCode ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            )}
+          </button>
+        </div>
         <div className={`access-error-msg${error ? ' visible' : ''}`}>Invalid access code</div>
       </form>
 
