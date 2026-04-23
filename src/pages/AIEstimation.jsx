@@ -682,8 +682,8 @@ const S = `
   .ss-status-select option { background: #0d1117; }
   .ss-status-select.won   { border-color: rgba(34,197,94,0.55);  color: #4ade80; background-color: rgba(34,197,94,0.10); }
   .ss-status-select.lost  { border-color: rgba(239,68,68,0.55);  color: #f87171; background-color: rgba(239,68,68,0.10); }
-  .ss-status-select.hold  { border-color: rgba(251,191,36,0.55); color: #fbbf24; background-color: rgba(251,191,36,0.09); }
-  .ss-status-select.risk  { border-color: rgba(249,115,22,0.55); color: #fb923c; background-color: rgba(249,115,22,0.10); }
+  .ss-status-select.follow-up  { border-color: rgba(251,191,36,0.55); color: #fbbf24; background-color: rgba(251,191,36,0.09); }
+  .ss-status-select.risk, .ss-status-select.risky { border-color: rgba(249,115,22,0.55); color: #fb923c; background-color: rgba(249,115,22,0.10); }
   .ss-status-select.pending { border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.45); }
   .ss-ts {
     font-size: 0.72rem; color: rgba(255,255,255,0.28); letter-spacing: 0.04em;
@@ -697,8 +697,8 @@ const S = `
   }
   .ss-badge.won  { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.3);  color: #4ade80; }
   .ss-badge.lost { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);  color: #f87171; }
-  .ss-badge.hold { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
-  .ss-badge.risk { background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3); color: #fb923c; }
+  .ss-badge.follow-up { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; }
+  .ss-badge.risk, .ss-badge.risky { background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3); color: #fb923c; }
   .ss-badge.pending { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.38); }
   @keyframes ssRowFlash { 0%{background:rgba(168,85,247,0.12)} 100%{background:transparent} }
   .ss-flash { animation: ssRowFlash 0.8s ease-out; }
@@ -887,9 +887,9 @@ const AIChatPanel = ({ onClose }) => {
 };
 
 // ─── SALES STATUS VIEW ───────────────────────────────────────────────────────
-const SALES_STATUSES = ['Pending', 'Won', 'Lost', 'Hold', 'Risk'];
+const SALES_STATUSES = ['Pending', 'Won', 'Lost', 'Follow-up', 'Risky'];
 
-const statusDot = { Won: '🟢', Lost: '🔴', Hold: '🟡', Risk: '🟠', Pending: '⚪' };
+const statusDot = { Won: '🟢', Lost: '🔴', 'Follow-up': '🟡', Risky: '🟠', Pending: '⚪' };
 
 const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   const F2 = "'Inter',sans-serif";
@@ -900,6 +900,8 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   const [openIdx, setOpenIdx] = useState(null);   // global index in requests[]
   const [flashId, setFlashId] = useState(null);
   const [dsearch, setDsearch] = useState('');
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const [remarkDraft, setRemarkDraft] = useState('');
 
   const handleLogin = (e) => {
     e && e.preventDefault();
@@ -940,14 +942,16 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     return s.toLowerCase();
   };
 
-  const handleStatusChange = (globalIdx, newStatus) => {
+  const handleStatusChange = (globalIdx, newStatus, remark = '') => {
     const now = new Date();
     const ts = now.toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
       hour12: false,
     });
-    onUpdate(globalIdx, { salesStatus: newStatus, salesStatusAt: ts });
+    const entry = { status: newStatus, remark: remark.trim(), by: spName || 'Sales', ts };
+    const prev = requests[globalIdx].salesLog || [];
+    onUpdate(globalIdx, { salesStatus: newStatus, salesStatusAt: ts, salesLog: [...prev, entry] });
     setFlashId(requests[globalIdx].id);
     setTimeout(() => setFlashId(null), 900);
   };
@@ -1014,8 +1018,8 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     const statusColors = {
       Won:  { c: '#4ade80', bg: 'rgba(34,197,94,0.10)',  bd: 'rgba(34,197,94,0.30)'  },
       Lost: { c: '#f87171', bg: 'rgba(239,68,68,0.10)',  bd: 'rgba(239,68,68,0.30)'  },
-      Hold: { c: '#fbbf24', bg: 'rgba(251,191,36,0.09)', bd: 'rgba(251,191,36,0.30)' },
-      Risk: { c: '#fb923c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.30)' },
+      'Follow-up': { c: '#fbbf24', bg: 'rgba(251,191,36,0.09)', bd: 'rgba(251,191,36,0.30)' },
+      Risky: { c: '#fb923c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.30)' },
       Pending: { c: 'rgba(255,255,255,0.40)', bg: 'rgba(255,255,255,0.04)', bd: 'rgba(255,255,255,0.12)' },
     };
     const sc2 = statusColors[curStatus] || statusColors.Pending;
@@ -1078,10 +1082,10 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 14 }}>Update Sales Status</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {SALES_STATUSES.filter(s => s !== 'Pending').map(s => {
-                  const sColors = statusColors[s];
-                  const isActive = curStatus === s;
+                  const sColors = statusColors[s] || statusColors.Pending;
+                  const isActive = pendingStatus ? pendingStatus === s : curStatus === s;
                   return (
-                    <button key={s} onClick={() => handleStatusChange(openIdx, s)}
+                    <button key={s} onClick={() => { setPendingStatus(s); setRemarkDraft(''); }}
                       style={{
                         padding: '14px 0', borderRadius: 10, cursor: 'pointer',
                         background: isActive ? sColors.bg : 'rgba(255,255,255,0.03)',
@@ -1099,12 +1103,74 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                   );
                 })}
               </div>
-              {r.salesStatusAt && (
-                <p style={{ marginTop: 14, fontSize: '0.72rem', color: 'rgba(255,255,255,0.30)', letterSpacing: '0.06em' }}>
+
+              {/* Remark input — appears when a status is selected */}
+              {pendingStatus && (() => {
+                const sc = statusColors[pendingStatus] || statusColors.Pending;
+                return (
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ fontSize: '0.54rem', color: sc.c, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
+                      Add remark for "{pendingStatus}"
+                    </div>
+                    <textarea
+                      value={remarkDraft}
+                      onChange={e => setRemarkDraft(e.target.value)}
+                      placeholder="Describe the outcome, next steps or any notes…"
+                      rows={3}
+                      autoFocus
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: `1px solid ${sc.bd}`, borderRadius: 8, color: 'rgba(255,255,255,0.82)', fontFamily: F2, fontSize: '0.84rem', padding: '10px 12px', outline: 'none', resize: 'vertical', lineHeight: 1.55, boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => { setPendingStatus(null); setRemarkDraft(''); }}
+                        style={{ flex: 1, padding: '9px 0', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.38)', fontFamily: F2, fontSize: '0.82rem', cursor: 'pointer', outline: 'none' }}>
+                        Cancel
+                      </button>
+                      <button onClick={() => { handleStatusChange(openIdx, pendingStatus, remarkDraft); setPendingStatus(null); setRemarkDraft(''); }}
+                        style={{ flex: 2, padding: '9px 0', borderRadius: 8, background: sc.bg, border: `1px solid ${sc.bd}`, color: sc.c, fontFamily: F2, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', outline: 'none' }}>
+                        Save — {pendingStatus}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {r.salesStatusAt && !pendingStatus && (
+                <p style={{ marginTop: 14, fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)', letterSpacing: '0.06em' }}>
                   Last updated: {r.salesStatusAt}
                 </p>
               )}
             </div>
+
+            {/* Sales Activity Log */}
+            {r.salesLog?.length > 0 && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 18px' }}>
+                <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.26)', marginBottom: 12 }}>Activity Log</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {[...r.salesLog].reverse().map((entry, i) => {
+                    const ec = statusColors[entry.status] || statusColors.Pending;
+                    return (
+                      <div key={i} style={{ display: 'flex', gap: 10, paddingBottom: 12, marginBottom: 12, borderBottom: i < r.salesLog.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: ec.c, boxShadow: `0 0 6px ${ec.c}`, marginTop: 3, flexShrink: 0 }} />
+                          {i < r.salesLog.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 12, background: 'rgba(255,255,255,0.07)', marginTop: 3 }} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: entry.remark ? 5 : 0, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: ec.c }}>{entry.status}</span>
+                            <span style={{ fontSize: '0.60rem', color: 'rgba(255,255,255,0.25)' }}>·</span>
+                            <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.28)' }}>{entry.by}</span>
+                            <span style={{ fontSize: '0.60rem', color: 'rgba(255,255,255,0.20)', marginLeft: 'auto' }}>{entry.ts}</span>
+                          </div>
+                          {entry.remark && (
+                            <p style={{ fontSize: '0.80rem', color: 'rgba(255,255,255,0.60)', lineHeight: 1.55, margin: 0, borderLeft: `2px solid ${ec.c}40`, paddingLeft: 8 }}>{entry.remark}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Estimation status (read-only) */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
@@ -1142,10 +1208,10 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   }
 
   /* ── list view ── */
-  const wonCount  = myRequests.filter(r => r.salesStatus === 'Won').length;
-  const lostCount = myRequests.filter(r => r.salesStatus === 'Lost').length;
-  const holdCount = myRequests.filter(r => r.salesStatus === 'Hold').length;
-  const riskCount = myRequests.filter(r => r.salesStatus === 'Risk').length;
+  const wonCount      = myRequests.filter(r => r.salesStatus === 'Won').length;
+  const lostCount     = myRequests.filter(r => r.salesStatus === 'Lost').length;
+  const followupCount = myRequests.filter(r => r.salesStatus === 'Follow-up').length;
+  const riskyCount    = myRequests.filter(r => r.salesStatus === 'Risky' || r.salesStatus === 'Risk').length;
 
   return (
     <div className="ss-page">
@@ -1163,10 +1229,10 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Summary chips */}
           {[
-            { label: 'Won',  count: wonCount,  c: '#4ade80', bg: 'rgba(34,197,94,0.10)',  bd: 'rgba(34,197,94,0.25)'  },
-            { label: 'Lost', count: lostCount, c: '#f87171', bg: 'rgba(239,68,68,0.10)',  bd: 'rgba(239,68,68,0.25)'  },
-            { label: 'Hold', count: holdCount, c: '#fbbf24', bg: 'rgba(251,191,36,0.09)', bd: 'rgba(251,191,36,0.25)' },
-            { label: 'Risk', count: riskCount, c: '#fb923c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.25)' },
+            { label: 'Won',       count: wonCount,      c: '#4ade80', bg: 'rgba(34,197,94,0.10)',  bd: 'rgba(34,197,94,0.25)'  },
+            { label: 'Lost',      count: lostCount,     c: '#f87171', bg: 'rgba(239,68,68,0.10)',  bd: 'rgba(239,68,68,0.25)'  },
+            { label: 'Follow-up', count: followupCount, c: '#fbbf24', bg: 'rgba(251,191,36,0.09)', bd: 'rgba(251,191,36,0.25)' },
+            { label: 'Risky',     count: riskyCount,    c: '#fb923c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.25)' },
           ].map(chip => (
             <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 13px', borderRadius: 50, background: chip.bg, border: `1px solid ${chip.bd}` }}>
               <span style={{ fontSize: '0.88rem', fontWeight: 800, color: chip.c }}>{chip.count}</span>
@@ -1367,12 +1433,399 @@ const RoleLogin = ({ onLogin }) => {
   );
 };
 
+// ─── SALES DIARY ─────────────────────────────────────────────────────────────
+const MEET_TYPES = ['Customer Visit', 'Phone Call', 'Online Meeting', 'Site Visit', 'Internal'];
+const PROB_COLORS = p => p >= 75 ? '#4ade80' : p >= 50 ? '#fbbf24' : p >= 25 ? '#fb923c' : '#f87171';
+
+const SalesDiary = ({ diaryEntries, onAddEntry, onEditEntry, onDeleteEntry, spName, showAll }) => {
+  const F = "'Inter',sans-serif";
+  const today = new Date();
+  const [curYear,  setCurYear]  = useState(today.getFullYear());
+  const [curMonth, setCurMonth] = useState(today.getMonth());  // 0-based
+  const [selDay,   setSelDay]   = useState(today.getDate());
+  const [showForm, setShowForm] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);   // null = new
+  const [filterSp, setFilterSp] = useState('');
+
+  // ── form state ──
+  const blankForm = () => ({
+    date: `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`,
+    time: '09:00', customer: '', requestId: '', meetingType: 'Customer Visit',
+    probability: 50, remarks: '', nextDate: '', nextTime: '', nextNote: '',
+  });
+  const [form, setForm] = useState(blankForm);
+
+  const openNew = () => {
+    setEditEntry(null);
+    setForm({ ...blankForm(), date: `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}` });
+    setShowForm(true);
+  };
+  const openEdit = (e) => { setEditEntry(e); setForm({ ...e }); setShowForm(true); };
+  const closeForm = () => { setShowForm(false); setEditEntry(null); };
+
+  const saveEntry = () => {
+    if (!form.customer.trim() || !form.date) return;
+    if (editEntry) {
+      onEditEntry({ ...editEntry, ...form });
+    } else {
+      onAddEntry({ ...form, id: 'D' + Date.now(), salesPerson: spName, createdAt: new Date().toISOString() });
+    }
+    closeForm();
+  };
+
+  // ── calendar helpers ──
+  const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  const firstDow    = new Date(curYear, curMonth, 1).getDay(); // 0=Sun
+  const prevMonth   = () => { if (curMonth === 0) { setCurYear(y => y-1); setCurMonth(11); } else setCurMonth(m => m-1); };
+  const nextMonth   = () => { if (curMonth === 11) { setCurYear(y => y+1); setCurMonth(0); } else setCurMonth(m => m+1); };
+  const monthName   = new Date(curYear, curMonth).toLocaleString('en', { month: 'long' });
+
+  // entries visible to current user
+  const myEntries = showAll
+    ? (filterSp ? diaryEntries.filter(e => e.salesPerson === filterSp) : diaryEntries)
+    : diaryEntries.filter(e => e.salesPerson === spName);
+
+  // entries keyed by date string 'YYYY-MM-DD'
+  const byDate = {};
+  myEntries.forEach(e => { if (!byDate[e.date]) byDate[e.date] = []; byDate[e.date].push(e); });
+
+  const selDateStr = `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`;
+  const dayEntries = byDate[selDateStr] || [];
+
+  // all sales persons (for director filter)
+  const allSp = [...new Set(diaryEntries.map(e => e.salesPerson).filter(Boolean))].sort();
+
+  const UP = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // ── input style helper ──
+  const inp = (extra={}) => ({
+    width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)',
+    borderRadius:7, color:'rgba(255,255,255,0.85)', fontFamily:F, fontSize:'0.84rem',
+    padding:'9px 12px', outline:'none', boxSizing:'border-box', ...extra,
+  });
+
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', padding:'70px 36px 28px', overflowY:'auto', animation:'fadeUp 0.35s ease both', fontFamily:F }}>
+
+      {/* ── Header ── */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontSize:'1.3rem', fontWeight:800, letterSpacing:'0.10em', color:'rgba(255,255,255,0.88)', textTransform:'uppercase', margin:0 }}>Sales Diary</h2>
+          <p style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.32)', marginTop:4, letterSpacing:'0.06em' }}>
+            {showAll ? 'Director — All Sales Activity' : `My Activity · ${spName}`}
+          </p>
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          {showAll && allSp.length > 0 && (
+            <select value={filterSp} onChange={e => setFilterSp(e.target.value)}
+              style={{ background:'rgba(0,10,30,0.70)', border:'1px solid rgba(0,200,255,0.22)', borderRadius:8, color:filterSp?'rgba(100,200,255,0.90)':'rgba(255,255,255,0.35)', fontFamily:F, fontSize:'0.80rem', padding:'8px 12px', outline:'none', cursor:'pointer' }}>
+              <option value="">All Sales Persons</option>
+              {allSp.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          )}
+          {!showAll && (
+            <button onClick={openNew}
+              style={{ padding:'9px 20px', borderRadius:100, background:'linear-gradient(105deg,#1e1b6e,#3730a3,#6d28d9,#a855f7)', backgroundSize:'220% 220%', animation:'auroraShift 5s ease-in-out infinite', border:'1px solid rgba(255,255,255,0.18)', color:'#fff', fontFamily:F, fontSize:'0.84rem', fontWeight:700, cursor:'pointer', outline:'none', letterSpacing:'0.06em', boxShadow:'0 4px 18px rgba(109,40,217,0.40)' }}>
+              + Log Activity
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'320px 1fr', gap:20 }}>
+
+        {/* ── LEFT: Calendar ── */}
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          {/* Month nav */}
+          <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:12, padding:'14px 16px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+              <button onClick={prevMonth} style={{ background:'transparent', border:'none', color:'rgba(255,255,255,0.50)', cursor:'pointer', fontSize:'1.1rem', padding:'2px 8px', borderRadius:6, outline:'none' }}>‹</button>
+              <span style={{ fontSize:'0.92rem', fontWeight:700, color:'rgba(255,255,255,0.85)', letterSpacing:'0.06em' }}>{monthName} {curYear}</span>
+              <button onClick={nextMonth} style={{ background:'transparent', border:'none', color:'rgba(255,255,255,0.50)', cursor:'pointer', fontSize:'1.1rem', padding:'2px 8px', borderRadius:6, outline:'none' }}>›</button>
+            </div>
+
+            {/* Day-of-week headers */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:6 }}>
+              {['S','M','T','W','T','F','S'].map((d,i) => (
+                <div key={i} style={{ textAlign:'center', fontSize:'0.58rem', color:'rgba(255,255,255,0.28)', fontWeight:600, letterSpacing:'0.06em', paddingBottom:4 }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Day cells */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
+              {Array.from({ length: firstDow }).map((_,i) => <div key={'e'+i}/>)}
+              {Array.from({ length: daysInMonth }).map((_,i) => {
+                const day = i + 1;
+                const ds  = `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const cnt = byDate[ds]?.length || 0;
+                const isToday = day === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+                const isSel   = day === selDay;
+                const maxProb = cnt ? Math.max(...(byDate[ds].map(e => Number(e.probability||0)))) : 0;
+                return (
+                  <div key={day} onClick={() => setSelDay(day)}
+                    style={{
+                      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                      height:36, borderRadius:8, cursor:'pointer', position:'relative', transition:'all 0.15s',
+                      background: isSel ? 'rgba(109,40,217,0.30)' : isToday ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      border: isSel ? '1px solid rgba(180,130,255,0.55)' : isToday ? '1px solid rgba(255,255,255,0.20)' : '1px solid transparent',
+                    }}
+                    onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background='rgba(255,255,255,0.06)'; }}
+                    onMouseLeave={e=>{ if(!isSel) e.currentTarget.style.background='transparent'; }}>
+                    <span style={{ fontSize:'0.78rem', fontWeight: isToday||isSel?700:400, color: isSel?'rgba(200,160,255,0.95)':isToday?'rgba(255,255,255,0.90)':'rgba(255,255,255,0.60)' }}>{day}</span>
+                    {cnt > 0 && (
+                      <div style={{ display:'flex', gap:2, marginTop:1 }}>
+                        {Array.from({ length: Math.min(cnt,3) }).map((_,di) => (
+                          <span key={di} style={{ width:4, height:4, borderRadius:'50%', background:PROB_COLORS(maxProb), boxShadow:`0 0 4px ${PROB_COLORS(maxProb)}` }}/>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:10, padding:'10px 14px' }}>
+            <p style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.25)', marginBottom:8 }}>Probability Legend</p>
+            {[['≥75% — High',PROB_COLORS(75)],['50–74% — Medium',PROB_COLORS(50)],['25–49% — Low',PROB_COLORS(25)],['<25% — Very Low',PROB_COLORS(10)]].map(([l,c])=>(
+              <div key={l} style={{ display:'flex', alignItems:'center', gap:7, marginBottom:5 }}>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:c, boxShadow:`0 0 5px ${c}`, flexShrink:0 }}/>
+                <span style={{ fontSize:'0.68rem', color:'rgba(255,255,255,0.45)' }}>{l}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Director: upcoming across all (or filtered) */}
+          {showAll && (() => {
+            const upcoming = myEntries
+              .filter(e => e.nextDate && e.nextDate >= new Date().toISOString().slice(0,10))
+              .sort((a,b) => a.nextDate.localeCompare(b.nextDate))
+              .slice(0, 5);
+            if (!upcoming.length) return null;
+            return (
+              <div style={{ background:'rgba(0,200,255,0.04)', border:'1px solid rgba(0,200,255,0.12)', borderRadius:10, padding:'12px 14px' }}>
+                <p style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(0,200,255,0.45)', marginBottom:10 }}>Upcoming Meetings</p>
+                {upcoming.map(e => (
+                  <div key={e.id} style={{ marginBottom:8, paddingBottom:8, borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontSize:'0.72rem', fontWeight:600, color:'rgba(255,255,255,0.75)' }}>{e.customer}</div>
+                    <div style={{ fontSize:'0.62rem', color:'rgba(0,200,255,0.65)', marginTop:2 }}>{e.nextDate}{e.nextTime?` · ${e.nextTime}`:''}</div>
+                    <div style={{ fontSize:'0.60rem', color:'rgba(255,255,255,0.30)' }}>{e.salesPerson}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ── RIGHT: Day entries ── */}
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+            <div>
+              <span style={{ fontSize:'1rem', fontWeight:700, color:'rgba(255,255,255,0.80)' }}>
+                {new Date(curYear, curMonth, selDay).toLocaleDateString('en', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+              </span>
+              <span style={{ marginLeft:10, fontSize:'0.68rem', color:'rgba(255,255,255,0.30)' }}>{dayEntries.length} entr{dayEntries.length===1?'y':'ies'}</span>
+            </div>
+            {!showAll && (
+              <button onClick={openNew}
+                style={{ padding:'7px 16px', borderRadius:8, background:'rgba(109,40,217,0.18)', border:'1px solid rgba(180,130,255,0.35)', color:'rgba(200,160,255,0.90)', fontFamily:F, fontSize:'0.78rem', fontWeight:600, cursor:'pointer', outline:'none' }}>
+                + Add
+              </button>
+            )}
+          </div>
+
+          {dayEntries.length === 0 ? (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:12, padding:'40px 20px', minHeight:200 }}>
+              <span style={{ fontSize:'1.8rem', opacity:0.25 }}>📅</span>
+              <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.22)', textAlign:'center' }}>No activities logged for this day.</p>
+              {!showAll && <button onClick={openNew} style={{ marginTop:4, padding:'8px 20px', borderRadius:8, background:'rgba(109,40,217,0.15)', border:'1px solid rgba(180,130,255,0.30)', color:'rgba(200,160,255,0.80)', fontFamily:F, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>Log Activity</button>}
+            </div>
+          ) : (
+            dayEntries.map(entry => {
+              const pc = PROB_COLORS(Number(entry.probability||0));
+              return (
+                <div key={entry.id} style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:12, padding:'16px 18px', position:'relative' }}>
+                  {/* Header row */}
+                  <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, marginBottom:12 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:'0.98rem', fontWeight:700, color:'rgba(255,255,255,0.88)', marginBottom:3 }}>{entry.customer}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:'0.66rem', color:'rgba(255,255,255,0.40)', background:'rgba(255,255,255,0.06)', borderRadius:5, padding:'2px 8px' }}>{entry.meetingType}</span>
+                        {entry.time && <span style={{ fontSize:'0.66rem', color:'rgba(255,255,255,0.40)' }}>⏱ {entry.time}</span>}
+                        {entry.requestId && <span style={{ fontSize:'0.64rem', color:'rgba(100,180,255,0.70)', fontFamily:'monospace' }}>#{entry.requestId}</span>}
+                        {showAll && <span style={{ fontSize:'0.64rem', color:'rgba(200,160,255,0.70)', marginLeft:'auto' }}>{entry.salesPerson}</span>}
+                      </div>
+                    </div>
+                    {/* Probability gauge */}
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, flexShrink:0 }}>
+                      <span style={{ fontSize:'1.3rem', fontWeight:800, color:pc, fontFamily:'monospace', lineHeight:1 }}>{entry.probability}%</span>
+                      <span style={{ fontSize:'0.52rem', color:'rgba(255,255,255,0.28)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Close</span>
+                      <div style={{ width:48, height:5, borderRadius:3, background:'rgba(255,255,255,0.08)', overflow:'hidden', marginTop:2 }}>
+                        <div style={{ height:'100%', width:`${entry.probability}%`, background:pc, borderRadius:3, boxShadow:`0 0 6px ${pc}` }}/>
+                      </div>
+                    </div>
+                    {!showAll && (
+                      <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                        <button onClick={()=>openEdit(entry)} style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:6, color:'rgba(255,255,255,0.50)', fontFamily:F, fontSize:'0.70rem', padding:'4px 10px', cursor:'pointer', outline:'none' }}>Edit</button>
+                        <button onClick={()=>{ if(window.confirm('Delete this entry?')) onDeleteEntry(entry.id); }} style={{ background:'rgba(220,50,50,0.10)', border:'1px solid rgba(220,50,50,0.25)', borderRadius:6, color:'rgba(255,100,100,0.70)', fontFamily:F, fontSize:'0.70rem', padding:'4px 10px', cursor:'pointer', outline:'none' }}>✕</button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Remarks */}
+                  {entry.remarks && (
+                    <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:'9px 12px', marginBottom:10 }}>
+                      <p style={{ fontSize:'0.52rem', letterSpacing:'0.10em', textTransform:'uppercase', color:'rgba(255,255,255,0.22)', marginBottom:5 }}>Remarks</p>
+                      <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.62)', lineHeight:1.55, margin:0 }}>{entry.remarks}</p>
+                    </div>
+                  )}
+
+                  {/* Next meeting */}
+                  {entry.nextDate && (
+                    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, background:'rgba(0,200,255,0.05)', border:'1px solid rgba(0,200,255,0.15)' }}>
+                      <span style={{ fontSize:'0.80rem' }}>📌</span>
+                      <div>
+                        <span style={{ fontSize:'0.62rem', color:'rgba(0,200,255,0.55)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>Next Meeting</span>
+                        <div style={{ fontSize:'0.78rem', color:'rgba(0,220,255,0.80)', fontWeight:600, marginTop:2 }}>
+                          {new Date(entry.nextDate).toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})}
+                          {entry.nextTime && ` · ${entry.nextTime}`}
+                        </div>
+                        {entry.nextNote && <p style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.45)', margin:'3px 0 0', lineHeight:1.4 }}>{entry.nextNote}</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          {/* ── Director: monthly summary across persons ── */}
+          {showAll && (() => {
+            const monthKey = `${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+            const monthEntries = myEntries.filter(e => e.date?.startsWith(monthKey));
+            if (!monthEntries.length) return null;
+            const byPerson = {};
+            monthEntries.forEach(e => {
+              if (!byPerson[e.salesPerson]) byPerson[e.salesPerson] = [];
+              byPerson[e.salesPerson].push(e);
+            });
+            return (
+              <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, padding:'16px 18px', marginTop:4 }}>
+                <p style={{ fontSize:'0.56rem', letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.26)', marginBottom:12 }}>Month Summary — {monthName}</p>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:10 }}>
+                  {Object.entries(byPerson).map(([sp, entries]) => {
+                    const avgProb = Math.round(entries.reduce((s,e)=>s+Number(e.probability||0),0)/entries.length);
+                    const pc = PROB_COLORS(avgProb);
+                    return (
+                      <div key={sp} style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:9, padding:'12px 14px' }}>
+                        <div style={{ fontSize:'0.80rem', fontWeight:700, color:'rgba(255,255,255,0.78)', marginBottom:6 }}>{sp}</div>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.68rem', color:'rgba(255,255,255,0.40)', marginBottom:4 }}>
+                          <span>Meetings</span><span style={{ fontWeight:700, color:'rgba(255,255,255,0.70)' }}>{entries.length}</span>
+                        </div>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.68rem', color:'rgba(255,255,255,0.40)', marginBottom:6 }}>
+                          <span>Avg Probability</span><span style={{ fontWeight:700, color:pc }}>{avgProb}%</span>
+                        </div>
+                        <div style={{ height:4, borderRadius:2, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${avgProb}%`, background:pc, boxShadow:`0 0 5px ${pc}` }}/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* ── Add / Edit Modal ── */}
+      {showForm && (
+        <div style={{ position:'fixed', inset:0, zIndex:9900, background:'rgba(0,0,0,0.85)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={closeForm}>
+          <div style={{ width:'min(680px,96vw)', maxHeight:'90vh', overflowY:'auto', background:'rgba(4,6,20,0.98)', border:'1px solid rgba(180,130,255,0.20)', borderRadius:16, padding:'28px 30px', fontFamily:F, animation:'fadeUp 0.18s ease both', boxShadow:'0 40px 100px rgba(0,0,0,0.90)' }} onClick={e=>e.stopPropagation()}>
+
+            <div style={{ fontSize:'0.56rem', letterSpacing:'0.18em', textTransform:'uppercase', color:'rgba(180,130,255,0.65)', marginBottom:6, fontWeight:700 }}>{editEntry ? 'Edit Activity' : 'Log Activity'}</div>
+            <h3 style={{ fontSize:'1.1rem', fontWeight:800, color:'rgba(255,255,255,0.88)', marginBottom:20 }}>{editEntry ? 'Update Entry' : 'New Diary Entry'}</h3>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>Customer / Company *</label>
+                <input value={form.customer} onChange={e=>UP('customer',e.target.value)} placeholder="Customer or company name" style={inp()}/>
+              </div>
+              <div>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>Meeting Date *</label>
+                <input type="date" value={form.date} onChange={e=>UP('date',e.target.value)} style={inp()}/>
+              </div>
+              <div>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>Meeting Time</label>
+                <input type="time" value={form.time} onChange={e=>UP('time',e.target.value)} style={inp()}/>
+              </div>
+              <div>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>Meeting Type</label>
+                <select value={form.meetingType} onChange={e=>UP('meetingType',e.target.value)} style={{ ...inp(), cursor:'pointer' }}>
+                  {MEET_TYPES.map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>Linked Request ID</label>
+                <input value={form.requestId} onChange={e=>UP('requestId',e.target.value)} placeholder="e.g. AX0001 (optional)" style={inp()}/>
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>
+                  Probability of Closure — <span style={{ color:PROB_COLORS(form.probability), fontWeight:700 }}>{form.probability}%</span>
+                </label>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <input type="range" min={0} max={100} step={5} value={form.probability} onChange={e=>UP('probability',Number(e.target.value))}
+                    style={{ flex:1, accentColor:PROB_COLORS(form.probability), cursor:'pointer' }}/>
+                  <div style={{ width:52, height:7, borderRadius:4, background:'rgba(255,255,255,0.08)', overflow:'hidden', flexShrink:0 }}>
+                    <div style={{ height:'100%', width:`${form.probability}%`, background:PROB_COLORS(form.probability), borderRadius:4, transition:'width 0.2s, background 0.2s', boxShadow:`0 0 6px ${PROB_COLORS(form.probability)}` }}/>
+                  </div>
+                </div>
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)', display:'block', marginBottom:5 }}>Remarks / Meeting Notes</label>
+                <textarea value={form.remarks} onChange={e=>UP('remarks',e.target.value)} placeholder="Outcome, discussion points, next actions…" rows={3} style={{ ...inp(), resize:'vertical', lineHeight:1.55 }}/>
+              </div>
+              <div style={{ gridColumn:'1/-1', borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:14, marginTop:2 }}>
+                <p style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(0,200,255,0.45)', marginBottom:10, fontWeight:600 }}>Next Meeting (if any)</p>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div>
+                    <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.30)', display:'block', marginBottom:5 }}>Next Date</label>
+                    <input type="date" value={form.nextDate} onChange={e=>UP('nextDate',e.target.value)} style={inp()}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.30)', display:'block', marginBottom:5 }}>Next Time</label>
+                    <input type="time" value={form.nextTime} onChange={e=>UP('nextTime',e.target.value)} style={inp()}/>
+                  </div>
+                  <div style={{ gridColumn:'1/-1' }}>
+                    <label style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.30)', display:'block', marginBottom:5 }}>Next Meeting Note</label>
+                    <input value={form.nextNote} onChange={e=>UP('nextNote',e.target.value)} placeholder="Agenda or preparation notes…" style={inp()}/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', gap:10, marginTop:22 }}>
+              <button onClick={closeForm} style={{ flex:1, padding:'11px 0', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.40)', fontFamily:F, fontSize:'0.85rem', cursor:'pointer', outline:'none' }}>Cancel</button>
+              <button onClick={saveEntry} disabled={!form.customer.trim()||!form.date}
+                style={{ flex:2, padding:'11px 0', borderRadius:10, background:form.customer.trim()&&form.date?'linear-gradient(105deg,#1e1b6e,#3730a3,#6d28d9,#a855f7)':'rgba(255,255,255,0.04)', backgroundSize:'220% 220%', animation:form.customer.trim()&&form.date?'auroraShift 5s ease-in-out infinite':'none', border:'1px solid rgba(255,255,255,0.18)', color:'#fff', fontFamily:F, fontSize:'0.90rem', fontWeight:700, cursor:form.customer.trim()&&form.date?'pointer':'not-allowed', outline:'none', letterSpacing:'0.06em' }}>
+                {editEntry ? 'Update Entry' : 'Save Entry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
 const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectTool }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
   const salesActive   = view === 'salesStatus';
+  const diaryActive   = view === 'salesDiary';
   return (
     <div className="nav-bar">
       {/* Logo */}
@@ -1389,6 +1842,9 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
           </button>
           <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
             My Dashboard
+          </button>
+          <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
+            Sales Diary
           </button>
         </>}
 
@@ -1412,6 +1868,9 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
           </button>
           <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
             Sales View
+          </button>
+          <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
+            Sales Diary
           </button>
         </>}
       </div>
@@ -2791,6 +3250,37 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
             </div>
           </div>
 
+          {/* ── Sales Activity Log ── */}
+          {req.salesLog?.length > 0 && (() => {
+            const SLC = {Won:{c:'#4ade80'},Lost:{c:'#f87171'},'Follow-up':{c:'#fbbf24'},Risky:{c:'#fb923c'},Pending:{c:'rgba(255,255,255,0.40)'}};
+            return (
+              <GC>
+                <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:10}}>Sales Activity Log</div>
+                <div style={{display:'flex',flexDirection:'column',gap:0}}>
+                  {[...req.salesLog].reverse().map((entry,i)=>{
+                    const ec=SLC[entry.status]||SLC.Pending;
+                    return (
+                      <div key={i} style={{display:'flex',gap:9,paddingBottom:9,marginBottom:9,borderBottom:i<req.salesLog.length-1?'1px solid rgba(255,255,255,0.05)':'none'}}>
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                          <span style={{width:6,height:6,borderRadius:'50%',background:ec.c,boxShadow:`0 0 4px ${ec.c}`,marginTop:3,flexShrink:0}}/>
+                          {i<req.salesLog.length-1&&<div style={{width:1,flex:1,minHeight:8,background:'rgba(255,255,255,0.07)',marginTop:3}}/>}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap',marginBottom:entry.remark?3:0}}>
+                            <span style={{fontSize:'0.72rem',fontWeight:700,color:ec.c}}>{entry.status}</span>
+                            <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.28)'}}>· {entry.by}</span>
+                            <span style={{fontSize:'0.56rem',color:'rgba(255,255,255,0.20)',marginLeft:'auto'}}>{entry.ts}</span>
+                          </div>
+                          {entry.remark&&<p style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.56)',lineHeight:1.5,margin:0,borderLeft:`2px solid ${ec.c}50`,paddingLeft:7}}>{entry.remark}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </GC>
+            );
+          })()}
+
           {/* ── Footer buttons ── */}
           {submitted ? (
             /* ── Confirmation banner after submit ── */
@@ -3221,6 +3711,41 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                   </div>
                 )}
 
+                {/* Sales Activity Log — visible to estimator & director */}
+                {req.salesLog?.length > 0 && (() => {
+                  const SLC = {
+                    Won:        {c:'#4ade80'}, Lost:      {c:'#f87171'},
+                    'Follow-up':{c:'#fbbf24'}, Risky:    {c:'#fb923c'},
+                    Pending:    {c:'rgba(255,255,255,0.40)'},
+                  };
+                  return (
+                    <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'14px 16px'}}>
+                      <p style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:12}}>Sales Activity Log</p>
+                      <div style={{display:'flex',flexDirection:'column',gap:0}}>
+                        {[...req.salesLog].reverse().map((entry,i)=>{
+                          const ec = SLC[entry.status]||SLC.Pending;
+                          return (
+                            <div key={i} style={{display:'flex',gap:10,paddingBottom:10,marginBottom:10,borderBottom:i<req.salesLog.length-1?'1px solid rgba(255,255,255,0.05)':'none'}}>
+                              <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                                <span style={{width:7,height:7,borderRadius:'50%',background:ec.c,boxShadow:`0 0 5px ${ec.c}`,marginTop:3,flexShrink:0}}/>
+                                {i<req.salesLog.length-1&&<div style={{width:1,flex:1,minHeight:10,background:'rgba(255,255,255,0.07)',marginTop:3}}/>}
+                              </div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:entry.remark?4:0,flexWrap:'wrap'}}>
+                                  <span style={{fontSize:'0.74rem',fontWeight:700,color:ec.c}}>{entry.status}</span>
+                                  <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>· {entry.by}</span>
+                                  <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.20)',marginLeft:'auto'}}>{entry.ts}</span>
+                                </div>
+                                {entry.remark && <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.58)',lineHeight:1.5,margin:0,borderLeft:`2px solid ${ec.c}50`,paddingLeft:8}}>{entry.remark}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Assign Estimator */}
                 <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'16px 18px'}}>
                   <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:10}}>Assign Estimator</p>
@@ -3281,39 +3806,48 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                   </div>
                   {/* ── Margin breakdown ── */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'12px 14px',marginTop:4}}>
+                    <style>{`input[type=number].no-spin::-webkit-inner-spin-button,input[type=number].no-spin::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number].no-spin{-moz-appearance:textfield}`}</style>
                     <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,255,0.45)',marginBottom:10}}>Margin Breakdown</p>
-                    {/* Total — big */}
-                    <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:10,borderBottom:'1px solid rgba(0,200,255,0.12)',paddingBottom:8}}>
-                      <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.40)',textTransform:'uppercase',letterSpacing:'0.10em',marginRight:6}}>Total</span>
-                      <span style={{fontFamily:'monospace',fontSize:'2rem',fontWeight:800,color:'rgba(0,210,255,0.95)',lineHeight:1}}>
-                        {(() => { const t = (parseFloat(req.overhead||0)+parseFloat(req.profit||0)).toFixed(1); return t === '0.0' ? '—' : t+'%'; })()}
-                      </span>
-                    </div>
-                    {/* 3 sub-fields row */}
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 80px',gap:8}}>
-                      <div>
-                        <p style={{fontSize:'0.52rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:4}}>Overhead %</p>
-                        <div style={{display:'flex',alignItems:'baseline',gap:3}}>
-                          <input type="number" value={req.overhead||''} onChange={e=>onUpdate(open,{overhead:e.target.value, margin:(parseFloat(e.target.value||0)+parseFloat(req.profit||0)).toFixed(1)})} placeholder="0.0" min="0" max="100" step="0.5"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.90)',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%'}}/>
-                          <span style={{fontSize:'0.75rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
+
+                    {/* 4 sub-fields row */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:0,borderBottom:'1px solid rgba(0,200,255,0.10)',paddingBottom:10,marginBottom:10}}>
+                      {/* Overhead % */}
+                      <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingRight:10}}>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Overhead %</p>
+                        <div style={{display:'flex',alignItems:'baseline',gap:2}}>
+                          <input className="no-spin" type="number" value={req.overhead||''} onChange={e=>{const oh=e.target.value;onUpdate(open,{overhead:oh,margin:(parseFloat(oh||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%'}}/>
+                          <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
                       </div>
-                      <div>
-                        <p style={{fontSize:'0.52rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:4}}>Profit %</p>
-                        <div style={{display:'flex',alignItems:'baseline',gap:3}}>
-                          <input type="number" value={req.profit||''} onChange={e=>onUpdate(open,{profit:e.target.value, margin:(parseFloat(req.overhead||0)+parseFloat(e.target.value||0)).toFixed(1)})} placeholder="0.0" min="0" max="100" step="0.5"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.90)',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%'}}/>
-                          <span style={{fontSize:'0.75rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
+                      {/* Profit % */}
+                      <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Profit %</p>
+                        <div style={{display:'flex',alignItems:'baseline',gap:2}}>
+                          <input className="no-spin" type="number" value={req.profit||''} onChange={e=>{const pr=e.target.value;onUpdate(open,{profit:pr,margin:(parseFloat(req.overhead||0)+parseFloat(pr||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%'}}/>
+                          <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
                       </div>
-                      <div>
-                        <p style={{fontSize:'0.52rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:4}}>Warranty</p>
-                        <div style={{display:'flex',alignItems:'baseline',gap:3}}>
-                          <input type="number" value={req.warranty||''} onChange={e=>onUpdate(open,{warranty:e.target.value})} placeholder="0" min="0" max="20" step="1"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.90)',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%'}}/>
-                          <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>yr</span>
+                      {/* Warranty: yr | % */}
+                      <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Warranty</p>
+                        <div style={{display:'flex',alignItems:'baseline',gap:4}}>
+                          <input className="no-spin" type="number" value={req.warrantyYr||''} onChange={e=>onUpdate(open,{warrantyYr:e.target.value})} placeholder="0" min="0" max="20" step="1"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px'}}/>
+                          <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.35)',fontFamily:'monospace'}}>yr</span>
+                          <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.20)',fontFamily:'monospace'}}>|</span>
+                          <input className="no-spin" type="number" value={req.warrantyPct||''} onChange={e=>{const wp=e.target.value;onUpdate(open,{warrantyPct:wp,margin:(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(wp||0)).toFixed(1)});}} placeholder="0" min="0" max="50" step="0.5"
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px'}}/>
+                          <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
+                      </div>
+                      {/* Total */}
+                      <div style={{paddingLeft:10}}>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Total</p>
+                        <span style={{fontFamily:'monospace',fontSize:'1.55rem',fontWeight:800,color:'rgba(0,210,255,0.95)',lineHeight:1}}>
+                          {(() => { const t=(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1); return t==='0.0'?'—':t+'%'; })()}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -3568,9 +4102,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                   <div style={{display:'flex',gap:8,marginBottom:12}}>
                     {DA.map(a=>(
                       <button key={a.v} onClick={()=>{
-                        const ns = a.v==='approved'?'Approved':'Pending Estimation';
-                        const nr = a.v==='approved'?'completed':'inprogress';
-                        onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr});
+                        const ns = a.v==='approved'?'Approved':a.v==='rejected'?'Estimation Uploaded':'Pending Approval';
+                        const nr = a.v==='approved'?'completed':a.v==='rejected'?'onhold':'inprogress';
+                        onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr,directorSubmitted:false});
                       }}
                         style={{flex:1,padding:'10px 0',borderRadius:9,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.84rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',display:'flex',alignItems:'center',justifyContent:'center',gap:7,boxShadow:req.directorAction===a.v?`0 0 18px ${a.c}22`:'none'}}
                         onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
@@ -3580,11 +4114,18 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode }) => {
                       </button>
                     ))}
                   </div>
-                  <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':'Pending Estimation';const nr=req.directorAction==='approved'?'completed':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString()});}}}
-                    disabled={!req.directorAction}
-                    style={{width:'100%',padding:'11px 0',borderRadius:100,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.90rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 6px 24px rgba(120,60,255,0.30)':'none',outline:'none'}}>
-                    Submit Response
-                  </button>
+                  {req.directorSubmitted ? (
+                    <div style={{width:'100%',padding:'11px 0',borderRadius:100,background:'rgba(0,220,130,0.12)',border:'1px solid rgba(0,220,130,0.40)',color:'rgba(0,230,150,0.95)',fontFamily:F2,fontSize:'0.90rem',fontWeight:700,letterSpacing:'0.06em',textAlign:'center',boxShadow:'0 0 18px rgba(0,200,120,0.20)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                      <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 8px rgba(0,220,130,0.8)',flexShrink:0}}/>
+                      Thank You — Response Submitted
+                    </div>
+                  ) : (
+                    <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Estimation Uploaded':'Pending Approval';const nr=req.directorAction==='approved'?'completed':req.directorAction==='rejected'?'onhold':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
+                      disabled={!req.directorAction}
+                      style={{width:'100%',padding:'11px 0',borderRadius:100,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.90rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 6px 24px rgba(120,60,255,0.30)':'none',outline:'none'}}>
+                      Submit Response
+                    </button>
+                  )}
                 </div>
 
               </div>{/* end left panel */}
@@ -4443,6 +4984,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const [q,setQ] = useState('');
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
+  const [diaryEntries, setDiaryEntries] = useState([]);
   const BIN_ID = "69dcdffeaaba882197f3c176";
   const API_KEY = "$2a$10$kpIFmWCwfUxqOw.M.TfqcOyhGnnArBzDluhGquW2s/t.L3vQJtBqW";
   const AZURE_ACCOUNT = "apexfilestorage2";
@@ -4466,14 +5008,15 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
           estimationDoc: req.estimationDoc ? await restoreDocFromIDB(req.estimationDoc) : req.estimationDoc,
         })));
         setRequests(enriched);
+        setDiaryEntries(data.record.diaryEntries || []);
       } catch(err) { console.error('Load failed:', err); }
     };
     load();
   }, []);
 
-  // Save whenever requests change
+  // Save whenever requests or diary changes
   useEffect(() => {
-    if (requests.length === 0) return;
+    if (requests.length === 0 && diaryEntries.length === 0) return;
     const save = async () => {
       try {
         await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
@@ -4488,14 +5031,15 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
               docs: (r.docs || []).map(stripDocData),
               originalDocs: (r.originalDocs || []).map(stripDocData),
               estimationDoc: r.estimationDoc ? stripDocData(r.estimationDoc) : r.estimationDoc,
-            }))
+            })),
+            diaryEntries,
           })
         });
         console.log('✅ Saved to cloud!');
       } catch(err) { console.error('Save failed:', err); }
     };
     save();
-  }, [requests]);
+  }, [requests, diaryEntries]);
 
   const [foundReq,setFoundReq] = useState(null);
   const [revisedSource,setRevisedSource] = useState(null);       // original request being revised
@@ -4742,6 +5286,14 @@ const handleSubmit = async (formData) => {
       {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}
           autoSpName={userRole==='sales'?userCode:undefined}
           showAll={userRole==='director'}/>}
+      {view==='salesDiary' && <SalesDiary
+          diaryEntries={diaryEntries}
+          spName={userRole==='sales' ? userCode : ''}
+          showAll={userRole==='director'}
+          onAddEntry={e => setDiaryEntries(prev => [e, ...prev])}
+          onEditEntry={e => setDiaryEntries(prev => prev.map(d => d.id === e.id ? e : d))}
+          onDeleteEntry={id => setDiaryEntries(prev => prev.filter(d => d.id !== id))}
+        />}
       {view==='loading'   && <Loading id={id} q={q} setQ={setQ} go={handleSearch}/>}
       {view==='results'   && <Results id={id} req={foundReq} q={q} setQ={setQ} go={handleSearch}/>}
     </div>
