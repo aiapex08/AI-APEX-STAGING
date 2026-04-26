@@ -20,6 +20,8 @@ import VirtualShowroomDashboard from './pages/VirtualShowroomDashboard.jsx';
 import NewShowroom from './pages/NewShowroom.jsx';
 import AIContract from './pages/AIContract.jsx';
 
+const ARScene = React.lazy(() => import('./ARScene.jsx'));
+
 // --- CONFIGURATION ---
 const CIRCLE_POSITION = [0, 0, 0]; 
 
@@ -1250,6 +1252,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
   const [phase, setPhase]       = useState('select'); // 'select' | 'code'
   const [selDept, setSelDept]   = useState(null);
   const [quickView, setQuickView] = useState(null);
+  const [showAR, setShowAR] = useState(false);
   const [code, setCode]         = useState('');
   const [showCode, setShowCode] = useState(false);
   const [shake, setShake]       = useState(false);
@@ -1557,6 +1560,41 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           .hs-land  { padding-top:58px }
           .hs-left  { padding:16px 14px 20px }
         }
+
+        /* AR Viewer pill — top-right */
+        .hs-ar-btn {
+          position:absolute; top:22px; right:24px; z-index:40;
+          display:inline-flex; align-items:center; gap:7px;
+          background:rgba(0,0,0,0.45);
+          border:1px solid rgba(255,255,255,0.20);
+          border-radius:100px;
+          padding:7px 16px;
+          cursor:pointer; color:rgba(255,255,255,0.82);
+          font-size:0.70rem; font-weight:600; font-family:'Inter',sans-serif;
+          letter-spacing:0.10em; text-transform:uppercase;
+          backdrop-filter:blur(8px);
+          transition:background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+          animation:hs-fadeUp 0.5s ease both;
+        }
+        .hs-ar-btn:hover {
+          background:rgba(0,200,255,0.12);
+          border-color:rgba(0,200,255,0.45);
+          color:#fff;
+          box-shadow:0 0 16px rgba(0,200,255,0.22);
+        }
+        .hs-ar-dot {
+          width:6px; height:6px; border-radius:50%;
+          background:#00cfff; box-shadow:0 0 6px #00cfff;
+          animation:hs-ar-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes hs-ar-pulse {
+          0%,100%{opacity:1;transform:scale(1)}
+          50%{opacity:0.35;transform:scale(0.55)}
+        }
+        @media (max-width:480px) {
+          .hs-ar-btn { top:14px; right:14px; padding:6px 12px; font-size:0.65rem }
+        }
+
       `}</style>
 
       {/* Dark veil */}
@@ -1576,6 +1614,12 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         <div className="hs-topbrand-sub">Passion to Protect</div>
       </div>
 
+      {/* ── TOP-RIGHT: AR Viewer ── */}
+      <button className="hs-ar-btn" onClick={() => onDirect('arViewer', null)}>
+        <span className="hs-ar-dot"/>
+        AR Viewer
+      </button>
+
       <div className="hs-land">
         {/* ── LEFT COLUMN ── */}
         <div className="hs-left">
@@ -1584,7 +1628,27 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
             <div style={{display:'flex',flexDirection:'column',animation:'hs-fadeUp 0.55s ease both'}}>
               <h1 className="hs-title">AI APEX HUB</h1>
               <p className="hs-sub">Select your department to continue</p>
-
+<button
+  onClick={() => setShowAR(true)}
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 18,
+    padding: '8px 18px',
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    color: '#72CEEE',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    cursor: 'pointer',
+    fontFamily: "'Inter', sans-serif",
+  }}
+>
+  📷 View Products in AR
+</button>
               {/* 2×2 tile grid */}
               <div className="hs-tiles">
                 {depts.map((dept, idx) => (
@@ -1680,7 +1744,27 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
               </form>
             </div>
           )}
-        </div>
+        {showAR && (
+  <div style={{
+    position: 'fixed', inset: 0, zIndex: 9999,
+  }}>
+    <button
+      onClick={() => setShowAR(false)}
+      style={{
+        position: 'absolute', top: 16, right: 16,
+        zIndex: 10000, padding: '8px 18px',
+        background: 'rgba(0,0,0,0.6)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        borderRadius: 20, color: '#fff',
+        fontSize: '0.8rem', cursor: 'pointer',
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      ✕ Close
+    </button>
+    <ARScene />
+  </div>
+)}</div>
 
         {/* ── RIGHT COLUMN — AIBOT identical to Landing ── */}
         <div className="hs-right" style={{position:'relative',background:'transparent'}}>
@@ -2099,6 +2183,31 @@ export default function App() {
 
       {appState === 'AI CONTRACTS' && (
         <AIContract onBack={backToHome} />
+      )}
+
+      {appState === 'arViewer' && (
+        <Suspense fallback={<div style={{position:'fixed',inset:0,background:'#111',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:14,fontFamily:'Inter,sans-serif',zIndex:300}}>Loading AR Viewer…</div>}>
+          <div style={{position:'fixed',inset:0,zIndex:300}}>
+            <ARScene />
+            <button
+              onClick={backToHome}
+              style={{
+                position:'absolute',top:16,left:16,zIndex:400,
+                display:'flex',alignItems:'center',gap:6,
+                background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',
+                border:'1px solid rgba(255,255,255,0.25)',borderRadius:100,
+                padding:'8px 16px',color:'#fff',
+                fontSize:13,fontWeight:600,fontFamily:"'Inter',sans-serif",
+                cursor:'pointer',letterSpacing:'0.06em',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              Back
+            </button>
+          </div>
+        </Suspense>
       )}
 
       {shouldMountCanvas && (
