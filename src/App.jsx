@@ -1612,7 +1612,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         <div className="hs-topbrand-sub">Passion to Protect</div>
       </div>
 
-      {/* ── TOP-RIGHT: AR Viewer ── */}
+      {/* ── BOTTOM-RIGHT: AR Viewer ── */}
       <button className="hs-ar-btn" onClick={() => onDirect('arViewer', null)}>
         <span className="hs-ar-dot"/>
         AR Viewer
@@ -1626,27 +1626,6 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
             <div style={{display:'flex',flexDirection:'column',animation:'hs-fadeUp 0.55s ease both'}}>
               <h1 className="hs-title">AI APEX HUB</h1>
               <p className="hs-sub">Select your department to continue</p>
-<button
-  onClick={() => setShowAR(true)}
-  style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 18,
-    padding: '8px 18px',
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: 20,
-    color: '#72CEEE',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    letterSpacing: '0.08em',
-    cursor: 'pointer',
-    fontFamily: "'Inter', sans-serif",
-  }}
->
-  📷 View Products in AR
-</button>
               {/* 2×2 tile grid */}
               <div className="hs-tiles">
                 {depts.map((dept, idx) => (

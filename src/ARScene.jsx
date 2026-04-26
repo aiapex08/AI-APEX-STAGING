@@ -364,15 +364,6 @@ export default function ARScene() {
     }
   }
 
-  // Auto-start AR on mobile/tablet when entering from HomeScreen
-  useEffect(() => {
-    let cancelled = false
-    if (isMobileTablet) {
-      startAR().catch(() => {})
-    }
-    return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobileTablet])
 
   useEffect(() => () => {
     clearTimeout(timerRef.current)
@@ -451,6 +442,39 @@ export default function ARScene() {
           </Suspense>
         </XR>
       </Canvas>
+
+      {/* ═══ CAMERA PERMISSION PROMPT (mobile/tablet, before AR starts) ═══ */}
+      {phase === 'preview' && isMobileTablet && (
+        <div style={{
+          position:'absolute', inset:0, zIndex:50,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          background:'rgba(0,0,0,0.88)', backdropFilter:'blur(12px)',
+        }}>
+          <div style={{ fontSize:52, marginBottom:18 }}>📷</div>
+          <div style={{ color:'#fff', fontSize:20, fontWeight:700, letterSpacing:'.04em', marginBottom:10 }}>
+            NAFFCO AR Viewer
+          </div>
+          <div style={{ color:'rgba(255,255,255,.55)', fontSize:13, lineHeight:1.6,
+            marginBottom:36, textAlign:'center', maxWidth:260, padding:'0 24px' }}>
+            Allow camera access to scan your room and place doors at real scale
+          </div>
+          <button onClick={startAR} style={{
+            padding:'14px 36px',
+            background:'linear-gradient(135deg,#e63946,#c1121f)',
+            color:'#fff', border:'none', borderRadius:30,
+            fontSize:15, fontWeight:700, cursor:'pointer', letterSpacing:'.04em',
+            boxShadow:'0 4px 24px rgba(230,57,70,.5)',
+          }}>
+            Allow Camera &amp; Start AR
+          </button>
+          {camError && (
+            <div style={{ marginTop:20, color:'#f87171', fontSize:12,
+              textAlign:'center', maxWidth:260, lineHeight:1.5 }}>
+              {camError}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══ SCANNING OVERLAY ═══ */}
       {(phase === 'xr-scan' || phase === 'cam-scan') && (
