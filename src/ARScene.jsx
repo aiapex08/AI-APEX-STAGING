@@ -364,6 +364,16 @@ export default function ARScene() {
     }
   }
 
+  // Auto-start AR on mobile/tablet when entering from HomeScreen
+  useEffect(() => {
+    let cancelled = false
+    if (isMobileTablet) {
+      startAR().catch(() => {})
+    }
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobileTablet])
+
   useEffect(() => () => {
     clearTimeout(timerRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
@@ -513,18 +523,6 @@ export default function ARScene() {
       <div style={{ position:'absolute', bottom:138, left:'50%', transform:'translateX(-50%)',
         zIndex:30, display:'flex', gap:10 }}>
 
-        {/* AR button — mobile/tablet only */}
-        {phase === 'preview' && isMobileTablet && (
-          <button onClick={startAR} style={{
-            padding:'13px 28px',
-            background:'linear-gradient(135deg,#e63946,#c1121f)',
-            color:'#fff', border:'none', borderRadius:30,
-            fontSize:14, fontWeight:700, cursor:'pointer', letterSpacing:'.04em',
-            boxShadow:'0 4px 20px rgba(230,57,70,.55)',
-          }}>
-            📷 Scan &amp; Place in Room
-          </button>
-        )}
 
         {isPlaced && (
           <>

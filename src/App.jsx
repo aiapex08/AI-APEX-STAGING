@@ -1384,7 +1384,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         }
 
         /* page title */
-        .hs-title { font-size:clamp(2.4rem,4.5vw,4.2rem);font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;
+        .hs-title { font-size:clamp(3.2rem,6vw,6rem);font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;
           background:linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%);
           background-size:220% 220%;
           -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
@@ -1525,7 +1525,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           .hs-left  { width:55%;padding:0 3vw 0 5vw }
           .hs-right { width:45% }
           .hs-tiles { gap:10px }
-          .hs-title { font-size:clamp(2rem,5vw,3.5rem) }
+          .hs-title { font-size:clamp(2.6rem,5.5vw,4.8rem) }
         }
 
         /* Mobile landscape / small tablet (≤ 768px) */
@@ -1533,7 +1533,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           .hs-land  { flex-direction:column;padding-top:62px;overflow-y:auto;height:auto;min-height:100% }
           .hs-left  { width:100%;padding:20px 20px 24px;height:auto;justify-content:flex-start }
           .hs-right { display:none }
-          .hs-topbrand { top:68px;left:20px }
+          .hs-topbrand { top:68px; left:20px }
           .hs-tiles { grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px }
           .hs-tile  { padding:14px 10px 12px }
           .hs-icon-wrap { width:36px;height:36px }
@@ -1554,6 +1554,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         /* Small mobile (≤ 480px) */
         @media (max-width: 480px) {
           .hs-topbrand { left:14px }
+          .hs-ar-btn { bottom:14px; right:14px; padding:6px 12px; font-size:0.65rem }
           .hs-tiles { grid-template-columns:1fr }
           .hs-tile  { flex-direction:row;align-items:center;gap:14px;padding:12px 14px }
           .hs-icon-wrap { flex-shrink:0 }
@@ -1561,9 +1562,9 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           .hs-left  { padding:16px 14px 20px }
         }
 
-        /* AR Viewer pill — top-right */
+        /* AR Viewer pill — bottom-right */
         .hs-ar-btn {
-          position:absolute; top:22px; right:24px; z-index:40;
+          position:absolute; bottom:24px; right:24px; z-index:40;
           display:inline-flex; align-items:center; gap:7px;
           background:rgba(0,0,0,0.45);
           border:1px solid rgba(255,255,255,0.20);
@@ -1574,7 +1575,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           letter-spacing:0.10em; text-transform:uppercase;
           backdrop-filter:blur(8px);
           transition:background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
-          animation:hs-fadeUp 0.5s ease both;
+          white-space:nowrap;
         }
         .hs-ar-btn:hover {
           background:rgba(0,200,255,0.12);
@@ -1590,9 +1591,6 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         @keyframes hs-ar-pulse {
           0%,100%{opacity:1;transform:scale(1)}
           50%{opacity:0.35;transform:scale(0.55)}
-        }
-        @media (max-width:480px) {
-          .hs-ar-btn { top:14px; right:14px; padding:6px 12px; font-size:0.65rem }
         }
 
       `}</style>
