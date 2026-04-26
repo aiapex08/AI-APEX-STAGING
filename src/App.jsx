@@ -1202,6 +1202,513 @@ function MainSceneContent({ triggerAnimation, onNavigate, targetScreenIndex }) {
 }
 
 
+// --- UNDER CONSTRUCTION SCREEN ---
+const ConstructionScreen = ({ deptId, onBack }) => {
+  const colors = { contracts: '#60a5fa', engineering: '#34d399' };
+  const labels = { contracts: 'Contracts', engineering: 'Engineering' };
+  const color = colors[deptId] || '#a78bfa';
+  const label = labels[deptId] || deptId;
+  return (
+    <div style={{position:'fixed',inset:0,background:'#010106',display:'flex',flexDirection:'column',
+      alignItems:'center',justifyContent:'center',fontFamily:"'Inter',sans-serif",zIndex:200}}>
+      <div style={{position:'absolute',inset:0,background:`radial-gradient(ellipse 60% 50% at 50% 50%, ${color}12 0%, transparent 70%)`,pointerEvents:'none'}}/>
+      <button onClick={onBack} style={{position:'absolute',top:28,left:36,background:'none',border:'none',
+        cursor:'pointer',color:'rgba(255,255,255,0.35)',fontSize:'0.75rem',letterSpacing:'0.14em',
+        textTransform:'uppercase',display:'flex',alignItems:'center',gap:6,padding:0,transition:'color 0.2s'}}
+        onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.75)'}
+        onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      {/* Animated ring */}
+      <div style={{position:'relative',width:100,height:100,marginBottom:36}}>
+        <div style={{position:'absolute',inset:0,borderRadius:'50%',
+          background:`conic-gradient(from 0deg, ${color} 0deg, transparent 120deg, transparent 240deg, ${color} 360deg)`,
+          animation:'spin360 3s linear infinite',opacity:0.6}}/>
+        <div style={{position:'absolute',inset:6,borderRadius:'50%',background:'#010106',
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+        </div>
+      </div>
+      <div style={{fontSize:'0.6rem',letterSpacing:'0.32em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:12}}>{label} Module</div>
+      <div style={{fontSize:'clamp(1.6rem,3vw,2.6rem)',fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',
+        background:`linear-gradient(135deg, #fff 0%, ${color} 60%, rgba(255,255,255,0.5) 100%)`,
+        WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+        marginBottom:14}}>Under Construction</div>
+      <div style={{fontSize:'0.8rem',color:'rgba(255,255,255,0.35)',letterSpacing:'0.06em',maxWidth:320,textAlign:'center',lineHeight:1.7}}>
+        This module is being built and will be available soon. Stay tuned.
+      </div>
+      <style>{`@keyframes spin360{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+};
+
+// --- HOME SCREEN ---
+const HomeScreen = ({ onAccepted, onDirect }) => {
+  const [phase, setPhase]       = useState('select'); // 'select' | 'code'
+  const [selDept, setSelDept]   = useState(null);
+  const [quickView, setQuickView] = useState(null);
+  const [code, setCode]         = useState('');
+  const [showCode, setShowCode] = useState(false);
+  const [shake, setShake]       = useState(false);
+  const [errMsg, setErrMsg]     = useState('');
+  const inputRef = useRef(null);
+
+  const SALES_CODES = ['SL1','SL2','SL3','SL4','SL5'];
+
+  const depts = [
+    {
+      id: 'sales', label: 'Sales & Marketing', hint: 'Enter sales code',
+      desc: 'Pipeline, CRM & marketing', color: '#f59e0b', glow: 'rgba(245,158,11,0.35)',
+      icon: (c) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+        </svg>
+      ),
+    },
+    {
+      id: 'estimation', label: 'Estimation', hint: 'Enter estimation code',
+      desc: 'Cost analysis & quotations', color: '#a78bfa', glow: 'rgba(167,139,250,0.35)',
+      icon: (c) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="8" y1="15" x2="11" y2="15"/>
+        </svg>
+      ),
+    },
+    {
+      id: 'contracts', label: 'Contracts', desc: 'Document & legal management',
+      color: '#60a5fa', glow: 'rgba(96,165,250,0.25)',
+      icon: (c) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          <path d="M9 13h6M9 17h4"/>
+        </svg>
+      ),
+    },
+    {
+      id: 'engineering', label: 'Engineering', desc: 'Design, systems & technical',
+      color: '#34d399', glow: 'rgba(52,211,153,0.25)',
+      icon: (c) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14M12 2v2M12 20v2M2 12h2M20 12h2"/>
+        </svg>
+      ),
+    },
+  ];
+
+  const pickDept = (dept, qv = null) => {
+    if (dept.id === 'contracts' || dept.id === 'engineering') {
+      onDirect('construction', dept.id);
+      return;
+    }
+    if (dept.id === 'estimation') {
+      onDirect('estimation', null);
+      return;
+    }
+    setSelDept(dept);
+    setQuickView(qv);
+    setCode('');
+    setErrMsg('');
+    setPhase('code');
+    setTimeout(() => inputRef.current?.focus(), 80);
+  };
+
+  const doShake = (msg) => {
+    setErrMsg(msg);
+    setShake(true);
+    setTimeout(() => { setShake(false); setCode(''); }, 620);
+  };
+
+  const handleSubmit = (e) => {
+    e?.preventDefault();
+    const entered = code.trim().toUpperCase();
+    if (!entered) return;
+    if (entered === '9993') { onAccepted('active', null, '9993', '', null); return; }
+    if (selDept.id === 'sales') {
+      if (SALES_CODES.includes(entered)) onAccepted('estimation', 'sales', entered, '', quickView);
+      else doShake('Invalid sales code — try SL1 to SL5');
+    } else if (selDept.id === 'estimation') {
+      if (entered === 'EST')        onAccepted('estimation', 'estimator', 'EST',  'Estimator', quickView);
+      else if (entered === 'STAR')  onAccepted('estimation', 'director',  'STAR', 'Director',  quickView);
+      else doShake('Invalid code — try EST or STAR');
+    }
+  };
+
+  const quickActions = [
+    { label: 'Request a New Quote',  view: 'form' },
+    { label: 'Revised Request',      view: 'revisedSearch' },
+    { label: 'Final Price Request',  view: 'finalPriceSearch' },
+  ];
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex:200,
+      background:"url('/AI_ESTIMATION1.jpeg') center/cover no-repeat",
+      fontFamily:"'Inter',sans-serif", color:'#e2e8f0', overflow:'hidden',
+    }}>
+      <style>{`
+        @keyframes hs-aurora   { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        @keyframes hs-fadeUp   { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes hs-shake    { 0%{transform:translateX(0)} 15%{transform:translateX(-10px)} 30%{transform:translateX(10px)} 45%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 75%{transform:translateX(-4px)} 90%{transform:translateX(4px)} 100%{transform:translateX(0)} }
+        @keyframes hs-errPulse { 0%{box-shadow:0 0 0 rgba(220,30,30,0)} 50%{box-shadow:0 0 22px rgba(220,30,30,0.7)} 100%{box-shadow:0 0 8px rgba(220,30,30,0.3)} }
+        @keyframes hs-sheen    { 0%,100%{left:-80%} 50%{left:120%} }
+
+        /* layout */
+        .hs-land  { position:relative;width:100%;height:100%;display:flex;padding-top:52px }
+        .hs-left  { width:50%;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 3vw 0 10vw;position:relative;z-index:10 }
+        .hs-right { width:56%;height:100%;position:relative;overflow:hidden }
+
+        /* top-left branding (absolute) */
+        .hs-topbrand {
+          position:absolute; top:28px; left:40px; z-index:30;
+          display:flex; flex-direction:column; gap:1px;
+          animation: hs-fadeUp 0.5s ease both;
+        }
+        .hs-topbrand-naffco {
+          font-size:clamp(0.78rem,1vw,0.95rem); font-weight:500; letter-spacing:0.28em;
+          text-transform:uppercase; line-height:1;
+          background:linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%);
+          background-size:250% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+          filter:drop-shadow(0 1px 8px rgba(109,40,217,0.5));
+          animation:hs-aurora 6s ease infinite;
+        }
+        .hs-topbrand-sub {
+          font-size:clamp(0.52rem,0.65vw,0.62rem); font-weight:400; letter-spacing:0.38em;
+          text-transform:uppercase; color:rgba(255,255,255,0.28);
+        }
+
+        /* page title */
+        .hs-title { font-size:clamp(2.4rem,4.5vw,4.2rem);font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;
+          background:linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%);
+          background-size:220% 220%;
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+          filter:drop-shadow(0 2px 16px rgba(109,40,217,0.55));
+          animation:hs-aurora 6s ease infinite; }
+        .hs-sub { font-size:0.82rem;letter-spacing:0.04em;margin-bottom:24px;font-weight:400;line-height:1.7;max-width:280px;
+          background:linear-gradient(135deg,rgba(255,255,255,0.85) 0%,rgba(200,220,255,0.65) 40%,rgba(255,255,255,0.45) 65%,rgba(180,210,255,0.70) 100%);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+
+        /* ── 2×2 tile grid ── */
+        .hs-tiles {
+          display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px;
+        }
+        .hs-tile {
+          position:relative; overflow:hidden;
+          display:flex; flex-direction:column; align-items:flex-start; gap:12px;
+          background:rgba(6,4,22,0.88);
+          border:1px solid rgba(255,255,255,0.08);
+          border-radius:14px;
+          padding:20px 14px 16px;
+          cursor:pointer; color:#e8eeff; text-align:left;
+          font-family:'Inter',sans-serif;
+          transition:transform 0.30s cubic-bezier(0.22,1,0.36,1), box-shadow 0.30s, border-color 0.30s;
+        }
+        /* top dept-color gradient stripe */
+        .hs-tile::before {
+          content:''; position:absolute; top:0; left:0; right:0; height:2px;
+          background:linear-gradient(90deg, transparent, var(--tc), transparent);
+          opacity:0.5; border-radius:14px 14px 0 0; transition:opacity 0.30s;
+        }
+        /* diagonal sweep shimmer */
+        .hs-tile::after {
+          content:''; position:absolute; top:-60%; left:-130%; width:55%; height:220%;
+          background:linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.07) 50%, transparent 70%);
+          transform:skewX(-10deg);
+          animation:hs-sweep 5s ease-in-out infinite; animation-delay:var(--td,0s);
+        }
+        @keyframes hs-sweep { 0%{left:-130%} 55%{left:180%} 100%{left:180%} }
+        .hs-tile:hover:not([disabled]) {
+          transform:translateY(-7px) scale(1.015);
+          border-color:rgba(255,255,255,0.18);
+          box-shadow:0 18px 48px var(--tg, rgba(0,0,0,0.4)), 0 0 0 1px rgba(255,255,255,0.06) inset;
+        }
+        .hs-tile:hover::before { opacity:1; }
+        .hs-tile[disabled] { opacity:0.35; cursor:default; }
+        /* coming-soon overlay — fades in on hover/focus */
+        .hs-soon-overlay {
+          position:absolute; inset:0; border-radius:14px;
+          display:flex; align-items:center; justify-content:center;
+          background:rgba(6,4,22,0.72);
+          opacity:0; pointer-events:none;
+          transition:opacity 0.55s ease;
+        }
+        .hs-tile[disabled]:hover .hs-soon-overlay,
+        .hs-tile[disabled]:focus  .hs-soon-overlay { opacity:1; }
+        .hs-soon-text {
+          font-family:'Inter',sans-serif; font-size:0.72rem; font-weight:500;
+          letter-spacing:0.22em; text-transform:uppercase;
+          color:rgba(255,255,255,0.55);
+          border:1px solid rgba(255,255,255,0.15); border-radius:6px;
+          padding:5px 12px;
+        }
+        /* corner brackets */
+        .hs-cb-tl, .hs-cb-br {
+          position:absolute; width:11px; height:11px;
+          border-color:var(--tc); border-style:solid; opacity:0.55;
+          transition:opacity 0.3s, width 0.3s, height 0.3s;
+        }
+        .hs-cb-tl { top:7px; left:7px; border-width:1.5px 0 0 1.5px; border-radius:4px 0 0 0; }
+        .hs-cb-br { bottom:7px; right:7px; border-width:0 1.5px 1.5px 0; border-radius:0 0 4px 0; }
+        .hs-tile:hover .hs-cb-tl, .hs-tile:hover .hs-cb-br { opacity:1; width:16px; height:16px; }
+        /* spinning icon ring */
+        .hs-icon-wrap { position:relative; width:44px; height:44px; flex-shrink:0; }
+        .hs-icon-ring {
+          position:absolute; inset:-2px; border-radius:11px;
+          background:conic-gradient(from 0deg, var(--tc) 0deg, transparent 100deg, transparent 260deg, var(--tc) 360deg);
+          animation:hs-spin 3.5s linear infinite; animation-delay:var(--td,0s); opacity:0.65;
+        }
+        @keyframes hs-spin { to { transform:rotate(360deg); } }
+        .hs-tile:hover .hs-icon-ring { opacity:1; }
+        .hs-tile[disabled] .hs-icon-ring { animation:none; opacity:0.2; }
+        .hs-icon-bg {
+          position:absolute; inset:2px; border-radius:9px; background:rgba(6,4,22,0.95);
+          display:flex; align-items:center; justify-content:center;
+        }
+        .hs-tile-name {
+          font-size:0.84rem; font-weight:600; line-height:1.25; color:#e8eeff; letter-spacing:0.02em;
+        }
+        .hs-tile-desc {
+          font-size:0.70rem; color:rgba(255,255,255,0.36); letter-spacing:0.02em; line-height:1.4;
+        }
+
+        /* aurora action buttons */
+        .hs-abtn {
+          flex:1; position:relative; overflow:hidden;
+          background:linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%);
+          background-size:220% 220%; animation:hs-aurora 5s ease-in-out infinite;
+          border:1px solid rgba(255,255,255,0.22); border-radius:100px;
+          padding:10px 16px; cursor:pointer; color:#fff;
+          font-size:0.75rem; font-weight:600; font-family:'Inter',sans-serif;
+          letter-spacing:0.07em; white-space:nowrap; text-align:center;
+          box-shadow:0 8px 36px rgba(109,40,217,0.5),0 2px 10px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);
+          transition:transform 0.15s,box-shadow 0.15s;
+        }
+        .hs-abtn::before { content:'';position:absolute;inset:0;border-radius:100px;
+          background:linear-gradient(to bottom,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.03) 55%,transparent 100%);pointer-events:none; }
+        .hs-abtn::after  { content:'';position:absolute;top:0;left:-80%;width:55%;height:100%;
+          background:linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent);
+          animation:hs-sheen 3.5s ease-in-out infinite;pointer-events:none;border-radius:100px; }
+        .hs-abtn:hover { transform:translateY(-2px);box-shadow:0 12px 40px rgba(109,40,217,0.65),0 4px 14px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.20); }
+        .hs-slbl { font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:10px;font-weight:600;
+          background:linear-gradient(135deg,rgba(255,255,255,0.90) 0%,rgba(200,220,255,0.70) 40%);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+
+        /* code entry */
+        .hs-cinput { background:transparent;border:none;border-bottom:2px solid #333;outline:none;
+          color:#e0e0e0;font-family:'Rajdhani','Orbitron','Segoe UI',sans-serif;
+          font-size:clamp(20px,3vw,36px);font-weight:600;letter-spacing:0.3em;text-align:center;
+          text-transform:uppercase;width:clamp(200px,28vw,320px);padding:8px 0;
+          caret-color:#cc0000;transition:border-color 0.3s; }
+        .hs-cinput:focus  { border-bottom-color:#cc0000; }
+        .hs-cinput.hs-err { border-bottom-color:#dc1e1e;color:#dc1e1e;animation:hs-errPulse 0.5s ease forwards; }
+        .hs-cform.hs-shake { animation:hs-shake 0.6s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+        .hs-back { display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+          color:rgba(255,255,255,0.38);font-size:0.75rem;font-family:'Inter',sans-serif;
+          letter-spacing:0.12em;text-transform:uppercase;margin-bottom:28px;padding:0;transition:color 0.2s; }
+        .hs-back:hover { color:rgba(255,255,255,0.75); }
+        .hs-hint   { font-family:'Rajdhani','Orbitron','Segoe UI',sans-serif;font-size:11px;letter-spacing:0.3em;color:#2a2a2a;text-transform:uppercase;margin-top:22px; }
+        .hs-errmsg { font-family:'Rajdhani','Orbitron','Segoe UI',sans-serif;font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:#dc1e1e;margin-top:10px;opacity:0;transition:opacity 0.2s; }
+        .hs-errmsg.vis { opacity:1; }
+
+        /* ═══════════════════════════════════════════════
+           HOME SCREEN — RESPONSIVE
+        ═══════════════════════════════════════════════ */
+
+        /* Tablet (≤ 1024px) */
+        @media (max-width: 1024px) {
+          .hs-left  { width:55%;padding:0 3vw 0 5vw }
+          .hs-right { width:45% }
+          .hs-tiles { gap:10px }
+          .hs-title { font-size:clamp(2rem,5vw,3.5rem) }
+        }
+
+        /* Mobile landscape / small tablet (≤ 768px) */
+        @media (max-width: 768px) {
+          .hs-land  { flex-direction:column;padding-top:62px;overflow-y:auto;height:auto;min-height:100% }
+          .hs-left  { width:100%;padding:20px 20px 24px;height:auto;justify-content:flex-start }
+          .hs-right { display:none }
+          .hs-topbrand { top:68px;left:20px }
+          .hs-tiles { grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px }
+          .hs-tile  { padding:14px 10px 12px }
+          .hs-icon-wrap { width:36px;height:36px }
+          .hs-icon-ring { animation-duration:4s }
+          .hs-tile-name { font-size:0.78rem }
+          .hs-tile-desc { font-size:0.64rem }
+          .hs-sub  { margin-bottom:16px }
+          .hs-abtns { flex-direction:column!important;gap:8px!important }
+          .hs-abtn { padding:10px 14px!important;font-size:0.76rem!important }
+          .hs-cinput { width:clamp(180px,80vw,300px) }
+        }
+
+        /* Dim background on mobile for readability */
+        @media (max-width: 768px) {
+          .hs-aibot { opacity:0.35!important }
+        }
+
+        /* Small mobile (≤ 480px) */
+        @media (max-width: 480px) {
+          .hs-topbrand { left:14px }
+          .hs-tiles { grid-template-columns:1fr }
+          .hs-tile  { flex-direction:row;align-items:center;gap:14px;padding:12px 14px }
+          .hs-icon-wrap { flex-shrink:0 }
+          .hs-land  { padding-top:58px }
+          .hs-left  { padding:16px 14px 20px }
+        }
+      `}</style>
+
+      {/* Dark veil */}
+      <div style={{position:'absolute',inset:0,background:'rgba(0,1,3,0.70)',pointerEvents:'none'}}/>
+
+      {/* ── BOTTOM-LEFT LOGO ── */}
+      <img src="/logo.png" alt="NAFFCO" style={{
+        position:'absolute', bottom:24, left:36, zIndex:30,
+        height:32, width:'auto', objectFit:'contain',
+        opacity:0.55, filter:'drop-shadow(0 1px 8px rgba(109,40,217,0.35))',
+        animation:'hs-fadeUp 0.6s ease both',
+      }}/>
+
+      {/* ── TOP-LEFT BRANDING ── */}
+      <div className="hs-topbrand">
+        <div className="hs-topbrand-naffco">NAFFCO AI APEX</div>
+        <div className="hs-topbrand-sub">Passion to Protect</div>
+      </div>
+
+      <div className="hs-land">
+        {/* ── LEFT COLUMN ── */}
+        <div className="hs-left">
+
+          {phase === 'select' ? (
+            <div style={{display:'flex',flexDirection:'column',animation:'hs-fadeUp 0.55s ease both'}}>
+              <h1 className="hs-title">AI APEX HUB</h1>
+              <p className="hs-sub">Select your department to continue</p>
+
+              {/* 2×2 tile grid */}
+              <div className="hs-tiles">
+                {depts.map((dept, idx) => (
+                  <button
+                    key={dept.id}
+                    className="hs-tile"
+                    disabled={dept.comingSoon}
+                    style={{
+                      '--tc': dept.color,
+                      '--tg': dept.glow,
+                      '--td': `${idx * 1.2}s`,
+                    }}
+                    onClick={() => pickDept(dept)}
+                  >
+                    {/* Corner brackets */}
+                    <span className="hs-cb-tl"/>
+                    <span className="hs-cb-br"/>
+                    {/* Coming-soon hover overlay */}
+                    {dept.comingSoon && (
+                      <div className="hs-soon-overlay">
+                        <span className="hs-soon-text">Coming Soon</span>
+                      </div>
+                    )}
+                    {/* SOON badge */}
+                    {dept.comingSoon && (
+                      <span style={{position:'absolute',top:10,right:12,fontSize:'0.58rem',
+                        letterSpacing:'0.16em',color:'rgba(255,255,255,0.30)',
+                        border:'1px solid rgba(255,255,255,0.12)',borderRadius:4,
+                        padding:'1px 6px',fontFamily:"'Inter',sans-serif"}}>SOON</span>
+                    )}
+                    {/* Arrow for active */}
+                    {!dept.comingSoon && (
+                      <svg style={{position:'absolute',top:12,right:12}} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dept.color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    )}
+                    {/* Spinning icon ring */}
+                    <div className="hs-icon-wrap">
+                      <div className="hs-icon-ring"/>
+                      <div className="hs-icon-bg">
+                        {dept.icon(dept.comingSoon ? 'rgba(255,255,255,0.25)' : dept.color)}
+                      </div>
+                    </div>
+                    {/* Labels */}
+                    <div>
+                      <div className="hs-tile-name">{dept.label}</div>
+                      <div className="hs-tile-desc">{dept.desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+            </div>
+          ) : (
+            /* ── CODE ENTRY ── */
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',animation:'hs-fadeUp 0.4s ease both'}}>
+              <button className="hs-back" onClick={() => { setPhase('select'); setCode(''); setErrMsg(''); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Back
+              </button>
+              <h1 className="hs-title" style={{fontSize:'clamp(1.8rem,3.2vw,3rem)'}}>{selDept?.label}</h1>
+              <p className="hs-sub">{selDept?.hint}</p>
+              <form
+                className={`hs-cform${shake ? ' hs-shake' : ''}`}
+                onSubmit={handleSubmit}
+                style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:0}}
+              >
+                <div style={{position:'relative',display:'inline-flex',alignItems:'center'}}>
+                  <input
+                    ref={inputRef}
+                    className={`hs-cinput${errMsg ? ' hs-err' : ''}`}
+                    type={showCode ? 'text' : 'password'}
+                    value={code}
+                    onChange={e => { setCode(e.target.value); setErrMsg(''); }}
+                    placeholder="— — — —"
+                    maxLength={10}
+                    autoComplete="off"
+                    spellCheck={false}
+                    style={{paddingRight:36}}
+                  />
+                  <button type="button" onClick={() => setShowCode(v => !v)}
+                    style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',
+                      background:'none',border:'none',cursor:'pointer',padding:4,
+                      color:showCode?'#cc0000':'#444',outline:'none',lineHeight:0,transition:'color 0.2s'}}>
+                    {showCode
+                      ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    }
+                  </button>
+                </div>
+                <div className={`hs-errmsg${errMsg ? ' vis' : ''}`}>{errMsg || '\u00A0'}</div>
+                <div className="hs-hint">Press Enter to confirm</div>
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT COLUMN — AIBOT identical to Landing ── */}
+        <div className="hs-right" style={{position:'relative',background:'transparent'}}>
+          <div style={{position:'absolute',top:'-10%',left:'0%',right:'0%',bottom:'-5%',zIndex:0,
+            background:'conic-gradient(from 0deg at 50% 50%,#ff0000,#ff7700,#ffff00,#00ff88,#00cfff,#6d28d9,#a855f7,#ec4899,#ff0000)',
+            backgroundSize:'300% 300%',animation:'hs-aurora 6s ease-in-out infinite',
+            filter:'blur(55px)',opacity:0.60,
+            WebkitMaskImage:'radial-gradient(ellipse 85% 90% at 50% 50%,black 5%,rgba(0,0,0,0.50) 50%,transparent 78%)',
+            maskImage:'radial-gradient(ellipse 85% 90% at 50% 50%,black 5%,rgba(0,0,0,0.50) 50%,transparent 78%)'}}/>
+          <div style={{position:'absolute',top:'-2%',left:'8%',right:'8%',bottom:'0%',zIndex:0,
+            background:'linear-gradient(120deg,#ff0000 0%,#ff6600 12%,#ffcc00 24%,#00ff88 36%,#00bfff 48%,#3b82f6 58%,#8b5cf6 68%,#ec4899 80%,#ff3366 90%,#ff0000 100%)',
+            backgroundSize:'300% 300%',animation:'hs-aurora 4s ease-in-out infinite reverse',
+            filter:'blur(30px)',opacity:0.70,
+            WebkitMaskImage:'radial-gradient(ellipse 72% 80% at 50% 44%,black 10%,rgba(0,0,0,0.55) 52%,transparent 78%)',
+            maskImage:'radial-gradient(ellipse 72% 80% at 50% 44%,black 10%,rgba(0,0,0,0.55) 52%,transparent 78%)'}}/>
+          <div style={{position:'absolute',top:'8%',left:'20%',right:'18%',bottom:'2%',zIndex:0,
+            background:'linear-gradient(160deg,#ff4444 0%,#ff9900 20%,#ffee00 35%,#a855f7 55%,#ec4899 72%,#ff6600 88%,#ff0000 100%)',
+            backgroundSize:'250% 250%',animation:'hs-aurora 3.5s ease-in-out infinite',
+            filter:'blur(16px)',opacity:0.80,
+            WebkitMaskImage:'radial-gradient(ellipse 55% 68% at 50% 42%,black 18%,rgba(0,0,0,0.45) 55%,transparent 78%)',
+            maskImage:'radial-gradient(ellipse 55% 68% at 50% 42%,black 18%,rgba(0,0,0,0.45) 55%,transparent 78%)'}}/>
+          <img src="/AIBOT.png" alt="AI Bot" className="hs-aibot" style={{position:'fixed',inset:0,zIndex:1,width:'100vw',height:'100vh',objectFit:'cover',objectPosition:'center top',display:'block',pointerEvents:'none'}}/>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- ACCESS CODE SCREEN ---
 const AccessCodeScreen = ({ onAccepted }) => {
   const [code, setCode] = useState('');
@@ -1487,77 +1994,95 @@ const IntroScreen = ({ onDone, welcomeName }) => {
 };
 
 export default function App() {
-  const [showAccess, setShowAccess] = useState(true);
-  const [showIntro, setShowIntro] = useState(false);
+  // Show intro immediately on launch (splash)
+  const [showIntro, setShowIntro]     = useState(true);
   const [welcomeName, setWelcomeName] = useState('');
-  const [appState, setAppState] = useState('active');
+  const [appState, setAppState]       = useState('home');
   const [targetIndex, setTargetIndex] = useState(null);
   const [initialRole, setInitialRole] = useState(null);
   const [initialCode, setInitialCode] = useState('');
-  const pendingDestRef = useRef('active');
+  const [initialView, setInitialView] = useState(null);
+  // null = after intro go to home; otherwise go to that dest
+  const pendingDestRef = useRef(null);
 
-  const handleAccessAccepted = useCallback((destination, role, code, welcome) => {
-    setShowAccess(false);
+  // Called by HomeScreen after code is validated → play intro then go to dept
+  const handleAccessAccepted = useCallback((destination, role, code, welcome, iv = null) => {
     setWelcomeName(welcome);
     setInitialRole(role);
     setInitialCode(code);
+    setInitialView(iv);
     pendingDestRef.current = destination;
     setShowIntro(true);
-    // --- JAFZA main scene path (hidden for now) ---
-    // if (destination === 'mainScene') { ... }
+  }, []);
+
+  // Called by HomeScreen for quick-actions (no code, no intro)
+  const handleDirectNav = useCallback((dest, iv) => {
+    setInitialRole(null);
+    setInitialCode('');
+    setInitialView(iv);
+    setAppState(dest);
   }, []);
 
   const handleIntroDone = useCallback(() => {
     setShowIntro(false);
-    setAppState(pendingDestRef.current);
+    if (pendingDestRef.current !== null) {
+      setAppState(pendingDestRef.current);
+      pendingDestRef.current = null;
+    }
+    // else stay on home (initial splash)
   }, []);
 
-  const backToAccess = () => {
-    setShowAccess(true);
-    setAppState('active');
+  // Back from any dept view → return to home hub
+  const backToHome = () => {
+    setAppState('home');
     setInitialRole(null);
     setInitialCode('');
+    setInitialView(null);
+    setTargetIndex(null);
   };
 
   const handleNavigation = (index, destination) => {
-      setTargetIndex(index);
-      setTimeout(() => {
-          setAppState(destination);
-          setTargetIndex(null);
-      }, 2500);
-  };
-
-  const backToHome = () => {
-      setAppState('active');
+    setTargetIndex(index);
+    setTimeout(() => {
+      setAppState(destination);
       setTargetIndex(null);
+    }, 2500);
   };
 
   const startAnimations = ['active', 'estimation', 'dataAnalysis', 'VIRTUAL SHOWROOM','New SHOWROOM', 'AI CONTRACTS'].includes(appState);
-  const isZooming = targetIndex !== null; 
+  const isZooming = targetIndex !== null;
   const shouldMountCanvas = appState === 'active';
 
   return (
     <>
-      {showAccess && <AccessCodeScreen onAccepted={handleAccessAccepted} />}
       {showIntro && <IntroScreen onDone={handleIntroDone} welcomeName={welcomeName} />}
-<div style={mainBackgroundStyle}></div>
+      <div style={mainBackgroundStyle}/>
       <TouchFeedback />
+
+      {appState === 'home' && (
+        <HomeScreen onAccepted={handleAccessAccepted} onDirect={handleDirectNav} />
+      )}
+
+      {appState === 'construction' && (
+        <ConstructionScreen deptId={initialView} onBack={backToHome} />
+      )}
 
       {appState === 'estimation' && (
         <AIEstimation
-          onBack={backToAccess}
+          onBack={backToHome}
           onNavigate={(state) => setAppState(state)}
           initialRole={initialRole}
           initialCode={initialCode}
+          initialView={initialView}
         />
       )}
 
       {appState === 'salesView' && (
-        <SalesForm onBack={backToAccess} />
+        <SalesForm onBack={backToHome} />
       )}
 
       {appState === 'directorView' && (
-        <DataDashboard onBack={backToAccess} />
+        <DataDashboard onBack={backToHome} />
       )}
 
       {appState === 'dataAnalysis' && (
