@@ -1,5 +1,5 @@
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
-import { XR, createXRStore, useHitTest } from '@react-three/xr'
+import { XR, createXRStore } from '@react-three/xr'
 import { useGLTF, Environment, OrbitControls } from '@react-three/drei'
 import { useState, Suspense, useRef, useEffect, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
@@ -69,43 +69,69 @@ function ScanPlane() {
 }
 
 // ── WebXR hit-test reticle — attaches to detected surfaces ────────
-// Tap anywhere on screen (XR 'select' event) to pin the door.
+// Uses raw WebXR API (requestHitTestSource) because @react-three/xr v6
+// does not export useHitTest.
 function XRHitTestPlacer({ onPlace }) {
-  const { gl }    = useThree()
-  const reticle   = useRef()
-  const posRef    = useRef(new THREE.Vector3())
-  const hasHit    = useRef(false)
-  const attached  = useRef(false)
+  const { gl }        = useThree()
+  const reticle       = useRef()
+  const posRef        = useRef(new THREE.Vector3())
+  const hasHit        = useRef(false)
+  const hitSrcRef     = useRef(null)   // XRHitTestSource
+  const selectAttached = useRef(false)
+  const _mat          = useRef(new THREE.Matrix4())
+  const _pos          = useRef(new THREE.Vector3())
+  const _quat         = useRef(new THREE.Quaternion())
+  const _scale        = useRef(new THREE.Vector3())
 
-  // useHitTest fires every XR frame when a surface is detected
-  useHitTest((hitMatrix) => {
-    hitMatrix.decompose(posRef.current, new THREE.Quaternion(), new THREE.Vector3())
-    hasHit.current = true
-    if (reticle.current) {
-      reticle.current.visible = true
-      reticle.current.position.copy(posRef.current)
-    }
-  })
-
-  // Attach the XR 'select' event once the XR session is live
-  useFrame(() => {
-    if (attached.current) return
+  useFrame((_, __, xrFrame) => {
     const session = gl.xr.getSession()
     if (!session) return
-    attached.current = true
-    session.addEventListener('select', () => {
-      if (hasHit.current) onPlace(posRef.current.clone())
-    })
+
+    // Attach select listener once
+    if (!selectAttached.current) {
+      selectAttached.current = true
+      session.addEventListener('select', () => {
+        if (hasHit.current) onPlace(posRef.current.clone())
+      })
+    }
+
+    // Request hit-test source once
+    if (!hitSrcRef.current) {
+      session.requestReferenceSpace('viewer').then(viewerSpace => {
+        session.requestHitTestSource({ space: viewerSpace }).then(src => {
+          hitSrcRef.current = src
+        }).catch(() => {})
+      }).catch(() => {})
+      return
+    }
+
+    if (!xrFrame) return
+    const refSpace = gl.xr.getReferenceSpace()
+    if (!refSpace) return
+
+    const hits = xrFrame.getHitTestResults(hitSrcRef.current)
+    if (hits.length === 0) { hasHit.current = false; return }
+
+    const pose = hits[0].getPose(refSpace)
+    if (!pose) return
+
+    _mat.current.fromArray(pose.transform.matrix)
+    _mat.current.decompose(_pos.current, _quat.current, _scale.current)
+    posRef.current.copy(_pos.current)
+    hasHit.current = true
+
+    if (reticle.current) {
+      reticle.current.visible = true
+      reticle.current.position.copy(_pos.current)
+    }
   })
 
   return (
     <group ref={reticle} visible={false}>
-      {/* Outer ring */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.09, 0.14, 40]} />
         <meshBasicMaterial color="#00cfff" transparent opacity={0.9} side={THREE.DoubleSide} />
       </mesh>
-      {/* Inner dot */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.025, 20]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.7} />

@@ -405,7 +405,7 @@ function PipeCell({stageKey, stageLabel, status, onStatusChange, interactive=fal
           backdropFilter:"blur(12px)",minWidth:118,
         }}>
           {/* Arrow */}
-          <div style={{position:"absolute",top:-5,left:"50%",transform:"translateX(-50%)",width:8,height:8,
+          <div style={{position:"absolute",top:-5,left:"50%",width:8,height:8,
             background:"rgba(4,8,28,0.97)",border:"1px solid rgba(0,191,255,0.35)",
             borderBottom:"none",borderRight:"none",transform:"translateX(-50%) rotate(45deg)"}}/>
           <div style={{fontSize:7.5,fontFamily:MONO,fontWeight:700,color:"rgba(0,191,255,0.50)",
