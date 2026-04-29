@@ -36,8 +36,9 @@ const S = `
 
   /* ── LANDING ── */
   .land {
-    position:absolute; inset:0; top:0;
+    position:relative; width:100%; height:100%;
     display:flex; animation:fadeUp 0.6s ease both;
+    padding-top: 52px;
   }
   .left-col {
     width:50%; height:100%;
@@ -257,7 +258,7 @@ const S = `
 
   /* ── FORM (glassy redesign) ── */
   .form-page {
-    position: absolute; inset: 0; top: 0;
+    position: relative; width: 100%; height: 100%;
     overflow: hidden;
   }
   /* AIBOT2 — left panel */
@@ -311,10 +312,10 @@ const S = `
   .upload-glass .u-text { font-size: 0.9rem; color: rgba(255,255,255,0.4); line-height: 1.6; }
   .upload-glass .u-text b { color: rgba(255,255,255,0.75); font-weight: 600; }
   .form-right {
-    position: absolute; left: 40%; right: 0; top: 0; bottom: 0;
+    position: absolute; left: 40%; right: 0; top: 58px; bottom: 0;
     display: flex; flex-direction: column; gap: 7px;
     overflow: hidden;
-    padding: 74px 44px 14px 36px;
+    padding: 60px 44px 14px 36px;
   }
   .form-right::-webkit-scrollbar { display: none; }
   .form-right-hdr {
