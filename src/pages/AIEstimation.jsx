@@ -5357,10 +5357,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   });
 
 
-  // Unified column layout — director gets an extra delete column
-  const COL = viewMode === 'director'
-    ? '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px 36px'
-    : '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px';
+  // Unified column layout
+  const COL = '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px';
 
   const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost Artist'};
   const VIEW_COLORS = {
@@ -5453,14 +5451,14 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             <span>Estimator</span>
             <span>Timeline</span>
             <span style={{textAlign:'right'}}>Value (AED)</span>
-            {viewMode === 'director' && <span/>}
           </div>
 
           {/* ── Rows ── */}
           {filtered.map(r => {
             const realIdx = requests.indexOf(r);
             return (
-              <div key={r.id} style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
+              <div key={r.id} style={{position:'relative'}}>
+              <div style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
                 onClick={()=>setOpen(realIdx)}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>
@@ -5531,20 +5529,21 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 <span style={{fontSize:'0.72rem',color:r.projValue?'rgba(255,230,100,0.85)':'rgba(255,255,255,0.2)',fontWeight:r.projValue?600:400,textAlign:'right',whiteSpace:'nowrap',fontFamily:'monospace'}}>
                   {r.projValue ? Number(r.projValue).toLocaleString('en-AE') : '—'}
                 </span>
+              </div>
 
-                {/* Delete — director only */}
-                {viewMode === 'director' && (
-                  <button
-                    onClick={e => { e.stopPropagation(); setDeleteConfirm(realIdx); }}
-                    title="Delete request"
-                    style={{display:'flex',alignItems:'center',justifyContent:'center',width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.28)',color:'rgba(220,80,80,0.80)',cursor:'pointer',outline:'none',transition:'background 0.15s, color 0.15s',flexShrink:0}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';}}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                    </svg>
-                  </button>
-                )}
+              {/* Delete icon — absolute overlay, director only */}
+              {viewMode === 'director' && (
+                <button
+                  onClick={e => { e.stopPropagation(); setDeleteConfirm(realIdx); }}
+                  title="Delete request"
+                  style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',display:'flex',alignItems:'center',justifyContent:'center',width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.28)',color:'rgba(220,80,80,0.80)',cursor:'pointer',outline:'none',transition:'background 0.15s, color 0.15s',flexShrink:0,zIndex:2}}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                  </svg>
+                </button>
+              )}
               </div>
             );
           })}
@@ -6448,7 +6447,7 @@ const handleSubmit = async (formData) => {
       )}
 
       {/* ── AI Tool Direct — fixed top center-right, in navbar zone ── */}
-      {((userRole && userRole !== 'sales') || (!userRole && view === 'dashboard')) && (
+      {((userRole && userRole !== 'sales' && userRole !== 'director') || (userRole === 'director' && view === 'form') || (!userRole && view === 'dashboard')) && (
         <button onClick={()=>setDirectOpen(true)}
           style={{
             position:'fixed', top:10, left:'50%', transform:'translateX(40px)', zIndex:9501,
