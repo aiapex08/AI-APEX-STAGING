@@ -1192,7 +1192,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
       hour: '2-digit', minute: '2-digit', second: '2-digit',
       hour12: false,
     });
-    const entry = { status: newStatus, remark: remark.trim(), by: spName || 'Sales', ts };
+    const entry = { status: newStatus, remark: remark.trim(), by: spName || 'Sales', ts, tsMs: now.getTime() };
     const prev = requests[globalIdx].salesLog || [];
     onUpdate(globalIdx, { salesStatus: newStatus, salesStatusAt: ts, salesLog: [...prev, entry] });
     setFlashId(requests[globalIdx].id);
@@ -1300,6 +1300,98 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
             </div>
           )}
         </div>
+
+        {/* ── TAT Timeline row ── */}
+        {(() => {
+          const fmtDHMS = (ms) => {
+            if (!ms || ms <= 0) return null;
+            const d = Math.floor(ms / 86400000);
+            const h = Math.floor((ms % 86400000) / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return d > 0
+              ? `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+              : `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+          };
+          const subMs = r.submittedAt ? new Date(r.submittedAt).getTime()
+            : r.date ? (() => { const p = r.date.split('/'); return p.length===3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime() : new Date(r.date).getTime(); })()
+            : null;
+          const now = Date.now();
+
+          // Estimation stages
+          const estStages = [
+            { label:'Submitted',   color:'rgba(120,180,255,0.90)', done:!!(r.submittedAt||r.date), tsMs: subMs, tat: null },
+            { label:'Assigned',    color:'rgba(255,200,50,0.90)',  done:!!r.taggedAt,              tsMs: r.taggedAt||null, tat: r.taggedAt && subMs ? r.taggedAt - subMs : null },
+            { label:'Quoted',      color:'rgba(160,130,255,0.90)', done:!!r.quotationSubmittedAt,  tsMs: r.quotationSubmittedAt ? new Date(r.quotationSubmittedAt).getTime() : null, tat: r.quotationSubmittedAt && r.taggedAt ? new Date(r.quotationSubmittedAt).getTime() - r.taggedAt : null },
+            { label:'Cost Artist', color:'rgba(0,220,180,0.90)',   done:!!r.directorRespondedAt,   tsMs: r.directorRespondedAt ? new Date(r.directorRespondedAt).getTime() : null, tat: r.directorRespondedAt && r.quotationSubmittedAt ? new Date(r.directorRespondedAt).getTime() - new Date(r.quotationSubmittedAt).getTime() : null },
+          ];
+
+          // Sales cycle TAT: submitted → Won/Lost
+          const wonLostEntry = (r.salesLog||[]).slice().reverse().find(e => e.status==='Won' || e.status==='Lost');
+          const salesEndMs = wonLostEntry?.tsMs || null;
+          const salesTatMs = subMs && salesEndMs ? salesEndMs - subMs : subMs ? now - subMs : null;
+          const salesOngoing = !salesEndMs;
+          const salesTatColor = curStatus==='Won' ? '#4ade80' : curStatus==='Lost' ? '#f87171' : curStatus==='Risky' ? '#fb923c' : curStatus==='Follow-up' ? '#fbbf24' : 'rgba(255,255,255,0.45)';
+
+          return (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16, maxWidth:960 }}>
+              {/* Estimation TAT stages */}
+              <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:10, padding:'12px 16px' }}>
+                <p style={{ fontSize:'0.52rem', letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(255,255,255,0.24)', marginBottom:10, fontWeight:700 }}>Estimation TAT Stages</p>
+                <div style={{ display:'flex', alignItems:'center', gap:0, flexWrap:'nowrap', overflow:'hidden' }}>
+                  {estStages.map((st, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:0, flexShrink:0 }}>
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                        <div style={{ width:8, height:8, borderRadius:'50%',
+                          background: st.done ? st.color : 'rgba(255,255,255,0.10)',
+                          boxShadow: st.done ? `0 0 7px ${st.color}` : 'none',
+                          border: st.done ? 'none' : '1px solid rgba(255,255,255,0.16)', flexShrink:0 }}/>
+                        <span style={{ fontSize:'0.48rem', color: st.done ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)', letterSpacing:'0.06em', whiteSpace:'nowrap', fontFamily:F2 }}>{st.label}</span>
+                        {st.done && !st.tat && i===0 && (
+                          <span style={{ fontSize:'0.44rem', color:'rgba(255,255,255,0.25)', fontFamily:'monospace', whiteSpace:'nowrap' }}>start</span>
+                        )}
+                        {st.done && st.tat && (
+                          <span style={{ fontSize:'0.44rem', color:st.color, fontFamily:'monospace', whiteSpace:'nowrap', opacity:0.75 }}>{fmtDHMS(st.tat)}</span>
+                        )}
+                      </div>
+                      {i < estStages.length - 1 && (
+                        <div style={{ width:20, height:1, background: estStages[i+1].done ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)', margin:'0 3px', marginBottom:12, flexShrink:0 }}/>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sales Cycle TAT */}
+              <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:10, padding:'12px 16px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                  <p style={{ fontSize:'0.52rem', letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(255,255,255,0.24)', fontWeight:700 }}>Sales Cycle TAT</p>
+                  {salesOngoing && (
+                    <span style={{ fontSize:'0.46rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,200,50,0.60)', fontWeight:700, background:'rgba(255,200,50,0.08)', border:'1px solid rgba(255,200,50,0.20)', borderRadius:50, padding:'2px 8px' }}>Live</span>
+                  )}
+                </div>
+                <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
+                  <span style={{ fontSize:'1.2rem', fontWeight:800, fontFamily:'monospace', color:salesTatColor, letterSpacing:'0.04em' }}>
+                    {salesTatMs !== null ? fmtDHMS(salesTatMs) : '—'}
+                  </span>
+                  {salesOngoing && (
+                    <span style={{ fontSize:'0.60rem', color:'rgba(255,255,255,0.28)', fontFamily:F2 }}>ongoing</span>
+                  )}
+                  {!salesOngoing && wonLostEntry && (
+                    <span style={{ fontSize:'0.60rem', color:salesTatColor, fontFamily:F2, fontWeight:700 }}>→ {wonLostEntry.status}</span>
+                  )}
+                </div>
+                <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:4, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:'0.52rem', color:'rgba(255,255,255,0.22)', fontFamily:F2 }}>Submitted</span>
+                  <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.08)', minWidth:12 }}/>
+                  <span style={{ fontSize:'0.52rem', color: salesOngoing ? 'rgba(255,200,50,0.55)' : salesTatColor, fontFamily:F2, fontWeight:600 }}>
+                    {salesOngoing ? 'In Progress' : (wonLostEntry?.status || curStatus)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 960 }}>
           {/* Left — request info */}
@@ -1424,6 +1516,72 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               </div>
             )}
 
+            {/* Sales Status Subtimeline */}
+            {(() => {
+              const statusColors2 = {
+                Won:  { c: '#4ade80', bg: 'rgba(34,197,94,0.12)',  bd: 'rgba(34,197,94,0.30)' },
+                Lost: { c: '#f87171', bg: 'rgba(239,68,68,0.12)',  bd: 'rgba(239,68,68,0.30)' },
+                'Follow-up': { c: '#fbbf24', bg: 'rgba(251,191,36,0.10)', bd: 'rgba(251,191,36,0.30)' },
+                Risky: { c: '#fb923c', bg: 'rgba(249,115,22,0.12)', bd: 'rgba(249,115,22,0.30)' },
+                Pending: { c: 'rgba(255,255,255,0.40)', bg: 'rgba(255,255,255,0.04)', bd: 'rgba(255,255,255,0.10)' },
+              };
+              const log = r.salesLog || [];
+              const fmtDHMS2 = (ms) => {
+                if (!ms || ms <= 0) return null;
+                const d = Math.floor(ms / 86400000);
+                const h = Math.floor((ms % 86400000) / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                return d > 0 ? `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}` : `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+              };
+              // build steps: always start with Pending
+              const subMs2 = r.submittedAt ? new Date(r.submittedAt).getTime()
+                : r.date ? (() => { const p = r.date.split('/'); return p.length===3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime() : new Date(r.date).getTime(); })()
+                : null;
+              const steps = [
+                { status: 'Pending', tsMs: subMs2, isFirst: true },
+                ...log.map(e => ({ status: e.status, tsMs: e.tsMs || null, remark: e.remark })),
+              ];
+              if (steps.length < 2 && log.length === 0) return null;
+              return (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '14px 16px' }}>
+                  <p style={{ fontSize: '0.52rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.24)', marginBottom: 12, fontWeight: 700 }}>Sales Status Journey</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, flexWrap: 'wrap' }}>
+                    {steps.map((step, i) => {
+                      const col = statusColors2[step.status] || statusColors2.Pending;
+                      const nextStep = steps[i + 1];
+                      const dur = step.tsMs && nextStep?.tsMs ? nextStep.tsMs - step.tsMs : null;
+                      const isLast = i === steps.length - 1;
+                      const isFinal = step.status === 'Won' || step.status === 'Lost';
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <div style={{ width: 9, height: 9, borderRadius: '50%',
+                              background: col.c,
+                              boxShadow: `0 0 7px ${col.c}`,
+                              border: 'none', flexShrink: 0 }}/>
+                            <span style={{ fontSize: '0.50rem', color: col.c, letterSpacing: '0.06em', whiteSpace: 'nowrap', fontFamily: F2, fontWeight: 700, maxWidth: 60, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.status}</span>
+                            {step.tsMs && (
+                              <span style={{ fontSize: '0.42rem', color: 'rgba(255,255,255,0.22)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                {new Date(step.tsMs).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}
+                              </span>
+                            )}
+                          </div>
+                          {!isLast && (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 3px', marginBottom: 18 }}>
+                              {dur && <span style={{ fontSize: '0.40rem', color: 'rgba(255,255,255,0.22)', fontFamily: 'monospace', whiteSpace: 'nowrap', marginBottom: 1 }}>{fmtDHMS2(dur)}</span>}
+                              <div style={{ width: 18, height: 1, background: isFinal ? col.c : 'rgba(255,255,255,0.14)' }}/>
+                              <span style={{ fontSize: '0.36rem', color: 'rgba(255,255,255,0.18)' }}>▶</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Estimation status (read-only) */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
               <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 10 }}>Estimation Status</p>
@@ -1516,8 +1674,8 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10, overflowY:'auto', flex:1 }}>
           {/* Column headers */}
-          <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 160px 90px 160px 36px', gap:10, padding:'0 14px', alignItems:'center' }}>
-            {['Request #','Project · Customer','Status','TAT','Sales Status',''].map(h=>(
+          <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 150px 150px 140px 36px', gap:10, padding:'0 14px', alignItems:'center' }}>
+            {['Request #','Project · Customer','Est. Status','Ageing TAT','Sales Status',''].map(h=>(
               <span key={h} style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>{h}</span>
             ))}
           </div>
@@ -1531,18 +1689,28 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               Risky:     { c:'#fb923c', bg:'rgba(249,115,22,0.12)', bd:'rgba(249,115,22,0.30)' },
               Pending:   { c:'rgba(255,255,255,0.38)', bg:'rgba(255,255,255,0.04)', bd:'rgba(255,255,255,0.10)' },
             };
-            // TAT: days since submission
-            const tatDays = (() => {
+            // TAT: elapsed since submission in ms
+            const submittedMs = (() => {
+              if (r.submittedAt) { const d = new Date(r.submittedAt); return isNaN(d) ? null : d.getTime(); }
               if (!r.date) return null;
-              const parts = r.date.split('/'); // dd/mm/yyyy or similar
+              const parts = r.date.split('/');
               const d = parts.length === 3 ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : new Date(r.date);
-              if (isNaN(d)) return null;
-              return Math.max(0, Math.floor((Date.now() - d) / 86400000));
+              return isNaN(d) ? null : d.getTime();
             })();
-            const tatColor = tatDays === null ? 'rgba(255,255,255,0.25)' : tatDays <= 3 ? '#4ade80' : tatDays <= 7 ? '#fbbf24' : tatDays <= 14 ? '#fb923c' : '#f87171';
+            const tatMs = submittedMs ? Math.max(0, Date.now() - submittedMs) : null;
+            const tatDays = tatMs !== null ? Math.floor(tatMs / 86400000) : null;
+            const fmtDHMS = (ms) => {
+              if (ms === null || ms === undefined) return '—';
+              const d = Math.floor(ms / 86400000);
+              const h = Math.floor((ms % 86400000) / 3600000);
+              const m = Math.floor((ms % 3600000) / 60000);
+              const s = Math.floor((ms % 60000) / 1000);
+              return `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            };
+            const tatColor = tatMs === null ? 'rgba(255,255,255,0.25)' : tatDays <= 3 ? '#4ade80' : tatDays <= 7 ? '#fbbf24' : tatDays <= 14 ? '#fb923c' : '#f87171';
             return (
               <div key={r.id}
-                style={{ display:'grid', gridTemplateColumns:'110px 1fr 160px 90px 160px 36px', gap:10,
+                style={{ display:'grid', gridTemplateColumns:'110px 1fr 150px 150px 140px 36px', gap:10,
                   padding:'12px 14px', borderRadius:12,
                   background: flashId===r.id ? 'rgba(99,220,160,0.08)' : 'rgba(255,255,255,0.03)',
                   border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : 'rgba(255,255,255,0.07)'}`,
@@ -1566,13 +1734,13 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                   <span style={{ fontSize:'0.64rem', fontWeight:600, color:'rgba(220,185,80,0.88)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.status || 'Pending'}</span>
                 </div>
 
-                {/* TAT */}
-                <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                  <span style={{ fontSize:'0.88rem', fontWeight:800, color:tatColor, fontFamily:'monospace' }}>
-                    {tatDays !== null ? `${tatDays}d` : '—'}
+                {/* Ageing TAT */}
+                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                  <span style={{ fontSize:'0.70rem', fontWeight:800, color:tatColor, fontFamily:'monospace', letterSpacing:'0.04em' }}>
+                    {tatMs !== null ? fmtDHMS(tatMs) : '—'}
                   </span>
-                  {tatDays !== null && (
-                    <div style={{ width:'100%', height:3, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
+                  {tatMs !== null && (
+                    <div style={{ width:'100%', height:2, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
                       <div style={{ height:'100%', width:`${Math.min(100,(tatDays/30)*100)}%`, background:tatColor, borderRadius:2 }}/>
                     </div>
                   )}
@@ -2225,13 +2393,14 @@ const EstAvatar = ({ name, size=40, code='' }) => {
   );
 };
 
-const OpenRequests = ({ requests, onUpdate, userCode='' }) => {
+const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }) => {
   const F = "'Inter',sans-serif";
   const openReqs = requests.map((r,i)=>({r,i})).filter(({r})=>!r.estimator && r.status==='Pending Estimation');
   const [claiming, setClaiming] = useState(null);
   const [estName, setEstName] = useState('');
   const [nameErr, setNameErr] = useState(false);
   const [justClaimed, setJustClaimed] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // {idx, id}
 
   const openClaim = (idx, reqId) => {
     setClaiming({idx,reqId});
@@ -2363,13 +2532,25 @@ const OpenRequests = ({ requests, onUpdate, userCode='' }) => {
                 <div style={{position:'absolute',top:0,left:0,right:0,height:2,
                   background:isClaimed?'linear-gradient(90deg,transparent,rgba(52,211,153,0.8),transparent)':'linear-gradient(90deg,transparent,rgba(168,85,247,0.5),transparent)'}}/>
 
-                {/* ID + deal badge */}
+                {/* ID + deal badge + delete */}
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <span style={{fontFamily:'monospace',fontSize:'0.80rem',fontWeight:800,color:'rgba(220,165,0,0.90)',letterSpacing:'0.08em'}}>{r.id}</span>
-                  <div style={{display:'flex',gap:6}}>
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
                     {r.deal && <span style={{fontSize:'0.55rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:dealColor(r.deal),border:`1px solid ${dealColor(r.deal)}50`,borderRadius:4,padding:'2px 7px'}}>{r.deal}</span>}
                     {r.requestType==='revised'    && <span style={{fontSize:'0.55rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.75)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:4,padding:'2px 7px'}}>REVISED</span>}
                     {r.requestType==='finalPrice' && <span style={{fontSize:'0.55rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(52,211,153,0.80)',border:'1px solid rgba(52,211,153,0.25)',borderRadius:4,padding:'2px 7px'}}>FINAL</span>}
+                    {userRole === 'director' && (
+                      <button
+                        onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
+                        title="Delete request"
+                        style={{display:'flex',alignItems:'center',justifyContent:'center',width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.28)',color:'rgba(220,80,80,0.80)',cursor:'pointer',outline:'none',transition:'all 0.15s',flexShrink:0}}
+                        onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.24)';e.currentTarget.style.color='rgba(255,100,100,1)';e.currentTarget.style.borderColor='rgba(220,60,60,0.55)';}}
+                        onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';e.currentTarget.style.borderColor='rgba(220,50,50,0.28)';}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2472,6 +2653,35 @@ const OpenRequests = ({ requests, onUpdate, userCode='' }) => {
           })}
         </div>
       </div>
+
+      {/* ── Delete confirmation modal (Cost Artist only) ── */}
+      {deleteConfirm !== null && (
+        <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(8px)'}}>
+          <div style={{background:'rgba(10,4,20,0.98)',border:'1px solid rgba(220,60,60,0.38)',borderRadius:16,padding:'28px 32px',maxWidth:380,width:'92%',boxShadow:'0 24px 70px rgba(0,0,0,0.75)',display:'flex',flexDirection:'column',gap:18,animation:'fadeUp 0.2s ease both'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span style={{width:10,height:10,borderRadius:'50%',background:'rgba(220,60,60,0.90)',boxShadow:'0 0 12px rgba(220,60,60,0.60)',flexShrink:0}}/>
+              <span style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(220,80,80,0.80)',fontWeight:700,fontFamily:F}}>Cost Artist · Delete Request</span>
+            </div>
+            <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.80)',lineHeight:1.6,margin:0,fontFamily:F}}>
+              Permanently delete request <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{deleteConfirm.id}</strong>? This cannot be undone.
+            </p>
+            <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+              <button onClick={()=>setDeleteConfirm(null)}
+                style={{padding:'9px 22px',borderRadius:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.60)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:600,outline:'none',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
+                Cancel
+              </button>
+              <button onClick={()=>{ onDelete(deleteConfirm.idx); setDeleteConfirm(null); }}
+                style={{padding:'9px 22px',borderRadius:8,background:'rgba(200,40,40,0.20)',border:'1px solid rgba(220,60,60,0.50)',color:'rgba(255,100,100,0.95)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(200,40,40,0.36)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(200,40,40,0.20)'}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
@@ -2645,24 +2855,6 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
 
       {/* Right-side action buttons */}
       <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,flexShrink:0,flexWrap:'wrap',justifyContent:'flex-end'}}>
-        {/* AI Tool Direct — for logged-in (non-sales) and for guest on dashboard */}
-        {((userRole && userRole !== 'sales') || (!userRole && view === 'dashboard')) && onDirectTool && (
-          <button onClick={onDirectTool}
-            style={{display:'inline-flex', alignItems:'center', gap:5,
-              background:'rgba(10,6,30,0.80)',
-              border:'1px solid rgba(168,85,247,0.50)',
-              borderRadius:50, padding:'6px 12px',
-              color:'rgba(200,160,255,0.90)',
-              fontFamily:"'Inter',sans-serif", fontSize:'0.70rem', fontWeight:700, letterSpacing:'0.06em',
-              cursor:'pointer', outline:'none',
-              boxShadow:'0 2px 12px rgba(168,85,247,0.22)',
-              backdropFilter:'blur(10px)', transition:'all 0.2s', whiteSpace:'nowrap',
-            }}
-            onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(168,85,247,0.55)';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.80)';e.currentTarget.style.color='rgba(200,160,255,0.90)';e.currentTarget.style.boxShadow='0 2px 12px rgba(168,85,247,0.22)';}}
-          >✦ AI Tool</button>
-        )}
-
         {/* Director View button — for guest on dashboard */}
         {!userRole && view === 'dashboard' && (
           <button onClick={openDirPrompt}
@@ -2726,23 +2918,6 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo,onDirectTool,userRole
           </div>
         </div>
       </div>
-      {/* ── AI Tool Direct — left side vertical pill ── */}
-      {onDirectTool && (
-        <button onClick={onDirectTool}
-          style={{position:'absolute',left:0,top:'50%',transform:'translateY(-50%) rotate(-90deg)',transformOrigin:'center center',
-            zIndex:20,display:'inline-flex',alignItems:'center',gap:6,
-            background:'rgba(10,6,30,0.85)',border:'1px solid rgba(168,85,247,0.45)',
-            borderRadius:'0 0 8px 8px',padding:'7px 18px',cursor:'pointer',
-            color:'rgba(200,160,255,0.88)',fontFamily:"'Inter',sans-serif",
-            fontSize:'0.70rem',fontWeight:700,letterSpacing:'0.10em',whiteSpace:'nowrap',
-            boxShadow:'2px 0 18px rgba(168,85,247,0.20)',transition:'all 0.2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='4px 0 28px rgba(168,85,247,0.55)';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.88)';e.currentTarget.style.boxShadow='2px 0 18px rgba(168,85,247,0.20)';}}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          ✦ AI Tool Direct
-        </button>
-      )}
-
       <div className="right-col" style={{position:'relative', background:'transparent'}}>
         {/* ── Aurora glow — tightly behind bot body only, avoids edges/corners ── */}
         {/* outer rainbow halo */}
@@ -4279,6 +4454,19 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           <button onClick={()=>setOpen(null)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:'0.82rem',fontFamily:F2,alignSelf:'flex-start',display:'flex',alignItems:'center',gap:6}}>
             ← All Requests
           </button>
+          {viewMode === 'director' && (
+            <button
+              onClick={() => setDeleteConfirm(open)}
+              title="Delete this request"
+              style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:50,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(220,80,80,0.80)',fontFamily:F2,fontSize:'0.72rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',marginLeft:4}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';e.currentTarget.style.borderColor='rgba(220,60,60,0.55)';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';e.currentTarget.style.borderColor='rgba(220,50,50,0.30)';}}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+              Delete Request
+            </button>
+          )}
           {(req.requestType==='revised'||req.requestType==='finalPrice') && (
             <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:50,
               background:req.requestType==='finalPrice'?'rgba(16,185,129,0.12)':'rgba(0,150,255,0.12)',
@@ -5381,7 +5569,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
                 Cancel
               </button>
-              <button onClick={()=>{ onDelete(deleteConfirm); setDeleteConfirm(null); }}
+              <button onClick={()=>{ onDelete(deleteConfirm); setDeleteConfirm(null); setOpen(null); }}
                 style={{padding:'8px 20px',borderRadius:7,background:'rgba(200,40,40,0.18)',border:'1px solid rgba(220,60,60,0.45)',color:'rgba(255,100,100,0.95)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'background 0.15s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(200,40,40,0.32)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(200,40,40,0.18)'}>
@@ -6235,7 +6423,7 @@ const handleSubmit = async (formData) => {
       <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>setDirectOpen(true)}
         onDirectorAccess={(code='STAR')=>{ setUserRole('director'); setUserCode(code); setView('dashboard'); }}/>
 
-      {/* ── Floating AI buttons — estimator & director only ── */}
+      {/* ── Floating AI Bot button — landing only, estimator & director ── */}
       {view === 'landing' && (userRole === 'estimator' || userRole === 'director') && (
         <>
           <button onClick={()=>setAiOpen(o=>!o)}
@@ -6255,50 +6443,32 @@ const handleSubmit = async (formData) => {
             onMouseEnter={e=>{if(!aiOpen){e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.boxShadow='0 6px 32px rgba(168,85,247,0.55)';}}}
             onMouseLeave={e=>{if(!aiOpen){e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.boxShadow='0 4px 18px rgba(168,85,247,0.28)';}}}
           >✦ AI Bot</button>
-
-          <button onClick={()=>setDirectOpen(true)}
-            style={{
-              position:'fixed', top:'50%', right:0, transform:'translateY(-50%)',
-              zIndex:9500,
-              writingMode:'vertical-rl', textOrientation:'mixed',
-              background:'rgba(10,6,30,0.85)',
-              border:'1px solid rgba(168,85,247,0.45)', borderRight:'none',
-              borderRadius:'10px 0 0 10px',
-              padding:'18px 8px',
-              color:'rgba(200,160,255,0.85)',
-              fontFamily:"'Inter',sans-serif", fontSize:'0.78rem', fontWeight:700, letterSpacing:'0.12em',
-              cursor:'pointer', outline:'none',
-              boxShadow:'-4px 0 12px rgba(168,85,247,0.20)',
-              backdropFilter:'blur(12px)', transition:'all 0.2s',
-            }}
-            onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='-4px 0 24px rgba(168,85,247,0.55)';}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';e.currentTarget.style.boxShadow='-4px 0 12px rgba(168,85,247,0.20)';}}
-          >✦ AI Tool Direct</button>
-
-          <button onClick={()=>setToolOpen(o=>!o)}
-            style={{
-              position:'fixed', left:0, top:'50%', transform:'translateY(-50%)',
-              zIndex:9500,
-              writingMode:'vertical-rl', textOrientation:'mixed',
-              background: toolOpen ? 'linear-gradient(180deg,#6d28d9,#a855f7,#ec4899,#f97316)' : 'rgba(10,6,30,0.85)',
-              backgroundSize:'100% 200%',
-              animation: toolOpen ? 'auroraShift 4s ease-in-out infinite' : 'none',
-              border:'1px solid rgba(168,85,247,0.45)', borderLeft:'none',
-              borderRadius:'0 10px 10px 0',
-              padding:'18px 8px',
-              color: toolOpen ? '#fff' : 'rgba(200,160,255,0.85)',
-              fontFamily:"'Inter',sans-serif", fontSize:'0.78rem', fontWeight:700, letterSpacing:'0.12em',
-              cursor:'pointer', outline:'none',
-              boxShadow: toolOpen ? '4px 0 24px rgba(168,85,247,0.55)' : '4px 0 12px rgba(168,85,247,0.20)',
-              backdropFilter:'blur(12px)', transition:'all 0.2s',
-            }}
-            onMouseEnter={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(109,40,217,0.35)';e.currentTarget.style.color='#fff';}}}
-            onMouseLeave={e=>{if(!toolOpen){e.currentTarget.style.background='rgba(10,6,30,0.85)';e.currentTarget.style.color='rgba(200,160,255,0.85)';}}}
-          >✦ AI Tool</button>
-
-          {toolOpen && <ToolOverlay onClose={()=>setToolOpen(false)}/>}
           {aiOpen && <Estimator onClose={()=>setAiOpen(false)}/>}
         </>
+      )}
+
+      {/* ── AI Tool Direct — fixed top center-right, in navbar zone ── */}
+      {((userRole && userRole !== 'sales') || (!userRole && view === 'dashboard')) && (
+        <button onClick={()=>setDirectOpen(true)}
+          style={{
+            position:'fixed', top:10, left:'50%', transform:'translateX(40px)', zIndex:9501,
+            display:'inline-flex', alignItems:'center', gap:6,
+            background:'rgba(10,6,30,0.82)',
+            border:'1px solid rgba(168,85,247,0.48)',
+            borderRadius:'100px',
+            padding:'7px 16px',
+            color:'rgba(200,160,255,0.90)',
+            fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:700, letterSpacing:'0.07em',
+            cursor:'pointer', outline:'none',
+            boxShadow:'0 2px 16px rgba(168,85,247,0.25)',
+            backdropFilter:'blur(16px)', transition:'all 0.2s', whiteSpace:'nowrap',
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(168,85,247,0.55)';}}
+          onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.color='rgba(200,160,255,0.90)';e.currentTarget.style.boxShadow='0 2px 16px rgba(168,85,247,0.25)';}}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          ✦ AI Tool Direct
+        </button>
       )}
 
       {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
@@ -6311,7 +6481,7 @@ const handleSubmit = async (formData) => {
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
-      {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} userCode={userCode}/>}
+      {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
           initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>setDirectOpen(true)}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
