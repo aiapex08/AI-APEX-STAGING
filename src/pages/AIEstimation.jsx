@@ -36,9 +36,8 @@ const S = `
 
   /* ── LANDING ── */
   .land {
-    position:relative; width:100%; height:100%;
+    position:absolute; inset:0; top:0;
     display:flex; animation:fadeUp 0.6s ease both;
-    padding-top: 52px;
   }
   .left-col {
     width:50%; height:100%;
@@ -258,7 +257,7 @@ const S = `
 
   /* ── FORM (glassy redesign) ── */
   .form-page {
-    position: relative; width: 100%; height: 100%;
+    position: absolute; inset: 0; top: 0;
     overflow: hidden;
   }
   /* AIBOT2 — left panel */
@@ -312,10 +311,10 @@ const S = `
   .upload-glass .u-text { font-size: 0.9rem; color: rgba(255,255,255,0.4); line-height: 1.6; }
   .upload-glass .u-text b { color: rgba(255,255,255,0.75); font-weight: 600; }
   .form-right {
-    position: absolute; left: 40%; right: 0; top: 58px; bottom: 0;
+    position: absolute; left: 40%; right: 0; top: 0; bottom: 0;
     display: flex; flex-direction: column; gap: 7px;
     overflow: hidden;
-    padding: 60px 44px 14px 36px;
+    padding: 74px 44px 14px 36px;
   }
   .form-right::-webkit-scrollbar { display: none; }
   .form-right-hdr {
@@ -363,6 +362,7 @@ const S = `
   }
   .glass-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.09); }
   .glass-input::placeholder { color: rgba(255,255,255,0.28); }
+  select.glass-input option, select.glass-input optgroup { background: #0a061e; color: rgba(255,255,255,0.85); }
   .glass-textarea {
     width: 100%; min-height: 68px; resize: none;
     background: rgba(255,255,255,0.06);
@@ -612,9 +612,9 @@ const S = `
 
   /* ── SALES STATUS VIEW ── */
   .ss-page {
-    position: absolute; inset: 0; top: 58px;
+    position: absolute; inset: 0; top: 0;
     display: flex; flex-direction: column;
-    padding: 28px 40px 24px;
+    padding: 74px 40px 24px;
     overflow: hidden;
     animation: fadeUp 0.4s ease both;
   }
@@ -707,12 +707,11 @@ const S = `
   .land-aibot { opacity:1;transition:opacity 0.3s }
 
   /* ── OPEN REQUESTS LAYOUT ── */
-  .or-layout { position:relative;width:100%;height:100%;display:flex }
-  .or-main   { flex:1;min-width:0;overflow-y:auto;padding:72px 32px 40px }
-  .or-roster { width:20%;min-width:180px;max-width:260px;height:100%;overflow-y:auto;
-    border-left:1px solid rgba(255,255,255,0.06);
-    background:rgba(4,2,14,0.70);backdrop-filter:blur(14px);
-    padding:72px 16px 40px;display:flex;flex-direction:column;gap:6px;flex-shrink:0 }
+  .or-layout { position:absolute;inset:0;top:0;display:flex;flex-direction:column }
+  .or-main   { flex:1;min-width:0;overflow-y:auto;padding:62px 32px 16px }
+  .or-team   { flex-shrink:0;height:16vh;min-height:110px;border-top:1px solid rgba(255,255,255,0.06);
+    background:rgba(4,2,14,0.72);backdrop-filter:blur(14px);
+    padding:10px 28px 10px;display:flex;flex-direction:column;gap:0;overflow:hidden }
 
   /* ── LANDING 3-BUTTON ROW ── */
   .land-btns { display:flex;flex-direction:row;gap:8px;margin-bottom:34px }
@@ -726,7 +725,7 @@ const S = `
     .left-col  { width:55%;padding:0 3vw 0 6vw }
     .right-col { width:45% }
     .form-right { padding:52px 28px 14px 24px }
-    .or-roster  { min-width:160px;max-width:210px;padding:72px 12px 40px }
+    .or-team  { height:16vh;min-height:100px;padding:8px 18px 8px }
   }
 
   /* ── Mobile landscape + small tablet (≤ 768px) ── */
@@ -773,17 +772,15 @@ const S = `
     .land-aibot { opacity:0.35 }
 
     /* Open Requests */
-    .or-layout { flex-direction:column }
-    .or-main   { padding:70px 16px 20px;height:auto }
-    .or-roster { width:100%;max-width:100%;min-width:0;height:auto;border-left:none;
-      border-top:1px solid rgba(255,255,255,0.06);padding:20px 16px }
+    .or-main   { padding:62px 16px 12px }
+    .or-team   { height:16vh;min-height:100px;padding:8px 16px 8px }
 
     /* Dashboard detail */
-    .dash-detail-wrap { padding:68px 14px 16px!important }
+    .dash-detail-wrap { padding:62px 14px 16px!important }
     .dash-detail-wrap .g2,
     .dash-detail-wrap .g3 { grid-template-columns:1fr!important }
     .dash-2col { grid-template-columns:1fr!important }
-    .analyse-wrap { padding:70px 16px 24px!important }
+    .analyse-wrap { padding:62px 16px 24px!important }
     .analyse-2col { grid-template-columns:1fr!important }
     /* Director layout */
     .dir-layout  { flex-direction:column!important;overflow-y:auto!important }
@@ -801,10 +798,9 @@ const S = `
     .form-right { padding:68px 12px 16px }
     .glass-input, .glass-textarea { padding:12px 14px;font-size:0.90rem }
     .land-btns { gap:6px }
-    .or-main { padding:68px 12px 16px }
+    .or-main { padding:62px 12px 12px }
     .page-title { font-size:2rem }
     .s-bar input { font-size:0.76rem }
-    .or-roster { flex-direction:row;flex-wrap:wrap;gap:8px }
   }
 `;
 
@@ -990,6 +986,148 @@ const AIChatPanel = ({ onClose }) => {
   );
 };
 
+// ─── SALES PERFORMANCE ───────────────────────────────────────────────────────
+const SalesPerformance = ({ spName, showAll }) => {
+  const F = "'Inter',sans-serif";
+  const SK = `sp_perf_${spName||'all'}`;
+  const [rows, setRows] = useState(() => { try { return JSON.parse(localStorage.getItem(SK)||'[]'); } catch { return []; } });
+  const [showAdd, setShowAdd] = useState(false);
+  const blank = { customer:'', so:'', invoiceValue:'', collection:'' };
+  const [form, setForm] = useState(blank);
+  const UP = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const save = () => {
+    if (!form.customer.trim()) return;
+    const updated = [...rows, { ...form, id: Date.now(), addedAt: new Date().toISOString() }];
+    setRows(updated);
+    try { localStorage.setItem(SK, JSON.stringify(updated)); } catch {}
+    setForm(blank); setShowAdd(false);
+  };
+  const del = (id) => {
+    const updated = rows.filter(r => r.id !== id);
+    setRows(updated);
+    try { localStorage.setItem(SK, JSON.stringify(updated)); } catch {}
+  };
+
+  const maxInv = Math.max(1, ...rows.map(r => Number(r.invoiceValue)||0));
+  const totalInv = rows.reduce((s,r) => s + (Number(r.invoiceValue)||0), 0);
+  const totalCol = rows.reduce((s,r) => s + (Number(r.collection)||0), 0);
+  const fmt = v => Number(v) >= 1000 ? `${(Number(v)/1000).toFixed(1)}K` : String(Number(v)||0);
+
+  const inp = (ex={}) => ({ width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:7, color:'rgba(255,255,255,0.85)', fontFamily:F, fontSize:'0.84rem', padding:'9px 12px', outline:'none', boxSizing:'border-box', ...ex });
+
+  return (
+    <div className="ss-page" style={{ overflowY:'auto', fontFamily:F }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontSize:'1.3rem', fontWeight:800, letterSpacing:'0.10em', color:'rgba(255,255,255,0.88)', textTransform:'uppercase', margin:0 }}>Sales Performance</h2>
+          <p style={{ fontSize:'0.70rem', color:'rgba(255,255,255,0.30)', marginTop:4, letterSpacing:'0.06em' }}>Customer · SO # · Invoice Value · Collection</p>
+        </div>
+        {!showAll && (
+          <button onClick={()=>setShowAdd(s=>!s)}
+            style={{ padding:'9px 20px', borderRadius:100, background:'linear-gradient(105deg,#1e1b6e,#3730a3,#6d28d9,#a855f7)', backgroundSize:'220% 220%', animation:'auroraShift 5s ease-in-out infinite', border:'1px solid rgba(255,255,255,0.18)', color:'#fff', fontFamily:F, fontSize:'0.84rem', fontWeight:700, cursor:'pointer', outline:'none', letterSpacing:'0.06em' }}>
+            + Add Record
+          </button>
+        )}
+      </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <div style={{ background:'rgba(4,6,20,0.95)', border:'1px solid rgba(168,85,247,0.25)', borderRadius:14, padding:'22px 24px', marginBottom:20, display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:10, alignItems:'flex-end' }}>
+          {[['Customer','customer','Company name'],['SO #','so','Sales order #'],['Invoice Value (AED)','invoiceValue','0'],['Collection (AED)','collection','0']].map(([lbl,key,ph])=>(
+            <div key={key}>
+              <label style={{ fontSize:'0.54rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.32)', display:'block', marginBottom:5 }}>{lbl}</label>
+              <input value={form[key]} onChange={e=>UP(key,e.target.value)} placeholder={ph} style={inp(key==='invoiceValue'||key==='collection'?{textAlign:'right'}:{})}/>
+            </div>
+          ))}
+          <div style={{ display:'flex', gap:6 }}>
+            <button onClick={()=>setShowAdd(false)} style={{ padding:'9px 12px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.38)', fontFamily:F, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>✕</button>
+            <button onClick={save} style={{ padding:'9px 18px', borderRadius:8, background:'rgba(168,85,247,0.20)', border:'1px solid rgba(168,85,247,0.45)', color:'rgba(200,160,255,0.95)', fontFamily:F, fontSize:'0.84rem', fontWeight:700, cursor:'pointer', outline:'none' }}>Save</button>
+          </div>
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:260, gap:12, opacity:0.35 }}>
+          <span style={{ fontSize:'2.4rem' }}>📊</span>
+          <p style={{ fontSize:'0.88rem', color:'rgba(255,255,255,0.40)', textAlign:'center' }}>No performance records yet.<br/>Add your first record above.</p>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+          {/* Summary chips */}
+          <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+            {[['Total Records', rows.length, 'rgba(168,85,247,0.80)'],['Total Invoice', `AED ${totalInv.toLocaleString()}`, 'rgba(99,200,255,0.80)'],['Total Collection', `AED ${totalCol.toLocaleString()}`, 'rgba(52,211,153,0.80)'],['Outstanding', `AED ${Math.max(0,totalInv-totalCol).toLocaleString()}`, 'rgba(251,191,36,0.80)']].map(([l,v,c])=>(
+              <div key={l} style={{ padding:'10px 18px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', flexDirection:'column', gap:4, minWidth:140 }}>
+                <span style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:600 }}>{l}</span>
+                <span style={{ fontSize:'1.0rem', fontWeight:800, color:c }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Bar chart */}
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, padding:'18px 20px' }}>
+            <p style={{ fontSize:'0.56rem', letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', marginBottom:16, fontWeight:700 }}>Invoice vs Collection by Customer</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {rows.map(r => {
+                const inv = Number(r.invoiceValue)||0;
+                const col = Number(r.collection)||0;
+                const pInv = (inv/maxInv)*100;
+                const pCol = inv > 0 ? (col/inv)*100 : 0;
+                return (
+                  <div key={r.id} style={{ display:'grid', gridTemplateColumns:'160px 1fr 100px', gap:10, alignItems:'center' }}>
+                    <span style={{ fontSize:'0.74rem', color:'rgba(255,255,255,0.70)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.customer}</span>
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      <div style={{ height:8, borderRadius:4, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:`${pInv}%`, background:'rgba(99,160,255,0.70)', borderRadius:4 }}/>
+                      </div>
+                      <div style={{ height:8, borderRadius:4, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:`${pCol}%`, background:'rgba(52,211,153,0.70)', borderRadius:4 }}/>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontSize:'0.68rem', color:'rgba(99,160,255,0.80)', fontWeight:600 }}>AED {fmt(inv)}</div>
+                      <div style={{ fontSize:'0.64rem', color:'rgba(52,211,153,0.70)' }}>AED {fmt(col)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display:'flex', gap:14, marginTop:14 }}>
+              {[['rgba(99,160,255,0.70)','Invoice Value'],['rgba(52,211,153,0.70)','Collection']].map(([c,l])=>(
+                <div key={l} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <div style={{ width:22, height:6, borderRadius:3, background:c }}/>
+                  <span style={{ fontSize:'0.60rem', color:'rgba(255,255,255,0.35)' }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, overflow:'hidden' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 160px 160px 36px', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
+              {['Customer','SO #','Invoice Value','Collection',''].map(h=>(
+                <span key={h} style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>{h}</span>
+              ))}
+            </div>
+            {rows.map((r,i) => (
+              <div key={r.id} style={{ display:'grid', gridTemplateColumns:'1fr 120px 160px 160px 36px', padding:'12px 16px', borderBottom: i<rows.length-1?'1px solid rgba(255,255,255,0.05)':'none', alignItems:'center' }}>
+                <span style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(255,255,255,0.80)' }}>{r.customer}</span>
+                <span style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.45)', fontFamily:'monospace' }}>{r.so||'—'}</span>
+                <span style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(99,160,255,0.85)', textAlign:'right' }}>AED {Number(r.invoiceValue||0).toLocaleString()}</span>
+                <span style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(52,211,153,0.85)', textAlign:'right' }}>AED {Number(r.collection||0).toLocaleString()}</span>
+                {!showAll && (
+                  <button onClick={()=>del(r.id)} style={{ background:'rgba(220,50,50,0.08)', border:'1px solid rgba(220,50,50,0.22)', borderRadius:6, color:'rgba(255,100,100,0.65)', fontFamily:F, fontSize:'0.68rem', padding:'3px 7px', cursor:'pointer', outline:'none' }}>✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── SALES STATUS VIEW ───────────────────────────────────────────────────────
 const SALES_STATUSES = ['Pending', 'Won', 'Lost', 'Follow-up', 'Risky'];
 
@@ -1076,7 +1214,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
         }}>
           <div>
             <p style={{ fontSize: '0.58rem', letterSpacing: '0.26em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 8, fontWeight: 700 }}>NAFFCO · AI SYSTEM</p>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>Sales Dashboard</h2>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>Track your Quotation</h2>
             <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Enter your name as registered in a request to view your assigned requests.</p>
           </div>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1189,7 +1327,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                   const sColors = statusColors[s] || statusColors.Pending;
                   const isActive = pendingStatus ? pendingStatus === s : curStatus === s;
                   return (
-                    <button key={s} onClick={() => { setPendingStatus(s); setRemarkDraft(''); }}
+                    <button key={s} onClick={() => { setPendingStatus(s === pendingStatus ? null : s); setRemarkDraft(''); }}
                       style={{
                         padding: '14px 0', borderRadius: 10, cursor: 'pointer',
                         background: isActive ? sColors.bg : 'rgba(255,255,255,0.03)',
@@ -1208,30 +1346,39 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                 })}
               </div>
 
-              {/* Remark input — appears when a status is selected */}
-              {pendingStatus && (() => {
-                const sc = statusColors[pendingStatus] || statusColors.Pending;
+              {/* Comment — always visible, mandatory before saving */}
+              {(() => {
+                const sc = pendingStatus ? (statusColors[pendingStatus] || statusColors.Pending) : { bd: 'rgba(255,255,255,0.12)', c: 'rgba(255,255,255,0.35)' };
+                const canSave = pendingStatus && remarkDraft.trim().length > 0;
                 return (
                   <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ fontSize: '0.54rem', color: sc.c, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
-                      Add remark for "{pendingStatus}"
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: '0.54rem', color: pendingStatus ? sc.c : 'rgba(255,255,255,0.28)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
+                        {pendingStatus ? `Comment for "${pendingStatus}"` : 'Select status above, then add comment'}
+                      </div>
+                      <span style={{ fontSize: '0.52rem', color: 'rgba(239,68,68,0.70)', letterSpacing: '0.10em' }}>* Required</span>
                     </div>
                     <textarea
                       value={remarkDraft}
                       onChange={e => setRemarkDraft(e.target.value)}
-                      placeholder="Describe the outcome, next steps or any notes…"
+                      placeholder="Describe the outcome, next steps or any notes… (mandatory)"
                       rows={3}
-                      autoFocus
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: `1px solid ${sc.bd}`, borderRadius: 8, color: 'rgba(255,255,255,0.82)', fontFamily: F2, fontSize: '0.84rem', padding: '10px 12px', outline: 'none', resize: 'vertical', lineHeight: 1.55, boxSizing: 'border-box' }}
+                      disabled={!pendingStatus}
+                      style={{ width: '100%', background: pendingStatus ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${sc.bd}`, borderRadius: 8, color: pendingStatus ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.25)', fontFamily: F2, fontSize: '0.84rem', padding: '10px 12px', outline: 'none', resize: 'vertical', lineHeight: 1.55, boxSizing: 'border-box', cursor: pendingStatus ? 'text' : 'not-allowed' }}
                     />
+                    {pendingStatus && remarkDraft.trim().length === 0 && (
+                      <span style={{ fontSize: '0.60rem', color: 'rgba(239,68,68,0.75)', letterSpacing: '0.06em' }}>Comment is required before saving.</span>
+                    )}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => { setPendingStatus(null); setRemarkDraft(''); }}
                         style={{ flex: 1, padding: '9px 0', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.38)', fontFamily: F2, fontSize: '0.82rem', cursor: 'pointer', outline: 'none' }}>
-                        Cancel
+                        Reset
                       </button>
-                      <button onClick={() => { handleStatusChange(openIdx, pendingStatus, remarkDraft); setPendingStatus(null); setRemarkDraft(''); }}
-                        style={{ flex: 2, padding: '9px 0', borderRadius: 8, background: sc.bg, border: `1px solid ${sc.bd}`, color: sc.c, fontFamily: F2, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', outline: 'none' }}>
-                        Save — {pendingStatus}
+                      <button
+                        disabled={!canSave}
+                        onClick={() => { if (canSave) { handleStatusChange(openIdx, pendingStatus, remarkDraft); setPendingStatus(null); setRemarkDraft(''); } }}
+                        style={{ flex: 2, padding: '9px 0', borderRadius: 8, background: canSave ? sc.bg : 'rgba(255,255,255,0.04)', border: `1px solid ${canSave ? sc.bd : 'rgba(255,255,255,0.09)'}`, color: canSave ? sc.c : 'rgba(255,255,255,0.22)', fontFamily: F2, fontSize: '0.86rem', fontWeight: 700, cursor: canSave ? 'pointer' : 'not-allowed', outline: 'none', transition: 'all 0.2s' }}>
+                        {pendingStatus ? `Save — ${pendingStatus}` : 'Save'}
                       </button>
                     </div>
                   </div>
@@ -1322,7 +1469,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
       {/* Header */}
       <div className="ss-hdr">
         <div>
-          <span className="ss-title">{showAll ? 'Sales Overview' : 'Sales Dashboard'}</span>
+          <span className="ss-title">{showAll ? 'Sales Overview' : 'Track your Quotation'}</span>
           <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
             {showAll
               ? <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>All Sales Requests</span>
@@ -1366,60 +1513,97 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
           No requests assigned to you yet.
         </div>
       ) : (
-        <div className="ss-table-wrap">
-          <table className="ss-table">
-            <thead>
-              <tr>
-                <th>Request #</th>
-                <th>Project</th>
-                <th>Client</th>
-                <th>Submitted By</th>
-                <th>Date</th>
-                <th>Est. Status</th>
-                <th>Sales Status</th>
-                <th>Updated At</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => {
-                const globalIdx = requests.findIndex(x => x.id === r.id);
-                const curStatus = r.salesStatus || 'Pending';
-                const sc = statusClass(curStatus);
-                return (
-                  <tr key={r.id} className={flashId === r.id ? 'ss-flash' : ''}>
-                    <td><span className="ss-id">{r.id}</span></td>
-                    <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.proj || '—'}</td>
-                    <td style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'rgba(255,255,255,0.60)' }}>{r.client || '—'}</td>
-                    <td style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem' }}>{r.submittedBy || '—'}</td>
-                    <td style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>{r.date || '—'}</td>
-                    <td>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(220,185,80,0.80)', letterSpacing: '0.04em' }}>{r.status || '—'}</span>
-                    </td>
-                    <td>
-                      <select className={`ss-status-select ${sc}`} value={curStatus}
-                        onChange={e => handleStatusChange(globalIdx, e.target.value)}>
-                        {SALES_STATUSES.map(s => <option key={s} value={s}>{statusDot[s]} {s}</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      {r.salesStatusAt
-                        ? <span className="ss-ts">{r.salesStatusAt}</span>
-                        : <span className="ss-ts" style={{ opacity: 0.3 }}>—</span>}
-                    </td>
-                    <td>
-                      <button onClick={() => setOpenIdx(globalIdx)}
-                        style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: 'rgba(255,255,255,0.45)', fontFamily: F2, fontSize: '0.72rem', padding: '4px 11px', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}>
-                        View →
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display:'flex', flexDirection:'column', gap:10, overflowY:'auto', flex:1 }}>
+          {/* Column headers */}
+          <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 160px 90px 160px 36px', gap:10, padding:'0 14px', alignItems:'center' }}>
+            {['Request #','Project · Customer','Status','TAT','Sales Status',''].map(h=>(
+              <span key={h} style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>{h}</span>
+            ))}
+          </div>
+          {filtered.map((r) => {
+            const globalIdx = requests.findIndex(x => x.id === r.id);
+            const curSales  = r.salesStatus || 'Pending';
+            const scol = {
+              Won:       { c:'#4ade80', bg:'rgba(34,197,94,0.12)',  bd:'rgba(34,197,94,0.30)'  },
+              Lost:      { c:'#f87171', bg:'rgba(239,68,68,0.12)',  bd:'rgba(239,68,68,0.30)'  },
+              'Follow-up':{ c:'#fbbf24', bg:'rgba(251,191,36,0.10)', bd:'rgba(251,191,36,0.30)' },
+              Risky:     { c:'#fb923c', bg:'rgba(249,115,22,0.12)', bd:'rgba(249,115,22,0.30)' },
+              Pending:   { c:'rgba(255,255,255,0.38)', bg:'rgba(255,255,255,0.04)', bd:'rgba(255,255,255,0.10)' },
+            };
+            // TAT: days since submission
+            const tatDays = (() => {
+              if (!r.date) return null;
+              const parts = r.date.split('/'); // dd/mm/yyyy or similar
+              const d = parts.length === 3 ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : new Date(r.date);
+              if (isNaN(d)) return null;
+              return Math.max(0, Math.floor((Date.now() - d) / 86400000));
+            })();
+            const tatColor = tatDays === null ? 'rgba(255,255,255,0.25)' : tatDays <= 3 ? '#4ade80' : tatDays <= 7 ? '#fbbf24' : tatDays <= 14 ? '#fb923c' : '#f87171';
+            return (
+              <div key={r.id}
+                style={{ display:'grid', gridTemplateColumns:'110px 1fr 160px 90px 160px 36px', gap:10,
+                  padding:'12px 14px', borderRadius:12,
+                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : 'rgba(255,255,255,0.03)',
+                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : 'rgba(255,255,255,0.07)'}`,
+                  alignItems:'center', transition:'all 0.3s' }}>
+
+                {/* Request # */}
+                <span style={{ fontSize:'0.76rem', fontWeight:700, color:'rgba(220,165,0,0.90)', fontFamily:'monospace', letterSpacing:'0.04em' }}>{r.id}</span>
+
+                {/* Project · Customer */}
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(255,255,255,0.82)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.proj || '—'}</div>
+                  <div style={{ fontSize:'0.64rem', color:'rgba(255,255,255,0.35)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {[r.client, r.mainContractor].filter(Boolean).join(' · ') || '—'}
+                  </div>
+                </div>
+
+                {/* Estimation Status — non-editable */}
+                <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:50,
+                  background:'rgba(220,165,0,0.08)', border:'1px solid rgba(220,165,0,0.22)', maxWidth:155 }}>
+                  <span style={{ width:5, height:5, borderRadius:'50%', background:'rgba(220,185,80,0.9)', flexShrink:0 }}/>
+                  <span style={{ fontSize:'0.64rem', fontWeight:600, color:'rgba(220,185,80,0.88)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.status || 'Pending'}</span>
+                </div>
+
+                {/* TAT */}
+                <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                  <span style={{ fontSize:'0.88rem', fontWeight:800, color:tatColor, fontFamily:'monospace' }}>
+                    {tatDays !== null ? `${tatDays}d` : '—'}
+                  </span>
+                  {tatDays !== null && (
+                    <div style={{ width:'100%', height:3, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${Math.min(100,(tatDays/30)*100)}%`, background:tatColor, borderRadius:2 }}/>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sales Status — read-only badge */}
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  {(() => {
+                    const col = scol[curSales] || scol.Pending;
+                    return (
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', borderRadius:50,
+                        background: col.bg, border:`1px solid ${col.bd}`,
+                        fontSize:'0.65rem', fontWeight:700, color: col.c, letterSpacing:'0.06em' }}>
+                        <span style={{ width:5, height:5, borderRadius:'50%', background:col.c, flexShrink:0 }}/>
+                        {curSales}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* View detail */}
+                <button onClick={() => setOpenIdx(globalIdx)}
+                  style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:6,
+                    color:'rgba(255,255,255,0.45)', fontFamily:F2, fontSize:'0.70rem', padding:'4px 8px',
+                    cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}
+                  onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}>
+                  →
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1429,9 +1613,14 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
 
 // ─── ROLE LOGIN ───────────────────────────────────────────────────────────────
 const ROLE_CODES = {
-  SL1:'sales', SL2:'sales', SL3:'sales', SL4:'sales', SL5:'sales',
-  EST:'estimator',
-  STAR:'director',
+  // Sales
+  SX985:'sales', SX417:'sales', SE628:'sales', SE842:'sales', SE519:'sales', SM386:'sales',
+  // Estimators
+  EX552:'estimator', EX719:'estimator', EX638:'estimator', EX904:'estimator',
+  EX471:'estimator', EX856:'estimator', EX392:'estimator', EX681:'estimator',
+  EX547:'estimator', EX903:'estimator', EX764:'estimator',
+  // Cost Artist
+  COSTA:'director', STAR:'director',
 };
 
 const RoleLogin = ({ onLogin }) => {
@@ -1487,9 +1676,9 @@ const RoleLogin = ({ onLogin }) => {
         {/* Role hints */}
         <div style={{display:'flex',flexDirection:'column',gap:7}}>
           {[
-            { label:'Sales',     hint:'SL1 – SL5', color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
-            { label:'Estimator', hint:'EST',        color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
-            { label:'Director',  hint:'STAR',       color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
+            { label:'Sales',       hint:'SX985 · SX417 · SE628 · SE842 · SE519 · SM386', color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
+            { label:'Estimator',   hint:'EX552 · EX719 · EX638 · EX904 · EX471 · EX856 · EX392 · EX681 · EX547 · EX903 · EX764', color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
+            { label:'Cost Artist', hint:'COSTA · STAR',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
           ].map(({label,hint,color,bg,bd}) => (
             <div key={label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
               background:bg, border:`1px solid ${bd}`, borderRadius:10, padding:'9px 14px'}}>
@@ -1538,7 +1727,7 @@ const RoleLogin = ({ onLogin }) => {
 };
 
 // ─── SALES DIARY ─────────────────────────────────────────────────────────────
-const MEET_TYPES = ['Customer Visit', 'Phone Call', 'Online Meeting', 'Site Visit', 'Internal'];
+const MEET_TYPES = ['Customer Visit', 'Site Visit', 'Phone Call', 'Online Meeting', 'Internal'];
 const PROB_COLORS = p => p >= 75 ? '#4ade80' : p >= 50 ? '#fbbf24' : p >= 25 ? '#fb923c' : '#f87171';
 
 const SalesDiary = ({ diaryEntries, onAddEntry, onEditEntry, onDeleteEntry, spName, showAll }) => {
@@ -1550,6 +1739,7 @@ const SalesDiary = ({ diaryEntries, onAddEntry, onEditEntry, onDeleteEntry, spNa
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState(null);   // null = new
   const [filterSp, setFilterSp] = useState('');
+  const [diaryTab, setDiaryTab] = useState('all'); // 'all' | 'activity' | 'visits'
 
   // ── form state ──
   const blankForm = () => ({
@@ -1584,10 +1774,18 @@ const SalesDiary = ({ diaryEntries, onAddEntry, onEditEntry, onDeleteEntry, spNa
   const nextMonth   = () => { if (curMonth === 11) { setCurYear(y => y+1); setCurMonth(0); } else setCurMonth(m => m+1); };
   const monthName   = new Date(curYear, curMonth).toLocaleString('en', { month: 'long' });
 
+  const VISIT_TYPES    = ['Customer Visit','Site Visit'];
+  const ACTIVITY_TYPES = ['Phone Call','Online Meeting','Internal'];
+
   // entries visible to current user
-  const myEntries = showAll
+  const baseEntries = showAll
     ? (filterSp ? diaryEntries.filter(e => e.salesPerson === filterSp) : diaryEntries)
     : diaryEntries.filter(e => e.salesPerson === spName);
+  const myEntries = diaryTab === 'visits'
+    ? baseEntries.filter(e => VISIT_TYPES.includes(e.meetingType))
+    : diaryTab === 'activity'
+    ? baseEntries.filter(e => ACTIVITY_TYPES.includes(e.meetingType))
+    : baseEntries;
 
   // entries keyed by date string 'YYYY-MM-DD'
   const byDate = {};
@@ -1609,15 +1807,27 @@ const SalesDiary = ({ diaryEntries, onAddEntry, onEditEntry, onDeleteEntry, spNa
   });
 
   return (
-    <div style={{ position:'relative', width:'100%', height:'100%', padding:'70px 36px 28px', overflowY:'auto', animation:'fadeUp 0.35s ease both', fontFamily:F }}>
+    <div className="ss-page" style={{ overflowY:'auto', fontFamily:F }}>
 
       {/* ── Header ── */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 style={{ fontSize:'1.3rem', fontWeight:800, letterSpacing:'0.10em', color:'rgba(255,255,255,0.88)', textTransform:'uppercase', margin:0 }}>Sales Diary</h2>
-          <p style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.32)', marginTop:4, letterSpacing:'0.06em' }}>
-            {showAll ? 'Director — All Sales Activity' : `My Activity · ${spName}`}
-          </p>
+          <h2 style={{ fontSize:'1.3rem', fontWeight:800, letterSpacing:'0.10em', color:'rgba(255,255,255,0.88)', textTransform:'uppercase', margin:0 }}>My Diary</h2>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:6 }}>
+            {[{key:'all',label:'All'},{key:'activity',label:'Activity'},{key:'visits',label:'Visits'}].map(t=>(
+              <button key={t.key} onClick={()=>setDiaryTab(t.key)}
+                style={{ padding:'3px 12px', borderRadius:50, fontSize:'0.62rem', fontWeight:700, cursor:'pointer', outline:'none',
+                  background: diaryTab===t.key ? 'rgba(168,85,247,0.20)' : 'rgba(255,255,255,0.05)',
+                  border:`1px solid ${diaryTab===t.key ? 'rgba(168,85,247,0.50)' : 'rgba(255,255,255,0.10)'}`,
+                  color: diaryTab===t.key ? 'rgba(200,160,255,0.95)' : 'rgba(255,255,255,0.40)',
+                  transition:'all 0.15s' }}>
+                {t.label}
+              </button>
+            ))}
+            <span style={{ fontSize:'0.62rem', color:'rgba(255,255,255,0.25)', letterSpacing:'0.06em' }}>
+              {showAll ? 'All Sales Activity' : spName}
+            </span>
+          </div>
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
           {showAll && allSp.length > 0 && (
@@ -1742,8 +1952,10 @@ const SalesDiary = ({ diaryEntries, onAddEntry, onEditEntry, onDeleteEntry, spNa
           {dayEntries.length === 0 ? (
             <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:12, padding:'40px 20px', minHeight:200 }}>
               <span style={{ fontSize:'1.8rem', opacity:0.25 }}>📅</span>
-              <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.22)', textAlign:'center' }}>No activities logged for this day.</p>
-              {!showAll && <button onClick={openNew} style={{ marginTop:4, padding:'8px 20px', borderRadius:8, background:'rgba(109,40,217,0.15)', border:'1px solid rgba(180,130,255,0.30)', color:'rgba(200,160,255,0.80)', fontFamily:F, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>Log Activity</button>}
+              <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.22)', textAlign:'center' }}>
+                No {diaryTab === 'visits' ? 'visits' : diaryTab === 'activity' ? 'activities' : 'entries'} logged for this day.
+              </p>
+              {!showAll && <button onClick={openNew} style={{ marginTop:4, padding:'8px 20px', borderRadius:8, background:'rgba(109,40,217,0.15)', border:'1px solid rgba(180,130,255,0.30)', color:'rgba(200,160,255,0.80)', fontFamily:F, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>+ Add Entry</button>}
             </div>
           ) : (
             dayEntries.map(entry => {
@@ -1940,7 +2152,68 @@ const avatarPalette = name => {
 };
 const initials = name => name.trim().split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2) || '?';
 
-const EstAvatar = ({ name, size=40 }) => {
+const STAFF_NAMES = {
+  // Sales
+  'SX985':'Ammar Khaldoun','SX417':'Ashik Bin Shams',
+  'SE628':'Mohammad Hindawi','SE842':'Ibrahim Odeh',
+  'SE519':'Yazan Al Agha','SM386':'Ali Hussnain',
+  // Estimators
+  'EX552':'Sachin Poojary','EX719':'Mohammad Samee Hamid Khan',
+  'EX638':'Moazzam Ali','EX904':'Benson Benjamine',
+  'EX471':'Pranav Manjalam Kandiyil','EX856':'Saeem Sajid Gadkari',
+  'EX392':'Jaffar Shaik','EX681':'Muzafar Khasab Abdul',
+  'EX547':'Afridi Miyan Basheer','EX903':'Alfaj Muhammad',
+  'EX764':'Vimal Vencent',
+  // Cost Artist
+  'COSTA':'Nour Alyazji','STAR':'Nour Alyazji',
+};
+
+const EST_ROSTER = [
+  {code:'EX552',name:'Sachin Poojary'},
+  {code:'EX719',name:'Mohammad Samee Hamid Khan'},
+  {code:'EX638',name:'Moazzam Ali'},
+  {code:'EX904',name:'Benson Benjamine'},
+  {code:'EX471',name:'Pranav Manjalam Kandiyil'},
+  {code:'EX856',name:'Saeem Sajid Gadkari'},
+  {code:'EX392',name:'Jaffar Shaik'},
+  {code:'EX681',name:'Muzafar Khasab Abdul'},
+  {code:'EX547',name:'Afridi Miyan Basheer'},
+  {code:'EX903',name:'Alfaj Muhammad'},
+  {code:'EX764',name:'Vimal Vencent'},
+];
+
+const PROFILE_PICS = {
+  // Sales (A–f)
+  'SX985':'/A.jpg','SX417':'/b.jpg','SE628':'/c.jpg',
+  'SE842':'/d.jpg','SE519':'/e.jpg','SM386':'/f.jpg',
+  // Estimators (g–q)
+  'EX552':'/g.jpg','EX719':'/h.jpg','EX638':'/i.jpg','EX904':'/j.jpg',
+  'EX471':'/K.jpg','EX856':'/L.jpg','EX392':'/M.jpg','EX681':'/N.jpg',
+  'EX547':'/O.jpg','EX903':'/P.jpg','EX764':'/Q.jpg',
+  // Cost Artist
+  'COSTA':'/r.jpg','STAR':'/S.jpg',
+  // Lowercase name keys — Sales
+  'ammar khaldoun':'/A.jpg','ashik bin shams':'/b.jpg',
+  'mohammad hindawi':'/c.jpg','ibrahim odeh':'/d.jpg',
+  'yazan al agha':'/e.jpg','ali hussnain':'/f.jpg',
+  // Lowercase name keys — Estimators
+  'sachin poojary':'/g.jpg','mohammad samee hamid khan':'/h.jpg',
+  'moazzam ali':'/i.jpg','benson benjamine':'/j.jpg',
+  'pranav manjalam kandiyil':'/K.jpg','saeem sajid gadkari':'/L.jpg',
+  'jaffar shaik':'/M.jpg','muzafar khasab abdul':'/N.jpg',
+  'afridi miyan basheer':'/O.jpg','alfaj muhammad':'/R.jpg',
+  'vimal vencent':'/Q.jpg',
+  // Cost Artist name key
+  'nour alyazji':'/R.jpg',
+};
+
+const EstAvatar = ({ name, size=40, code='' }) => {
+  const pic = PROFILE_PICS[code] || PROFILE_PICS[(name||'').trim().toLowerCase()];
+  if (pic) return (
+    <img src={pic} alt={name}
+      style={{width:size,height:size,borderRadius:'50%',objectFit:'cover',
+        border:'2px solid rgba(255,255,255,0.18)',flexShrink:0,display:'block'}}/>
+  );
   const pal = avatarPalette(name);
   return (
     <div style={{width:size,height:size,borderRadius:'50%',background:pal.bg,
@@ -1951,17 +2224,19 @@ const EstAvatar = ({ name, size=40 }) => {
   );
 };
 
-const OpenRequests = ({ requests, onUpdate }) => {
+const OpenRequests = ({ requests, onUpdate, userCode='' }) => {
   const F = "'Inter',sans-serif";
   const openReqs = requests.map((r,i)=>({r,i})).filter(({r})=>!r.estimator && r.status==='Pending Estimation');
-  const [claiming, setClaiming] = useState(null); // { idx, reqId }
+  const [claiming, setClaiming] = useState(null);
   const [estName, setEstName] = useState('');
   const [nameErr, setNameErr] = useState(false);
   const [justClaimed, setJustClaimed] = useState(null);
-  const [recentNames, setRecentNames] = useState(()=>{try{return JSON.parse(localStorage.getItem('est_recent_names')||'[]');}catch{return [];}});
-  const nameInputRef = useRef(null);
 
-  const openClaim = (idx, reqId) => { setClaiming({idx,reqId}); setEstName(''); setNameErr(false); setTimeout(()=>nameInputRef.current?.focus(),60); };
+  const openClaim = (idx, reqId) => {
+    setClaiming({idx,reqId});
+    setEstName(STAFF_NAMES[userCode] || '');
+    setNameErr(false);
+  };
   const closeClaim = () => { setClaiming(null); setEstName(''); setNameErr(false); };
 
   const confirmClaim = () => {
@@ -1974,9 +2249,6 @@ const OpenRequests = ({ requests, onUpdate }) => {
       reqStatus: 'inprogress',
       timeline: [...(requests[claiming.idx].timeline||[]), { event:'assigned', ts, label:`Assigned to ${name}`, by: name }],
     });
-    const updated = [name, ...recentNames.filter(n=>n!==name)].slice(0,5);
-    setRecentNames(updated);
-    try { localStorage.setItem('est_recent_names', JSON.stringify(updated)); } catch {}
     setJustClaimed(claiming.reqId);
     closeClaim();
     setTimeout(() => setJustClaimed(null), 2200);
@@ -2020,36 +2292,31 @@ const OpenRequests = ({ requests, onUpdate }) => {
         <div style={{position:'fixed',inset:0,zIndex:9500,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,8,0.72)',backdropFilter:'blur(10px)'}}>
           <div style={{background:'rgba(8,4,24,0.98)',border:'1px solid rgba(168,85,247,0.30)',borderRadius:20,padding:'36px 32px',width:340,display:'flex',flexDirection:'column',alignItems:'center',gap:18,boxShadow:'0 30px 80px rgba(0,0,0,0.7)',animation:'fadeUp 0.25s ease both'}}>
             <p style={{fontSize:'0.55rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',margin:0,fontWeight:700}}>Claim Request · {claiming.reqId}</p>
-            {/* Live avatar preview */}
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
-              <div style={{transition:'all 0.2s'}}>
-                <EstAvatar name={estName||'?'} size={72}/>
-              </div>
-              <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.40)',fontStyle:estName?'normal':'italic'}}>{estName||'Your name appears here'}</span>
+            {/* Estimator selector */}
+            <p style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.30)',margin:0,alignSelf:'flex-start',letterSpacing:'0.06em'}}>Select estimator</p>
+            <div style={{width:'100%',display:'flex',flexDirection:'column',gap:7,maxHeight:240,overflowY:'auto',paddingRight:2}}>
+              {EST_ROSTER.map(e=>{
+                const selected = estName === e.name;
+                return (
+                  <button key={e.code} onClick={()=>{setEstName(e.name);setNameErr(false);}}
+                    style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:12,
+                      cursor:'pointer',textAlign:'left',width:'100%',
+                      background:selected?'rgba(168,85,247,0.18)':'rgba(255,255,255,0.04)',
+                      border:`1px solid ${selected?'rgba(168,85,247,0.55)':'rgba(255,255,255,0.08)'}`,
+                      boxShadow:selected?'0 0 16px rgba(168,85,247,0.20)':'none',
+                      transition:'all 0.15s',outline:'none',
+                    }}>
+                    <EstAvatar name={e.name} code={e.code} size={36}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'0.84rem',fontWeight:700,color:selected?'rgba(210,170,255,0.95)':'rgba(255,255,255,0.80)',
+                        fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.name}</div>
+                    </div>
+                    {selected && <span style={{color:'rgba(168,85,247,0.90)',fontSize:16,flexShrink:0}}>✓</span>}
+                  </button>
+                );
+              })}
             </div>
-            <div style={{width:'100%',display:'flex',flexDirection:'column',gap:8}}>
-              <input ref={nameInputRef} value={estName}
-                onChange={e=>{setEstName(e.target.value);setNameErr(false);}}
-                onKeyDown={e=>e.key==='Enter'&&confirmClaim()}
-                placeholder="Enter your name…"
-                style={{width:'100%',background:'rgba(255,255,255,0.04)',border:`1px solid ${nameErr?'rgba(255,80,80,0.60)':'rgba(255,255,255,0.14)'}`,
-                  borderRadius:10,color:'rgba(255,255,255,0.88)',fontFamily:F,fontSize:'1rem',
-                  padding:'12px 16px',outline:'none',boxSizing:'border-box',transition:'border-color 0.2s'}}/>
-              {nameErr && <p style={{fontSize:'0.72rem',color:'rgba(255,90,90,0.80)',margin:0,textAlign:'center'}}>Please enter your name</p>}
-              {/* Recent names */}
-              {recentNames.length>0 && (
-                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:4}}>
-                  {recentNames.map(n=>(
-                    <button key={n} onClick={()=>setEstName(n)}
-                      style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:50,padding:'4px 10px',cursor:'pointer',color:'rgba(255,255,255,0.60)',fontFamily:F,fontSize:'0.70rem',transition:'all 0.15s'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.15)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
-                      <EstAvatar name={n} size={18}/>{n}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {nameErr && <p style={{fontSize:'0.72rem',color:'rgba(255,90,90,0.80)',margin:0,textAlign:'center'}}>Please select an estimator</p>}
             <div style={{display:'flex',gap:10,width:'100%'}}>
               <button onClick={closeClaim} style={{flex:1,padding:'11px 0',borderRadius:10,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',color:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.84rem',cursor:'pointer',outline:'none',transition:'all 0.15s'}}>Cancel</button>
               <button onClick={confirmClaim}
@@ -2154,74 +2421,54 @@ const OpenRequests = ({ requests, onUpdate }) => {
       )}
       </div>{/* end left */}
 
-      {/* ── RIGHT: Estimator Roster ── */}
-      <div className="or-roster" style={{display:'flex',flexDirection:'column',gap:6}}>
-
-        <p style={{fontSize:'0.50rem',letterSpacing:'0.18em',textTransform:'uppercase',
-          color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:12}}>Estimator Team</p>
-
-        {estRoster.length === 0 ? (
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,opacity:0.3,marginTop:40}}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
-            <p style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.35)',textAlign:'center',lineHeight:1.5}}>No estimators yet</p>
-          </div>
-        ) : estRoster.map(e => {
-          const st = estStatus(e);
-          const online = isOnline(e);
-          const pal = avatarPalette(e.name);
-          return (
-            <div key={e.name}
-              style={{display:'flex',alignItems:'center',gap:10,padding:'10px 10px',
-                borderRadius:12,border:'1px solid rgba(255,255,255,0.06)',
-                background:'rgba(255,255,255,0.025)',transition:'background 0.2s',cursor:'default'}}
-              onMouseEnter={el=>el.currentTarget.style.background='rgba(255,255,255,0.05)'}
-              onMouseLeave={el=>el.currentTarget.style.background='rgba(255,255,255,0.025)'}>
-              {/* Avatar with online indicator */}
-              <div style={{position:'relative',flexShrink:0}}>
-                <EstAvatar name={e.name} size={38}/>
-                {/* online/offline dot */}
-                <span style={{position:'absolute',bottom:0,right:0,width:9,height:9,borderRadius:'50%',
-                  background:online?'#22c55e':'rgba(255,255,255,0.18)',
-                  border:'2px solid rgba(4,2,14,0.95)',
-                  boxShadow:online?'0 0 6px rgba(34,197,94,0.70)':'none'}}/>
-              </div>
-              {/* Info */}
-              <div style={{flex:1,minWidth:0}}>
-                <p style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.82)',
-                  margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.name}</p>
-                {/* status */}
-                <div style={{display:'flex',alignItems:'center',gap:4,marginTop:3}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:st.dot,
-                    boxShadow:`0 0 5px ${st.glow}`,flexShrink:0}}/>
-                  <span style={{fontSize:'0.60rem',color:st.dot,fontWeight:600,letterSpacing:'0.06em'}}>{st.label}</span>
+      {/* ── BOTTOM: Estimator Team strip (full roster, always visible) ── */}
+      <div className="or-team">
+        <p style={{fontSize:'0.45rem',letterSpacing:'0.18em',textTransform:'uppercase',
+          color:'rgba(255,255,255,0.22)',fontWeight:700,margin:'0 0 8px',flexShrink:0}}>Estimator Team</p>
+        <div style={{display:'flex',gap:8,overflowX:'auto',flex:1,alignItems:'center',paddingBottom:2}}>
+          {EST_ROSTER.map(er => {
+            const stats = estRoster.find(x => x.name === er.name);
+            const inHand  = stats ? stats.active + stats.pending : 0;
+            const done    = stats ? stats.done : 0;
+            const online  = stats ? isOnline(stats) : false;
+            const idle    = inHand === 0;
+            return (
+              <div key={er.name}
+                style={{display:'flex',alignItems:'center',gap:9,padding:'6px 12px',
+                  borderRadius:10,flexShrink:0,
+                  border: idle ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(99,180,255,0.18)',
+                  background: idle ? 'rgba(255,255,255,0.015)' : 'rgba(99,160,255,0.06)',
+                  opacity: idle ? 0.42 : 1,
+                  transition:'opacity 0.2s'}}>
+                <div style={{position:'relative',flexShrink:0}}>
+                  <EstAvatar name={er.name} code={er.code} size={38}/>
+                  <span style={{position:'absolute',bottom:0,right:0,width:8,height:8,borderRadius:'50%',
+                    background: idle ? 'rgba(255,255,255,0.18)' : (online ? '#22c55e' : 'rgba(255,255,255,0.18)'),
+                    border:'2px solid rgba(4,2,14,0.95)',
+                    boxShadow: (!idle && online) ? '0 0 5px rgba(34,197,94,0.70)' : 'none'}}/>
                 </div>
-                {/* mini bar: in-hand / done */}
-                <div style={{display:'flex',gap:6,marginTop:5,alignItems:'center'}}>
-                  {e.active > 0 && <span style={{fontSize:'0.50rem',background:'rgba(251,191,36,0.12)',border:'1px solid rgba(251,191,36,0.22)',borderRadius:4,padding:'1px 5px',color:'rgba(251,191,36,0.80)',fontWeight:700}}>{e.active} active</span>}
-                  {e.pending > 0 && <span style={{fontSize:'0.50rem',background:'rgba(160,130,255,0.10)',border:'1px solid rgba(160,130,255,0.22)',borderRadius:4,padding:'1px 5px',color:'rgba(180,150,255,0.80)',fontWeight:700}}>{e.pending} review</span>}
-                  {e.done > 0   && <span style={{fontSize:'0.50rem',background:'rgba(52,211,153,0.08)',border:'1px solid rgba(52,211,153,0.18)',borderRadius:4,padding:'1px 5px',color:'rgba(52,211,153,0.70)',fontWeight:700}}>{e.done} done</span>}
+                <div style={{minWidth:0}}>
+                  <p style={{fontSize:'0.72rem',fontWeight:700,
+                    color: idle ? 'rgba(255,255,255,0.38)' : 'rgba(255,255,255,0.88)',
+                    margin:'0 0 4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}>{er.name}</p>
+                  <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                    <span style={{display:'flex',alignItems:'center',gap:4,fontSize:'0.58rem',
+                      color: idle ? 'rgba(255,255,255,0.25)' : 'rgba(251,191,36,0.90)',fontWeight:700}}>
+                      <span style={{width:4,height:4,borderRadius:'50%',
+                        background: idle ? 'rgba(255,255,255,0.25)' : 'rgba(251,191,36,0.90)',flexShrink:0}}/>
+                      {inHand} In Hand
+                    </span>
+                    <span style={{display:'flex',alignItems:'center',gap:4,fontSize:'0.58rem',
+                      color: idle ? 'rgba(255,255,255,0.22)' : 'rgba(52,211,153,0.80)',fontWeight:700}}>
+                      <span style={{width:4,height:4,borderRadius:'50%',
+                        background: idle ? 'rgba(255,255,255,0.22)' : 'rgba(52,211,153,0.80)',flexShrink:0}}/>
+                      {done} Done
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-
-        {/* Legend */}
-        <div style={{marginTop:'auto',paddingTop:20,borderTop:'1px solid rgba(255,255,255,0.05)',display:'flex',flexDirection:'column',gap:6}}>
-          {[
-            {dot:'#22c55e',label:'Available'},
-            {dot:'#fbbf24',label:'In Progress'},
-            {dot:'#ef4444',label:'High Load'},
-          ].map(({dot,label})=>(
-            <div key={label} style={{display:'flex',alignItems:'center',gap:7}}>
-              <span style={{width:6,height:6,borderRadius:'50%',background:dot,flexShrink:0}}/>
-              <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.08em'}}>{label}</span>
-            </div>
-          ))}
-          <div style={{display:'flex',alignItems:'center',gap:7,marginTop:2}}>
-            <span style={{width:9,height:9,borderRadius:'50%',background:'#22c55e',border:'2px solid rgba(4,2,14,0.95)',flexShrink:0}}/>
-            <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.08em'}}>Online (24h)</span>
-          </div>
+            );
+          })}
         </div>
       </div>
 
@@ -2230,20 +2477,29 @@ const OpenRequests = ({ requests, onUpdate }) => {
 };
 
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectTool, onDirectorAccess }) => {
+const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout, onDirectTool, onDirectorAccess }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
   const salesActive   = view === 'salesStatus';
+  const perfActive    = view === 'salesPerformance';
   const diaryActive   = view === 'salesDiary';
   const [showDirPrompt, setShowDirPrompt] = useState(false);
   const [dirCode, setDirCode] = useState('');
   const [dirErr, setDirErr] = useState(false);
   const dirInputRef = useRef(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  useEffect(() => {
+    if (!showProfileMenu) return;
+    const close = () => setShowProfileMenu(false);
+    document.addEventListener('click', close, true);
+    return () => document.removeEventListener('click', close, true);
+  }, [showProfileMenu]);
 
   const openDirPrompt = () => { setShowDirPrompt(true); setDirCode(''); setDirErr(false); setTimeout(()=>dirInputRef.current?.focus(),60); };
   const submitDirCode = () => {
-    if (dirCode.trim().toUpperCase() === 'STAR') { setShowDirPrompt(false); onDirectorAccess?.(); }
+    const dc = dirCode.trim().toUpperCase();
+    if (dc === 'STAR' || dc === 'COSTA') { setShowDirPrompt(false); onDirectorAccess?.(dc); }
     else { setDirErr(true); setTimeout(()=>setDirErr(false),1200); }
   };
 
@@ -2253,8 +2509,8 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
       {showDirPrompt && (
         <div style={{position:'fixed',inset:0,zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(6px)'}}>
           <div style={{background:'rgba(8,4,24,0.97)',border:'1px solid rgba(255,200,50,0.28)',borderRadius:14,padding:'28px 32px',width:300,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 20px 60px rgba(0,0,0,0.6)'}}>
-            <p style={{fontSize:'0.58rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'rgba(255,200,50,0.55)',margin:0,fontWeight:700,fontFamily:"'Inter',sans-serif"}}>Director Access</p>
-            <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.65)',margin:0,fontFamily:"'Inter',sans-serif"}}>Enter director code to continue</p>
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'rgba(255,200,50,0.55)',margin:0,fontWeight:700,fontFamily:"'Inter',sans-serif"}}>Cost Artist Access</p>
+            <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.65)',margin:0,fontFamily:"'Inter',sans-serif"}}>Enter Cost Artist code to continue</p>
             <input ref={dirInputRef} type="password" value={dirCode} onChange={e=>{setDirCode(e.target.value);setDirErr(false);}}
               onKeyDown={e=>e.key==='Enter'&&submitDirCode()}
               placeholder="· · · ·"
@@ -2292,13 +2548,16 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
         {/* ── Sales View ── */}
         {userRole === 'sales' && <>
           <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
-            New Request
+            Sales &amp; Marketing
           </button>
           <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
-            My Dashboard
+            Track your Quotation
+          </button>
+          <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
+            Sales Performance
           </button>
           <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
-            Sales Diary
+            My Diary
           </button>
         </>}
 
@@ -2318,7 +2577,7 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
             New Request
           </button>
           <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
-            Director Dashboard
+            Cost Artist Dashboard
           </button>
           <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
             Sales Analysis
@@ -2326,27 +2585,60 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
           <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
             Sales View
           </button>
+          <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
+            Sales Performance
+          </button>
           <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
-            Sales Diary
+            My Diary
           </button>
         </>}
       </div>
 
-      {/* Role badge */}
+      {/* Profile badge — click to show Sign Out */}
       {userRole && (
-        <div style={{
-          marginLeft:10, display:'flex', alignItems:'center', gap:6,
-          padding:'4px 10px', borderRadius:50,
-          background: userRole==='sales'?'rgba(130,90,255,0.10)':userRole==='estimator'?'rgba(0,150,255,0.10)':'rgba(200,150,0,0.10)',
-          border: userRole==='sales'?'1px solid rgba(130,90,255,0.22)':userRole==='estimator'?'1px solid rgba(0,180,255,0.22)':'1px solid rgba(220,170,0,0.22)',
-          flexShrink:0,
-        }}>
-          <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
-            background:userRole==='sales'?'rgba(160,130,255,0.90)':userRole==='estimator'?'rgba(0,200,255,0.90)':'rgba(255,210,60,0.90)'}}/>
-          <span style={{fontSize:'0.62rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',
-            color:userRole==='sales'?'rgba(160,130,255,0.85)':userRole==='estimator'?'rgba(0,200,255,0.85)':'rgba(255,210,60,0.85)'}}>
-            {userRole === 'sales' ? 'Sales' : userRole === 'estimator' ? 'Estimator' : 'Director'}
-          </span>
+        <div style={{position:'relative',flexShrink:0,marginLeft:10}}>
+          <button onClick={()=>setShowProfileMenu(v=>!v)}
+            style={{
+              display:'flex', alignItems:'center', gap:9,
+              padding:'4px 14px 4px 4px', borderRadius:50,
+              background: userRole==='sales'?'rgba(130,90,255,0.10)':userRole==='estimator'?'rgba(0,150,255,0.10)':'rgba(200,150,0,0.10)',
+              border: userRole==='sales'?'1px solid rgba(130,90,255,0.28)':userRole==='estimator'?'1px solid rgba(0,180,255,0.28)':'1px solid rgba(220,170,0,0.28)',
+              cursor:'pointer', outline:'none', background: showProfileMenu
+                ? (userRole==='sales'?'rgba(130,90,255,0.20)':userRole==='estimator'?'rgba(0,150,255,0.20)':'rgba(200,150,0,0.20)')
+                : (userRole==='sales'?'rgba(130,90,255,0.10)':userRole==='estimator'?'rgba(0,150,255,0.10)':'rgba(200,150,0,0.10)'),
+              transition:'all 0.15s',
+            }}>
+            <EstAvatar name={STAFF_NAMES[userCode]||''} code={userCode} size={30}/>
+            <div style={{display:'flex',flexDirection:'column',gap:1}}>
+              <span style={{fontSize:'0.72rem',fontWeight:700,color:'rgba(255,255,255,0.85)',lineHeight:1.1,fontFamily:"'Inter',sans-serif",
+                maxWidth:130,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {STAFF_NAMES[userCode] || userCode}
+              </span>
+              <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',
+                color:userRole==='sales'?'rgba(160,130,255,0.70)':userRole==='estimator'?'rgba(0,200,255,0.70)':'rgba(255,210,60,0.70)'}}>
+                {userRole === 'sales' ? 'Sales' : userRole === 'estimator' ? 'Estimator' : 'Cost Artist'}
+              </span>
+            </div>
+            <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.30)',marginLeft:2,transition:'transform 0.15s',
+              display:'inline-block',transform:showProfileMenu?'rotate(180deg)':'rotate(0deg)'}}>▼</span>
+          </button>
+          {showProfileMenu && (
+            <div style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:9999,
+              background:'rgba(8,4,24,0.97)',border:'1px solid rgba(255,255,255,0.12)',
+              borderRadius:10,padding:'6px',minWidth:140,
+              boxShadow:'0 12px 40px rgba(0,0,0,0.60)',animation:'fadeUp 0.15s ease both'}}>
+              <button onClick={()=>{setShowProfileMenu(false);onLogout?.();}}
+                style={{width:'100%',display:'flex',alignItems:'center',gap:8,
+                  padding:'9px 12px',borderRadius:7,background:'transparent',border:'none',
+                  color:'rgba(255,100,100,0.80)',fontFamily:"'Inter',sans-serif",fontSize:'0.78rem',
+                  fontWeight:600,cursor:'pointer',outline:'none',textAlign:'left',transition:'background 0.12s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(239,68,68,0.10)'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -2385,35 +2677,31 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, onLogout, onDirectToo
             }}
             onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#92400e,#d97706,#fbbf24)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(200,150,0,0.45)';}}
             onMouseLeave={e=>{e.currentTarget.style.background='rgba(20,12,4,0.80)';e.currentTarget.style.color='rgba(255,210,60,0.88)';e.currentTarget.style.boxShadow='0 2px 12px rgba(200,150,0,0.18)';}}>
-            ⬡ Director
+            ⬡ Cost Artist
           </button>
         )}
 
-        {userRole && (
-          <button onClick={onLogout}
-            style={{background:'transparent', border:'1px solid rgba(255,255,255,0.12)',
-              color:'rgba(255,255,255,0.38)', fontFamily:"'Inter',sans-serif", fontSize:'0.70rem',
-              padding:'6px 12px', borderRadius:50, cursor:'pointer', transition:'all 0.2s', whiteSpace:'nowrap'}}
-            onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
-            onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.38)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}>
-            Sign Out
-          </button>
-        )}
-        {!userRole && <button className="nav-back" onClick={onBack || onHome}>← Back</button>}
+        {(!userRole || userRole === 'sales') && <button className="nav-back" onClick={onBack || onHome}>← Back</button>}
       </div>
     </div>
   );
 };
 
 // ─── VIEWS ──────────────────────────────────────────────────────────────────────────────
-const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo,onDirectTool}) => {
+const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo,onDirectTool,userRole}) => {
+  const isSales = userRole === 'sales';
   return (
     <div className="land" style={{position:'relative'}}>
       <div className="left-col">
         <div style={{display:'flex', flexDirection:'column'}}>
           <p className="brand">NAFFCO · AI SYSTEM</p>
-          <h1 className="page-title">AI APEX<br/>ESTIMATION</h1>
-          <p className="page-sub">Intelligent quotation generation powered<br/>by advanced AI analysis.</p>
+          <h1 className="page-title">{isSales ? <>SALES &amp;<br/>MARKETING</> : <>AI APEX<br/>ESTIMATION</>}</h1>
+          {!isSales && (
+            <p className="page-sub">Intelligent quotation generation powered<br/>by advanced AI analysis.</p>
+          )}
+          {isSales && (
+            <p style={{fontSize:'0.56rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700,marginBottom:10,marginTop:4}}>Quick Links</p>
+          )}
           <div className="land-btns">
             {[
               {label:'Request a New Quote', onClick:onNew},
@@ -2686,8 +2974,25 @@ const Form = ({onSubmit, onBack}) => {
 
         {/* ── Single-column fields ── */}
         <div className="two-col-row">
-          <input className="glass-input" placeholder="Requestor Name" value={f.submittedBy} onChange={u('submittedBy')}/>
-          <input className="glass-input" placeholder="Sales Person" value={f.salesPerson} onChange={u('salesPerson')}/>
+          <select className="glass-input" value={f.submittedBy} onChange={u('submittedBy')} style={{cursor:'pointer'}}>
+            <option value="">— Select Requestor —</option>
+            <optgroup label="Sales">
+              {['SX985','SX417','SE628','SE842','SE519','SM386'].map(c=>(
+                <option key={c} value={STAFF_NAMES[c]}>{STAFF_NAMES[c]}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Estimators">
+              {['EX552','EX719','EX638','EX904','EX471','EX856','EX392','EX681','EX547','EX903','EX764'].map(c=>(
+                <option key={c} value={STAFF_NAMES[c]}>{STAFF_NAMES[c]}</option>
+              ))}
+            </optgroup>
+          </select>
+          <select className="glass-input" value={f.salesPerson} onChange={u('salesPerson')} style={{cursor:'pointer'}}>
+            <option value="">— Select Sales Person —</option>
+            {['SX985','SX417','SE628','SE842','SE519','SM386'].map(c=>(
+              <option key={c} value={STAFF_NAMES[c]}>{STAFF_NAMES[c]}</option>
+            ))}
+          </select>
         </div>
         <input className="glass-input" placeholder="Project" value={f.proj} onChange={u('proj')}/>
         <input className="glass-input" placeholder="Main Contractor" value={f.mainContractor} onChange={u('mainContractor')}/>
@@ -3493,7 +3798,7 @@ const REQ_STATUS_STYLE = {
   onhold:             {c:'#ff9020',               bg:'rgba(255,135,0,0.08)',    bd:'rgba(255,135,0,0.35)',    label:'On Hold'},
   overdue:            {c:'#d05200',               bg:'rgba(210,82,0,0.09)',     bd:'rgba(210,82,0,0.38)',     label:'Overdue'},
   risky:              {c:'#dd3535',               bg:'rgba(215,45,45,0.09)',    bd:'rgba(215,55,55,0.38)',    label:'Risky'},
-  'pending-director': {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Director Under Review'},
+  'pending-director': {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost Artist Under Review'},
   completed:          {c:'#00cc77',               bg:'rgba(0,180,90,0.09)',     bd:'rgba(0,210,100,0.35)',   label:'Approved ✓'},
 };
 
@@ -3527,7 +3832,7 @@ const TATTimeline = ({ r }) => {
     { label: 'Submitted',  color: 'rgba(120,180,255,0.85)', done: !!r.submittedAt,  tat: null },
     { label: 'Assigned',   color: 'rgba(255,200,50,0.85)',  done: !!r.taggedAt,     tat: s1 },
     { label: 'Quoted',     color: 'rgba(160,130,255,0.90)', done: !!r.quotationSubmittedAt, tat: s2 },
-    { label: 'Director',   color: 'rgba(0,220,180,0.85)',   done: !!r.directorRespondedAt, tat: s3 },
+    { label: 'Cost Artist', color: 'rgba(0,220,180,0.85)',   done: !!r.directorRespondedAt, tat: s3 },
   ];
   return (
     <div style={{display:'flex',alignItems:'center',gap:0,flexWrap:'nowrap',overflow:'hidden',fontFamily:F}}>
@@ -3613,7 +3918,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
     const newStatus = action === 'approved' ? 'Approved' : action === 'rejected' ? 'Estimation Uploaded' : 'Pending Approval';
     const newReqStatus = action === 'approved' ? 'completed' : action === 'rejected' ? 'onhold' : 'inprogress';
     const dTs = new Date().toISOString();
-    const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Director Approved':action==='rejected'?'Director Rejected':'Revision Requested', by: 'Director' };
+    const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Cost Artist Approved':action==='rejected'?'Cost Artist Rejected':'Revision Requested', by: 'Cost Artist' };
     onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
       directorRespondedAt: dTs, timeline: [...(req.timeline||[]), tlEntry] });
     setSubmitted(true);
@@ -3652,7 +3957,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
                 <span style={{fontSize:'0.62rem',color:rss.c,fontWeight:700,letterSpacing:'0.05em'}}>{rss.label}</span>
               </span>
             </div>
-            <div style={{fontSize:'0.66rem',color:'rgba(0,200,255,0.30)',marginTop:3,letterSpacing:'0.06em'}}>Director Review · Quotation Request</div>
+            <div style={{fontSize:'0.66rem',color:'rgba(0,200,255,0.30)',marginTop:3,letterSpacing:'0.06em'}}>Cost Artist Review · Quotation Request</div>
           </div>
           <button onClick={onClose} style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:8,color:'rgba(255,255,255,0.45)',fontSize:16,cursor:'pointer',padding:'4px 12px',outline:'none',lineHeight:1,flexShrink:0,transition:'background 0.15s'}}
             onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.09)'}
@@ -3948,7 +4253,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
-      <div className="dash-detail-wrap" style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'70px 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
+      <div className="dash-detail-wrap" style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'62px 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
 
         {/* ── Role watermark — top right ── */}
         {(viewMode === 'director' || viewMode === 'estimator') && (
@@ -4240,7 +4545,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   });
                   // Original director note
                   if (origReq?.directorNote) entries.push({
-                    role:'Director', label:'Director Response (Original)', text:origReq.directorNote,
+                    role:'Cost Artist', label:'Cost Artist Response (Original)', text:origReq.directorNote,
                     dot:'rgba(0,220,255,0.85)', border:'rgba(0,180,255,0.22)', bg:'rgba(0,150,255,0.05)',
                     ref: origReq.id, date: origReq.directorRespondedAt ? new Date(origReq.directorRespondedAt).toLocaleDateString('en-GB') : origReq.date,
                     extra: origReq.directorAction ? `Decision: ${origReq.directorAction.charAt(0).toUpperCase()+origReq.directorAction.slice(1)}` : null,
@@ -4253,7 +4558,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   });
                   // Current director note (if already responded)
                   if (req.directorNote) entries.push({
-                    role:'Director', label:'Director Response', text:req.directorNote,
+                    role:'Cost Artist', label:'Cost Artist Response', text:req.directorNote,
                     dot:'rgba(0,220,255,0.85)', border:'rgba(0,180,255,0.22)', bg:'rgba(0,150,255,0.05)',
                     ref: req.id, date: req.directorRespondedAt ? new Date(req.directorRespondedAt).toLocaleDateString('en-GB') : req.date,
                     extra: req.directorAction ? `Decision: ${req.directorAction.charAt(0).toUpperCase()+req.directorAction.slice(1)}` : null,
@@ -4332,36 +4637,32 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   );
                 })()}
 
-                {/* Assign Estimator */}
-                <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'16px 18px'}}>
-                  <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:10}}>Assign Estimator</p>
-                  <input type="text" value={req.estimator||''} onChange={e=>{
-                    const est=e.target.value;
-                    const isFirstAssign = est && !req.estimator;
-                    const isReassign = est && req.estimator && req.directorAction === 'rejected';
-                    const now = Date.now();
-                    const newTimeline = (isFirstAssign || isReassign)
-                      ? [...(req.timeline||[]), { event: isReassign?'reassigned':'assigned', ts: new Date().toISOString(), label: isReassign?`Re-assigned to ${est}`:`Assigned to ${est}`, by: est }]
-                      : req.timeline;
-                    const newCycles = isReassign
-                      ? [...(req.rejectionCycles||[]), { cycle:(req.rejectionCycles?.length||0)+1, rejectedAt: req.directorRespondedAt, reassignedAt: new Date().toISOString(), reassignedTo: est }]
-                      : req.rejectionCycles;
-                    onUpdate(open,{
-                      estimator:est||null,
-                      taggedAt: (isFirstAssign||isReassign) ? now : req.taggedAt,
-                      quotationSubmittedAt: isReassign ? null : req.quotationSubmittedAt,
-                      directorAction: isReassign ? null : req.directorAction,
-                      directorNote: isReassign ? '' : req.directorNote,
-                      reqStatus: est?'inprogress':'not-started',
-                      timeline: newTimeline,
-                      rejectionCycles: newCycles,
-                    });
-                  }}
-                    placeholder="Type estimator name…"
-                    style={{width:'100%',background:'rgba(0,10,30,0.70)',border:'1px solid rgba(99,160,240,0.30)',borderRadius:7,color:req.estimator?'rgba(99,200,255,0.9)':'rgba(255,255,255,0.4)',fontFamily:F2,fontSize:'0.88rem',padding:'10px 12px',outline:'none',boxSizing:'border-box'}}
-                    onFocus={e=>e.target.style.borderColor='rgba(99,160,240,0.60)'}
-                    onBlur={e=>e.target.style.borderColor='rgba(99,160,240,0.30)'}/>
+                {/* Request Owners */}
+                {(req.estimator || req.salesPerson) && (
+                <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 18px'}}>
+                  <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:12,margin:'0 0 12px'}}>Request Owners</p>
+                  <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
+                    {req.estimator && (
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <EstAvatar name={req.estimator} size={42}/>
+                        <div>
+                          <div style={{fontSize:'0.56rem',color:'rgba(99,200,255,0.60)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700,marginBottom:2}}>Estimator</div>
+                          <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(255,255,255,0.85)'}}>{req.estimator}</div>
+                        </div>
+                      </div>
+                    )}
+                    {req.salesPerson && (
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <EstAvatar name={req.salesPerson} size={42}/>
+                        <div>
+                          <div style={{fontSize:'0.56rem',color:'rgba(160,130,255,0.60)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700,marginBottom:2}}>Sales</div>
+                          <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(255,255,255,0.85)'}}>{req.salesPerson}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                )}
 
                 {/* Upload + Margin % + Project Value in one card */}
                 <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}}>
@@ -4872,7 +5173,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     ? '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px 36px'
     : '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px';
 
-  const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Director'};
+  const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost Artist'};
   const VIEW_COLORS = {
     requester:{act:'rgba(100,200,255,0.90)', bg:'rgba(0,180,255,0.12)', bd:'rgba(0,200,255,0.30)'},
     estimator:{act:'rgba(160,255,180,0.90)', bg:'rgba(0,200,100,0.12)', bd:'rgba(0,220,130,0.30)'},
@@ -5196,7 +5497,7 @@ const Analyse = ({ requests }) => {
   }
 
   return (
-    <div className="analyse-wrap" style={{position:'relative',width:'100%',height:'100%',padding:'80px 40px 40px',overflowY:'auto',fontFamily:F,animation:'fadeUp 0.4s ease both'}}>
+    <div className="analyse-wrap" style={{position:'relative',width:'100%',height:'100%',padding:'62px 40px 40px',overflowY:'auto',fontFamily:F,animation:'fadeUp 0.4s ease both'}}>
       <div style={{marginBottom:28}}>
         <p style={{fontSize:'0.58rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(160,130,255,0.65)',marginBottom:6,fontWeight:600}}>NAFFCO · AI SYSTEM</p>
         <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.88)',margin:0}}>Analyse</h2>
@@ -5509,8 +5810,11 @@ function ToolOverlay({ onClose }) {
 }
 
 // ─── DIRECT TOOL MODAL ────────────────────────────────────────────────────────
-function DirectToolModal({ onClose }) {
+function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
+  const toolUrl = userCode
+    ? `https://estimation-tan.vercel.app/?code=${encodeURIComponent(userCode)}`
+    : 'https://estimation-tan.vercel.app/';
   return (
     <>
       {/* Full-screen glassy surface */}
@@ -5529,7 +5833,7 @@ function DirectToolModal({ onClose }) {
           background:'rgba(109,40,217,0.12)',
           borderBottom:'1px solid rgba(168,85,247,0.18)',
         }}>
-          <div style={{display:'flex',alignItems:'center',gap:9}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
             <span style={{fontSize:13}}>✦</span>
             <span style={{
               fontFamily:"'Inter',sans-serif",fontWeight:800,
@@ -5543,6 +5847,15 @@ function DirectToolModal({ onClose }) {
               boxShadow:status==='ready'?'0 0 8px #4ade80':status==='error'?'0 0 8px #f87171':'0 0 8px rgba(168,85,247,0.70)',
               animation:status==='loading'?'toolDotPulse 1.2s ease-in-out infinite':'none',
             }}/>
+            {/* EST access code badge */}
+            {userCode && (
+              <div style={{display:'flex',alignItems:'center',gap:6,
+                background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.30)',
+                borderRadius:50,padding:'3px 12px 3px 8px'}}>
+                <span style={{fontSize:'0.52rem',color:'rgba(196,181,253,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontFamily:"'Inter',sans-serif",fontWeight:700}}>Access</span>
+                <span style={{fontSize:'0.78rem',fontWeight:800,letterSpacing:'0.12em',color:'rgba(220,190,255,0.95)',fontFamily:'monospace'}}>{userCode}</span>
+              </div>
+            )}
           </div>
           <button onClick={onClose} style={{
             display:'inline-flex',alignItems:'center',gap:6,
@@ -5597,7 +5910,7 @@ function DirectToolModal({ onClose }) {
 
         {/* iframe */}
         <iframe
-          src="https://estimation-tan.vercel.app/"
+          src={toolUrl}
           style={{
             flex:1,width:'100%',border:'none',background:'#fff',
             opacity:status==='ready'?1:0,
@@ -5918,8 +6231,8 @@ const handleSubmit = async (formData) => {
       </div>
       {/* RoleLogin only when no role AND not in a guest-accessible view */}
       {!userRole && !['landing','form','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','relax','loading','results','dashboard','openRequests'].includes(view) && <RoleLogin onLogin={handleRoleLogin}/>}
-      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} onLogout={handleLogout} onDirectTool={()=>setDirectOpen(true)}
-        onDirectorAccess={()=>{ setUserRole('director'); setUserCode('STAR'); setView('dashboard'); }}/>
+      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>setDirectOpen(true)}
+        onDirectorAccess={(code='STAR')=>{ setUserRole('director'); setUserCode(code); setView('dashboard'); }}/>
 
       {/* ── Floating AI buttons — estimator & director only ── */}
       {view === 'landing' && (userRole === 'estimator' || userRole === 'director') && (
@@ -5987,26 +6300,29 @@ const handleSubmit = async (formData) => {
         </>
       )}
 
-      {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)}/>}
+      {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
-      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>setDirectOpen(true)}/>}
+      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>setDirectOpen(true)} userRole={userRole}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
-      {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest}/>}
+      {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} userCode={userCode}/>}
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
           initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>setDirectOpen(true)}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
       {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}
-          autoSpName={userRole==='sales'?userCode:undefined}
+          autoSpName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):undefined}
+          showAll={userRole==='director'}/>}
+      {view==='salesPerformance' && <SalesPerformance
+          spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
           showAll={userRole==='director'}/>}
       {view==='salesDiary' && <SalesDiary
           diaryEntries={diaryEntries}
-          spName={userRole==='sales' ? userCode : ''}
+          spName={userRole==='sales' ? (STAFF_NAMES[userCode]||userCode) : ''}
           showAll={userRole==='director'}
           onAddEntry={e => setDiaryEntries(prev => [e, ...prev])}
           onEditEntry={e => setDiaryEntries(prev => prev.map(d => d.id === e.id ? e : d))}

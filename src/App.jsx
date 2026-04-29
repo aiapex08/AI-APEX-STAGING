@@ -1259,7 +1259,8 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
   const [errMsg, setErrMsg]     = useState('');
   const inputRef = useRef(null);
 
-  const SALES_CODES = ['SL1','SL2','SL3','SL4','SL5'];
+  const SALES_CODES = ['SX985','SX417','SE628','SE842','SE519','SM386'];
+  const EST_CODES   = ['EX552','EX719','EX638','EX904','EX471','EX856','EX392','EX681','EX547','EX903','EX764'];
 
   const depts = [
     {
@@ -1332,11 +1333,11 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
     if (entered === '9993') { onAccepted('active', null, '9993', '', null); return; }
     if (selDept.id === 'sales') {
       if (SALES_CODES.includes(entered)) onAccepted('estimation', 'sales', entered, '', quickView);
-      else doShake('Invalid sales code — try SL1 to SL5');
+      else doShake('Invalid sales code');
     } else if (selDept.id === 'estimation') {
-      if (entered === 'EST')        onAccepted('estimation', 'estimator', 'EST',  'Estimator', quickView);
-      else if (entered === 'STAR')  onAccepted('estimation', 'director',  'STAR', 'Director',  quickView);
-      else doShake('Invalid code — try EST or STAR');
+      if (EST_CODES.includes(entered))                    onAccepted('estimation', 'estimator', entered, 'Estimator',  quickView);
+      else if (entered === 'COSTA' || entered === 'STAR') onAccepted('estimation', 'director',  entered,  'Cost Artist', quickView);
+      else doShake('Invalid code');
     }
   };
 
@@ -1384,7 +1385,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         }
 
         /* page title */
-        .hs-title { font-size:clamp(3.2rem,6vw,6rem);font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;
+        .hs-title { font-size:clamp(2.1rem,4vw,4rem);font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;
           background:linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%);
           background-size:220% 220%;
           -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
@@ -1625,7 +1626,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           {phase === 'select' ? (
             <div style={{display:'flex',flexDirection:'column',animation:'hs-fadeUp 0.55s ease both'}}>
               <h1 className="hs-title">AI APEX HUB</h1>
-              <p className="hs-sub">Select your department to continue</p>
+              <p style={{ fontSize:'0.72rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', textAlign:'center', marginBottom:24, marginTop:-8, fontWeight:500 }}>STATE OF ART</p>
               {/* 2×2 tile grid */}
               <div className="hs-tiles">
                 {depts.map((dept, idx) => (
@@ -1782,17 +1783,18 @@ const AccessCodeScreen = ({ onAccepted }) => {
     if (inputRef.current) inputRef.current.focus();
   }, []);
 
-  const SALES_CODES = ['SL1','SL2','SL3','SL4','SL5'];
+  const SALES_CODES = ['SX985','SX417','SE628','SE842','SE519','SM386'];
+  const EST_CODES   = ['EX552','EX719','EX638','EX904','EX471','EX856','EX392','EX681','EX547','EX903','EX764'];
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const entered = code.trim().toUpperCase();
-    if (entered === 'EST') {
-      onAccepted('estimation', 'estimator', 'EST', 'Estimator');
+    if (EST_CODES.includes(entered)) {
+      onAccepted('estimation', 'estimator', entered, 'Estimator');
     } else if (SALES_CODES.includes(entered)) {
       onAccepted('estimation', 'sales', entered, '');
-    } else if (entered === 'STAR') {
-      onAccepted('estimation', 'director', 'STAR', 'Director');
+    } else if (entered === 'COSTA' || entered === 'STAR') {
+      onAccepted('estimation', 'director', entered, 'Cost Artist');
     } else if (entered === '9993') {
       onAccepted('active', null, '9993', '');
     // } else if (entered === 'JAFZA') {
@@ -1952,7 +1954,7 @@ const AccessCodeScreen = ({ onAccepted }) => {
 
 
 // --- INTRO SCREEN ---
-const IntroScreen = ({ onDone, welcomeName }) => {
+const IntroScreen = ({ onDone, welcomeName, welcomeRole }) => {
   const [phase, setPhase] = useState('enter'); // 'enter' | 'exit'
 
   useEffect(() => {
@@ -2047,7 +2049,9 @@ const IntroScreen = ({ onDone, welcomeName }) => {
       </div>
       <div className="intro-tagline">Passion to Protect</div>
       <div className="intro-welcome">
-        {welcomeName ? `Welcome Back, ${welcomeName}` : 'Welcome Back!'}
+        {welcomeRole === 'sales'
+          ? (welcomeName ? `Hi, ${welcomeName}!` : 'Welcome!')
+          : (welcomeName ? `Welcome Back, ${welcomeName}` : 'Welcome Back!')}
       </div>
       <div className="intro-beam" />
     </div>
@@ -2116,7 +2120,7 @@ export default function App() {
 
   return (
     <>
-      {showIntro && <IntroScreen onDone={handleIntroDone} welcomeName={welcomeName} />}
+      {showIntro && <IntroScreen onDone={handleIntroDone} welcomeName={welcomeName} welcomeRole={initialRole} />}
       <div style={mainBackgroundStyle}/>
       <TouchFeedback />
 
