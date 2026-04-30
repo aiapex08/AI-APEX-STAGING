@@ -4402,9 +4402,17 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
 
   const handleEstimatorUpload = async e => {
     if (!e.target.files?.length) return;
-    const file = e.target.files[0];
-    const doc = await readFileAsDoc(file);
-    onUpdate(open, { estimationFile: file.name, estimationDoc: doc, status: 'Pending Approval' });
+    const files = Array.from(e.target.files);
+    const newDocs = await readFilesToDocs(files);
+    const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+    const allDocs = [...existing, ...newDocs];
+    onUpdate(open, {
+      estimationFile: allDocs[allDocs.length - 1].name,
+      estimationDoc: allDocs[allDocs.length - 1],
+      estimationDocs: allDocs,
+      status: 'Pending Approval',
+    });
+    e.target.value = '';
   };
 
   // ── Detail view ──
@@ -4888,18 +4896,31 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     ) : (
                       <button style={{...btnStyle,opacity:0.45,cursor:'default'}}>↓ No Documents Attached</button>
                     )}
-                    <input type="file" ref={uploadRef} style={{display:'none'}} onChange={handleEstimatorUpload}/>
+                    <input type="file" ref={uploadRef} style={{display:'none'}} multiple onChange={handleEstimatorUpload}/>
+                    {/* Uploaded quotation files list */}
+                    {(() => {
+                      const eDocs = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+                      if (!eDocs.length) return null;
+                      return (
+                        <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                          <div style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(52,211,153,0.45)',marginBottom:1}}>
+                            Uploaded ({eDocs.length} file{eDocs.length>1?'s':''})
+                          </div>
+                          {eDocs.map((d,i)=>(
+                            <button key={i} onClick={()=>downloadDoc(d)}
+                              style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                              {d.name||`file-${i+1}`}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <button onClick={()=>uploadRef.current.click()}
                       disabled={req.status!=='Pending Estimation'&&req.status!=='Estimation Uploaded'&&req.reqStatus!=='inprogress'}
                       style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(255,210,60,0.95)',border:'1px solid rgba(255,200,40,0.40)',background:'rgba(255,180,0,0.10)',fontWeight:700}}>
-                      ↑ Upload Quotation {req.estimationFile?`(${req.estimationFile})`:''}
+                      ↑ {(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}
                     </button>
-                    {req.estimationDoc?.data && (
-                      <button onClick={()=>downloadDoc(req.estimationDoc)}
-                        style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(52,211,153,0.95)',border:'1px solid rgba(52,211,153,0.35)',background:'rgba(52,211,153,0.08)',fontWeight:700}}>
-                        ↓ Download Uploaded Quotation
-                      </button>
-                    )}
                   </div>
                   {/* ── Margin breakdown ── */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'12px 14px',marginTop:4}}>
@@ -6219,6 +6240,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
           docs: await Promise.all((req.docs || []).map(restoreDocFromIDB)),
           originalDocs: await Promise.all((req.originalDocs || []).map(restoreDocFromIDB)),
           estimationDoc: req.estimationDoc ? await restoreDocFromIDB(req.estimationDoc) : req.estimationDoc,
+          estimationDocs: req.estimationDocs ? await Promise.all(req.estimationDocs.map(restoreDocFromIDB)) : req.estimationDocs,
         })));
         setRequests(enriched);
         setDiaryEntries(data.record.diaryEntries || []);
@@ -6244,6 +6266,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
               docs: (r.docs || []).map(stripDocData),
               originalDocs: (r.originalDocs || []).map(stripDocData),
               estimationDoc: r.estimationDoc ? stripDocData(r.estimationDoc) : r.estimationDoc,
+              estimationDocs: (r.estimationDocs || []).map(stripDocData),
             })),
             diaryEntries,
           })
@@ -6399,6 +6422,7 @@ const handleSubmit = async (formData) => {
   const updateRequest = async (idx, patch) => {
     // Persist any doc data in patch to IndexedDB before it gets stripped on JSONBin save
     if (patch.estimationDoc) await saveDocToIDB(patch.estimationDoc);
+    if (patch.estimationDocs) await Promise.all(patch.estimationDocs.map(saveDocToIDB));
     if (patch.docs) await Promise.all(patch.docs.map(saveDocToIDB));
     if (patch.originalDocs) await Promise.all(patch.originalDocs.map(saveDocToIDB));
     setRequests(prev => prev.map((r,i) => i===idx ? {...r,...patch} : r));

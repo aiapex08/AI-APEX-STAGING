@@ -1626,7 +1626,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
           {phase === 'select' ? (
             <div style={{display:'flex',flexDirection:'column',animation:'hs-fadeUp 0.55s ease both'}}>
               <h1 className="hs-title">AI APEX HUB</h1>
-              <p style={{ fontSize:'0.72rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', textAlign:'center', marginBottom:24, marginTop:-8, fontWeight:500 }}>STATE OF ART</p>
+              <p style={{ fontSize:'0.72rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', textAlign:'center', marginBottom:24, marginTop:-8, fontWeight:500 }}> - STATE OF ART - </p>
               {/* 2×2 tile grid */}
               <div className="hs-tiles">
                 {depts.map((dept, idx) => (
