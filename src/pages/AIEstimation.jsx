@@ -4330,62 +4330,93 @@ function calcTATStages(r) {
 }
 
 // ── Mini timeline pill strip ──────────────────────────────────────────────────
-const TATTimeline = ({ r, showTimestamps }) => {
+const TATTimeline = ({ r, compact }) => {
   const F = "'Inter',sans-serif";
   const fms = ms => {
-    if (!ms) return '—';
+    if (!ms) return null;
     const h = Math.floor(ms/3600000); const m = Math.floor((ms%3600000)/60000);
-    return h > 23 ? `${Math.floor(h/24)}d ${h%24}h` : `${h}h ${m}m`;
+    return h > 23 ? `${Math.floor(h/24)}d ${h%24}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
   const fdt = ts => {
     if (!ts) return null;
-    try { const d = new Date(typeof ts === 'number' ? ts : ts); return d.toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}); } catch { return null; }
+    try { const d = new Date(ts); return d.toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}); } catch { return null; }
   };
   const { s1, s2, s3, cycles } = calcTATStages(r);
+  // Live counter for current active stage
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t+1), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const now = Date.now();
+  const liveMs = !r.quotationSubmittedAt && r.taggedAt ? now - r.taggedAt
+    : !r.taggedAt && r.submittedAt ? now - new Date(r.submittedAt).getTime()
+    : null;
+
   const stages = [
-    { label: 'Submitted',   color: 'rgba(120,180,255,0.85)', done: !!r.submittedAt,           tat: null, ts: r.submittedAt },
-    { label: 'Assigned',    color: 'rgba(255,200,50,0.85)',  done: !!r.taggedAt,              tat: s1,   ts: r.taggedAt },
-    { label: 'Quoted',      color: 'rgba(160,130,255,0.90)', done: !!r.quotationSubmittedAt,  tat: s2,   ts: r.quotationSubmittedAt },
-    { label: 'Cost-Artist', color: 'rgba(0,220,180,0.85)',   done: !!r.directorRespondedAt,   tat: s3,   ts: r.directorRespondedAt },
+    { label: 'Submitted',   color: 'rgba(120,180,255,0.90)', done: !!r.submittedAt,           tat: null, ts: r.submittedAt },
+    { label: 'Assigned',    color: 'rgba(255,200,50,0.90)',  done: !!r.taggedAt,              tat: s1,   ts: r.taggedAt },
+    { label: 'Quoted',      color: 'rgba(160,130,255,0.95)', done: !!r.quotationSubmittedAt,  tat: s2,   ts: r.quotationSubmittedAt },
+    { label: 'Cost-Artist', color: 'rgba(0,220,180,0.90)',   done: !!r.directorRespondedAt,   tat: s3,   ts: r.directorRespondedAt },
   ];
-  const mbAdj = showTimestamps ? 24 : 16;
+  const dotSz = compact ? 8 : 10;
   return (
-    <div style={{display:'flex',alignItems:'flex-start',gap:0,flexWrap:'nowrap',fontFamily:F}}>
+    <div style={{display:'flex',alignItems:'flex-start',width:'100%',fontFamily:F}}>
       {stages.map((st, i) => (
-        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:0,flexShrink:0}}>
+        <div key={i} style={{display:'contents'}}>
           {/* dot + label + timestamp */}
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-            <div style={{width:9,height:9,borderRadius:'50%',
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}}>
+            <div style={{width:dotSz,height:dotSz,borderRadius:'50%',
               background:st.done?st.color:'rgba(255,255,255,0.14)',
-              boxShadow:st.done?`0 0 8px ${st.color},0 0 16px ${st.color}55`:'none',
-              border:st.done?`1px solid ${st.color}`:'1px solid rgba(255,255,255,0.22)',flexShrink:0,marginBottom:1}}/>
-            <span style={{fontSize:'0.54rem',fontWeight:st.done?700:400,
+              boxShadow:st.done?`0 0 8px ${st.color},0 0 18px ${st.color}55`:'none',
+              border:st.done?`1.5px solid ${st.color}`:'1px solid rgba(255,255,255,0.24)',
+              flexShrink:0,marginBottom:2}}/>
+            <span style={{fontSize:compact?'0.52rem':'0.58rem',fontWeight:st.done?700:400,
               background:st.done?`linear-gradient(135deg,#fff 0%,${st.color} 100%)`:'none',
               WebkitBackgroundClip:st.done?'text':'unset',
               WebkitTextFillColor:st.done?'transparent':'unset',
               color:st.done?'unset':'rgba(255,255,255,0.28)',
               letterSpacing:'0.07em',whiteSpace:'nowrap'}}>{st.label}</span>
-            {showTimestamps && st.done && fdt(st.ts) && (
-              <span style={{fontSize:'0.44rem',color:st.color,whiteSpace:'nowrap',fontFamily:'monospace',marginTop:1,fontWeight:600,opacity:0.90}}>{fdt(st.ts)}</span>
+            {st.done && fdt(st.ts) && (
+              <span style={{fontSize:compact?'0.42rem':'0.46rem',color:st.color,whiteSpace:'nowrap',fontFamily:'monospace',fontWeight:600,opacity:0.85,marginTop:1}}>{fdt(st.ts)}</span>
             )}
           </div>
-          {/* connector + TAT */}
+          {/* flex-expanding connector + TAT duration */}
           {i < stages.length - 1 && (
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',margin:'0 8px',marginBottom:mbAdj}}>
-              <span style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.35)',whiteSpace:'nowrap',marginBottom:2,fontFamily:'monospace'}}>{st.tat?fms(st.tat):''}</span>
-              <div style={{width:32,height:1.5,borderRadius:1,
+            <div style={{flex:1,minWidth:18,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px',paddingBottom:8,justifyContent:'flex-start',gap:1}}>
+              {(() => {
+                const segTat = stages[i+1].tat;
+                const segColor = stages[i+1].color;
+                const isLive = !segTat && (
+                  (i === 0 && !r.taggedAt && liveMs) ||
+                  (i === 1 && r.taggedAt && !r.quotationSubmittedAt && liveMs)
+                );
+                return (segTat || isLive) ? (
+                  <span style={{fontSize:compact?'0.50rem':'0.58rem',color:segTat?segColor:'rgba(255,200,50,0.75)',fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',letterSpacing:'0.04em',
+                    textShadow:segTat?`0 0 8px ${segColor}80`:'0 0 8px rgba(255,200,50,0.40)',
+                    marginBottom:3}}>
+                    {segTat ? fms(segTat) : `${fms(liveMs)} ↻`}
+                  </span>
+                ) : (
+                  <span style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.16)',fontFamily:'monospace',marginBottom:3}}>—</span>
+                );
+              })()}
+              <div style={{width:'100%',height:1.5,borderRadius:1,
                 background:stages[i+1].done
-                  ?`linear-gradient(90deg,${st.color}90,${stages[i+1].color}90)`
-                  :'rgba(255,255,255,0.10)'}}/>
+                  ?`linear-gradient(90deg,${st.color}80,${stages[i+1].color}80)`
+                  :st.done?`linear-gradient(90deg,${st.color}50,rgba(255,255,255,0.08))`
+                  :'rgba(255,255,255,0.08)'}}/>
             </div>
           )}
         </div>
       ))}
       {cycles.map((c,i) => (
-        <div key={`c${i}`} style={{display:'flex',alignItems:'center',gap:0,flexShrink:0}}>
-          <div style={{width:22,height:1,background:'rgba(255,90,90,0.30)',margin:'0 3px',marginBottom:14}}/>
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-            <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,100,100,0.80)',boxShadow:'0 0 5px rgba(255,80,80,0.6)',flexShrink:0}}/>
+        <div key={`c${i}`} style={{display:'contents'}}>
+          <div style={{minWidth:20,flex:0,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px',paddingBottom:24}}>
+            <div style={{width:'100%',height:1,background:'rgba(255,90,90,0.30)'}}/>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,flexShrink:0}}>
+            <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,100,100,0.80)',boxShadow:'0 0 5px rgba(255,80,80,0.6)',flexShrink:0,marginBottom:2}}/>
             <span style={{fontSize:'0.48rem',color:'rgba(255,120,120,0.70)',letterSpacing:'0.06em',whiteSpace:'nowrap'}}>Retry {c.cycle}</span>
           </div>
         </div>
@@ -4409,6 +4440,7 @@ const STATUS_COLORS = {
   'Pending Approval': 'rgba(234,88,12,0.9)',
   'Approved': 'rgba(22,163,74,0.9)',
   'Completed': 'rgba(20,184,166,0.9)',
+  'Out of Scope': 'rgba(220,60,60,0.85)',
 };
 const Badge = ({s}) => (
   <span style={{
@@ -4747,6 +4779,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     else { setPinError(true); setPinValue(''); }
   };
   const uploadRef = useRef();
+  const dirDocUploadRef = useRef();
   const now = Date.now();
 
   useEffect(() => {
@@ -4888,7 +4921,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 background:'linear-gradient(90deg,rgba(255,255,255,0.90) 0%,rgba(100,200,255,0.80) 100%)',
                 WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
                 marginBottom:7,fontWeight:700}}>Request Timeline</div>
-              <TATTimeline r={req} showTimestamps={viewMode === 'director'}/>
+              <TATTimeline r={req} compact={viewMode !== 'director'}/>
             </div>
           ) : (
             <div style={{flex:1}}/>
@@ -5296,12 +5329,67 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(180,130,255,0.95)',boxShadow:'0 0 8px rgba(180,130,255,0.7)',flexShrink:0}}/>
                       <span style={{fontSize:'0.80rem',color:'rgba(180,130,255,0.90)',fontWeight:600}}>Submitted — Awaiting Cost-Artist Review</span>
                     </div>
+                  ) : req.outOfScopeSubmitted ? (
+                    <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(220,60,60,0.08)',border:'1px solid rgba(220,60,60,0.28)',borderRadius:8}}>
+                      <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,90,90,0.95)',boxShadow:'0 0 8px rgba(255,80,80,0.7)',flexShrink:0}}/>
+                      <span style={{fontSize:'0.80rem',color:'rgba(255,110,110,0.90)',fontWeight:600}}>Out of Scope — Notified to Sales</span>
+                    </div>
                   ) : (
                     <button onClick={()=>{if(canSendToDirector){const ts=new Date().toISOString();onUpdate(open,{status:'Pending Approval',reqStatus:'pending-director',directorAction:null,directorNote:'',quotationSubmittedAt:ts,timeline:[...(req.timeline||[]),{event:'quoted',ts,label:'Quotation Submitted',by:req.estimator||''}]});}}}
                       disabled={!canSendToDirector}
                       style={{width:'100%',padding:'11px 0',borderRadius:100,background:canSendToDirector?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:canSendToDirector?'auroraShift 5s ease-in-out infinite':'none',border:canSendToDirector?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.07)',color:canSendToDirector?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.88rem',fontWeight:700,cursor:canSendToDirector?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:canSendToDirector?'0 4px 22px rgba(0,140,255,0.28)':'none',outline:'none'}}>
                       ✦ Submit to Cost-Artist for Approval
                     </button>
+                  )}
+
+                  {/* ── A: Out of Scope / Reject  |  B: Justification ── */}
+                  {!req.outOfScopeSubmitted && req.reqStatus !== 'pending-director' && (
+                    <div style={{display:'flex',gap:8,marginTop:2}}>
+                      {/* A — Out of Scope button */}
+                      <div style={{flexShrink:0,display:'flex',flexDirection:'column',gap:6,minWidth:160}}>
+                        <div style={{fontSize:'0.44rem',color:'rgba(255,100,100,0.40)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600}}>A · Out of Scope</div>
+                        {req.outOfScope ? (
+                          <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                            <div style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:8,background:'rgba(220,50,50,0.15)',border:'1px solid rgba(220,60,60,0.45)'}}>
+                              <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(255,90,90,0.95)',boxShadow:'0 0 6px rgba(255,80,80,0.7)',flexShrink:0}}/>
+                              <span style={{fontSize:'0.76rem',color:'rgba(255,110,110,0.90)',fontWeight:700}}>Out of Scope</span>
+                            </div>
+                            <button onClick={()=>onUpdate(open,{outOfScope:false,outOfScopeReason:''})}
+                              style={{padding:'4px 0',borderRadius:6,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.35)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none'}}>
+                              ✕ Cancel
+                            </button>
+                            <button
+                              disabled={!(req.outOfScopeReason||'').trim()}
+                              onClick={()=>{if((req.outOfScopeReason||'').trim()){const ts=new Date().toISOString();onUpdate(open,{outOfScopeSubmitted:true,status:'Out of Scope',reqStatus:'onhold',timeline:[...(req.timeline||[]),{event:'outofscope',ts,label:'Marked Out of Scope',by:req.estimator||''}]});}}}
+                              style={{padding:'7px 0',borderRadius:8,background:(req.outOfScopeReason||'').trim()?'rgba(220,50,50,0.18)':'rgba(255,255,255,0.03)',border:`1px solid ${(req.outOfScopeReason||'').trim()?'rgba(220,60,60,0.50)':'rgba(255,255,255,0.08)'}`,color:(req.outOfScopeReason||'').trim()?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',fontFamily:F2,fontSize:'0.76rem',fontWeight:700,cursor:(req.outOfScopeReason||'').trim()?'pointer':'not-allowed',outline:'none',transition:'all 0.15s'}}>
+                              ⊘ Submit Out of Scope
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={()=>onUpdate(open,{outOfScope:true})}
+                            style={{padding:'9px 14px',borderRadius:8,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.28)',color:'rgba(255,100,100,0.70)',fontFamily:F2,fontSize:'0.78rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'all 0.15s',textAlign:'left',display:'flex',alignItems:'center',gap:7}}
+                            onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.18)';e.currentTarget.style.borderColor='rgba(220,60,60,0.50)';e.currentTarget.style.color='rgba(255,110,110,0.95)';}}
+                            onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.08)';e.currentTarget.style.borderColor='rgba(220,60,60,0.28)';e.currentTarget.style.color='rgba(255,100,100,0.70)';}}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                            Out of Scope / Reject
+                          </button>
+                        )}
+                      </div>
+                      {/* B — Justification / Reason */}
+                      <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+                        <div style={{fontSize:'0.44rem',color:req.outOfScope?'rgba(255,100,100,0.55)':'rgba(255,255,255,0.22)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,transition:'color 0.2s'}}>B · Justification / Reason</div>
+                        <textarea
+                          value={req.outOfScopeReason||''}
+                          onChange={e=>onUpdate(open,{outOfScopeReason:e.target.value})}
+                          disabled={!req.outOfScope}
+                          placeholder={req.outOfScope ? "Provide reason or justification for Out of Scope…" : "Select 'Out of Scope' to enter reason"}
+                          rows={4}
+                          style={{flex:1,width:'100%',background:req.outOfScope?'rgba(220,50,50,0.07)':'rgba(255,255,255,0.02)',border:`1px solid ${req.outOfScope?'rgba(220,60,60,0.35)':'rgba(255,255,255,0.07)'}`,borderRadius:8,color:req.outOfScope?'rgba(255,200,200,0.88)':'rgba(255,255,255,0.25)',fontFamily:F2,fontSize:'0.82rem',padding:'9px 12px',outline:'none',resize:'vertical',boxSizing:'border-box',lineHeight:1.55,cursor:req.outOfScope?'text':'not-allowed',transition:'all 0.2s'}}
+                          onFocus={e=>{if(req.outOfScope)e.target.style.borderColor='rgba(255,80,80,0.55)';}}
+                          onBlur={e=>{if(req.outOfScope)e.target.style.borderColor='rgba(220,60,60,0.35)';}}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -5414,106 +5502,222 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           </div>
         )}
 
-        {/* ── DIRECTOR view: 3-panel layout with sticky footer ── */}
+        {/* ── DIRECTOR view: 3-panel layout ── */}
         {viewMode === 'director' && (() => {
           const GLASSY = 'linear-gradient(135deg,rgba(255,255,255,1) 0%,rgba(255,255,255,0.88) 40%,rgba(255,255,255,0.72) 60%,rgba(255,255,255,0.96) 100%)';
           const DA = [{v:'approved',label:'Approve ✓',c:'#00e5b0',bg:'rgba(0,229,176,0.10)',bd:'rgba(0,229,176,0.38)'},{v:'revised',label:'Revise',c:'rgba(120,180,255,0.95)',bg:'rgba(80,140,255,0.10)',bd:'rgba(120,180,255,0.40)'},{v:'rejected',label:'Reject ✗',c:'rgba(255,90,90,0.95)',bg:'rgba(215,45,45,0.10)',bd:'rgba(215,55,55,0.40)'}];
-
-          // Historical requests from same client or project (excluding current)
           const histReqs = requests.filter(r => r.id !== req.id && (r.client === req.client || r.proj === req.proj));
-
-          // Real download trigger — creates blob so browser shows Save dialog
-          const triggerDownload = (filename, ext) => {
-            const name = ext ? filename.replace(/\.[^.]+$/, '') + '.' + ext : filename;
-            const content = `Document: ${name}\nProject: ${req.proj||''}\nClient: ${req.client||''}\nRequest ID: ${req.id}\nDate: ${req.date||''}\n\n[Attach actual file from your file storage system]`;
-            const blob = new Blob([content], {type:'text/plain'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = name;
-            document.body.appendChild(a); a.click();
-            document.body.removeChild(a); URL.revokeObjectURL(url);
-          };
-
-          // Download icon SVG
           const DlIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
-
-          const dlBtn = (label, accent, shade, ext) => (
-            <button onClick={() => req.estimationDoc?.data ? downloadDoc(req.estimationDoc) : triggerDownload(req.estimationFile || `quotation_${req.id}`, ext)}
-              style={{display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:6,background:shade,border:`1px solid ${accent}`,color:accent,fontFamily:F2,fontSize:'0.74rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'opacity 0.15s',whiteSpace:'nowrap'}}
-              onMouseEnter={e=>e.currentTarget.style.opacity='0.75'} onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-              <DlIco/>{label}
-            </button>
-          );
+          const inpStyle = {width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:6,color:'rgba(255,255,255,0.92)',fontFamily:F2,fontSize:'0.80rem',padding:'4px 8px',outline:'none',boxSizing:'border-box',fontWeight:500};
 
           return (
             <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
 
               {/* ═══ MAIN 3-COLUMN CONTENT ═══ */}
-              <div style={{display:'flex',gap:10,flex:1,minHeight:0,overflow:'hidden',paddingBottom:10}}>
+              <div style={{display:'flex',gap:10,flex:1,minHeight:0,overflow:'hidden'}}>
 
-                {/* ═══ LEFT: Compact Project Info ═══ */}
-                <div style={{width:'27%',minWidth:200,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
-                  <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,padding:'14px 16px',flexShrink:0,backdropFilter:'blur(20px)'}}>
-                    <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:10}}>
-                      <div style={{width:3,height:30,borderRadius:2,background:'linear-gradient(180deg,rgba(255,255,255,0.70),rgba(255,255,255,0.06))',flexShrink:0}}/>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:600,marginBottom:2}}>Project Brief</div>
-                        <div style={{fontSize:'0.96rem',fontWeight:900,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.1,overflow:'hidden',textOverflow:'ellipsis'}}>{req.proj||'—'}</div>
+                {/* ═══ LEFT: Project Info + Decision Controls ═══ */}
+                <div style={{width:'30%',minWidth:230,display:'flex',flexDirection:'column',gap:8,overflow:'hidden'}}>
+
+                  {/* Project info — scrollable */}
+                  <div style={{flex:1,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent',paddingRight:2}}>
+                    <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,padding:'13px 14px',backdropFilter:'blur(20px)'}}>
+
+                      {/* Header: name + Edit toggle */}
+                      <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:10}}>
+                        <div style={{width:3,height:28,borderRadius:2,background:'linear-gradient(180deg,rgba(255,255,255,0.70),rgba(255,255,255,0.06))',flexShrink:0}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:600,marginBottom:2}}>Project Brief</div>
+                          {dirEditMode ? (
+                            <input value={req.proj||''} onChange={e=>onUpdate(open,{proj:e.target.value})} style={{...inpStyle,fontSize:'0.90rem',fontWeight:800}} placeholder="Project name"/>
+                          ) : (
+                            <div style={{fontSize:'0.92rem',fontWeight:900,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.1,overflow:'hidden',textOverflow:'ellipsis'}}>{req.proj||'—'}</div>
+                          )}
+                        </div>
+                        <button onClick={()=>setDirEditMode(v=>!v)}
+                          style={{flexShrink:0,padding:'3px 10px',borderRadius:20,border:dirEditMode?'1px solid rgba(0,220,130,0.50)':'1px solid rgba(255,255,255,0.15)',background:dirEditMode?'rgba(0,220,130,0.12)':'rgba(255,255,255,0.05)',color:dirEditMode?'rgba(0,220,130,0.90)':'rgba(255,255,255,0.40)',fontFamily:F2,fontSize:'0.56rem',fontWeight:700,cursor:'pointer',outline:'none',letterSpacing:'0.06em'}}>
+                          {dirEditMode ? '✓ Done' : 'Edit'}
+                        </button>
                       </div>
-                    </div>
-                    <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
-                      <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(255,255,255,0.70)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:20,padding:'2px 8px'}}>{req.deal}</span>
-                      {req.supplyOnly && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.20)',borderRadius:20,padding:'2px 8px'}}>Supply Only</span>}
-                      {req.supplyInstall && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.20)',borderRadius:20,padding:'2px 8px'}}>S + I</span>}
-                    </div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
-                      <div style={{background:'rgba(0,200,255,0.05)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:7,padding:'7px 10px'}}>
-                        <div style={{fontSize:'0.42rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Margin</div>
-                        <div style={{display:'flex',alignItems:'baseline',gap:1}}>
-                          <span style={{fontSize:'1.1rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>{req.margin||'—'}</span>
-                          {req.margin && <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace'}}>%</span>}
+
+                      {/* Badges */}
+                      <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
+                        <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(255,255,255,0.70)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:20,padding:'2px 8px'}}>{req.deal}</span>
+                        {req.supplyOnly && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.20)',borderRadius:20,padding:'2px 8px'}}>Supply Only</span>}
+                        {req.supplyInstall && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.20)',borderRadius:20,padding:'2px 8px'}}>S + I</span>}
+                      </div>
+
+                      {/* Margin + Value */}
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                        <div style={{background:'rgba(0,200,255,0.05)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:7,padding:'7px 10px'}}>
+                          <div style={{fontSize:'0.42rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Margin</div>
+                          <div style={{display:'flex',alignItems:'baseline',gap:1}}>
+                            <span style={{fontSize:'1.1rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>{req.margin||'—'}</span>
+                            {req.margin && <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace'}}>%</span>}
+                          </div>
+                        </div>
+                        <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:7,padding:'7px 10px'}}>
+                          <div style={{fontSize:'0.42rem',color:'rgba(0,220,130,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Value (AED)</div>
+                          <div style={{fontSize:'0.78rem',fontWeight:800,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,240,160,1) 0%,rgba(0,200,255,0.80) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.2}}>{req.projValue?Number(req.projValue).toLocaleString('en-AE'):'—'}</div>
                         </div>
                       </div>
-                      <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:7,padding:'7px 10px'}}>
-                        <div style={{fontSize:'0.42rem',color:'rgba(0,220,130,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Value (AED)</div>
-                        <div style={{fontSize:'0.78rem',fontWeight:800,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,240,160,1) 0%,rgba(0,200,255,0.80) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.2}}>{req.projValue?Number(req.projValue).toLocaleString('en-AE'):'—'}</div>
+
+                      {/* Customer rank */}
+                      {req.customerRank > 0 && (() => {
+                        const rc=['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
+                        return (<div style={{display:'flex',alignItems:'center',gap:5,marginBottom:8}}><span style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Customer</span>{[1,2,3,4,5].map(n=>(<span key={n} style={{fontSize:'0.78rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.10)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>))}</div>);
+                      })()}
+
+                      {/* Info rows — editable for Cost-Artist */}
+                      {[['Client / Grantor','client',req.client],['Main Contractor','mainContractor',req.mainContractor],['Consultant','consultant',req.consultant],['Submitted By','submittedBy',req.submittedBy],['Lead Time','leadTime',req.leadTime],['Address','address',req.address]].filter(([,,v])=>v||dirEditMode).map(([k,field,v])=>(
+                        <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8,alignItems:'center'}}>
+                          <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
+                          {dirEditMode ? (
+                            <input value={v||''} onChange={e=>onUpdate(open,{[field]:e.target.value})} style={{...inpStyle,textAlign:'right',width:'60%'}} placeholder={k}/>
+                          ) : (
+                            <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',textAlign:'right',fontWeight:500}}>{v}</span>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Contact */}
+                      {(req.email||req.mob||req.tel||dirEditMode) && (
+                        <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                          {dirEditMode ? (
+                            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                              {[['Email','email'],['MOB','mob'],['Tel','tel']].map(([label,field])=>(
+                                <div key={field} style={{display:'flex',alignItems:'center',gap:6}}>
+                                  <span style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',width:32,flexShrink:0}}>{label}</span>
+                                  <input value={req[field]||''} onChange={e=>onUpdate(open,{[field]:e.target.value})} style={inpStyle} placeholder={label}/>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+                              {[['Email',req.email],['MOB',req.mob],['Tel',req.tel]].filter(([,v])=>v).map(([k,v])=>(
+                                <div key={k}><div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:1}}>{k}</div><div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.65)'}}>{v}</div></div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Remarks */}
+                      {(req.remarks || dirEditMode) && (
+                        <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                          <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Remarks</div>
+                          {dirEditMode ? (
+                            <textarea value={req.remarks||''} onChange={e=>onUpdate(open,{remarks:e.target.value})} rows={2} placeholder="Remarks…"
+                              style={{...inpStyle,resize:'vertical',lineHeight:1.5}}/>
+                          ) : (
+                            <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.58)',lineHeight:1.6,borderLeft:'2px solid rgba(255,255,255,0.10)',paddingLeft:8}}>{req.remarks}</div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Out of Scope notice — shown to APEX-CA when estimator flagged it */}
+                      {req.outOfScopeSubmitted && (
+                        <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(220,60,60,0.20)',background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.30)',borderRadius:8,padding:'9px 12px'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:req.outOfScopeReason?6:0}}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,90,90,0.85)" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                            <span style={{fontSize:'0.50rem',color:'rgba(255,110,110,0.85)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>Out of Scope</span>
+                            <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.30)',marginLeft:'auto'}}>by {req.estimator||'Estimator'}</span>
+                          </div>
+                          {req.outOfScopeReason && (
+                            <div style={{fontSize:'0.74rem',color:'rgba(255,180,180,0.75)',lineHeight:1.55,borderLeft:'2px solid rgba(255,80,80,0.30)',paddingLeft:8}}>{req.outOfScopeReason}</div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Document management — Cost-Artist edit mode only */}
+                      {dirEditMode && (
+                        <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.07)'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
+                            <span style={{fontSize:'0.46rem',color:'rgba(0,200,255,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Manage Documents</span>
+                            <input ref={dirDocUploadRef} type="file" multiple hidden accept="*/*" onChange={async e=>{
+                              if(!e.target.files?.length) return;
+                              const newDocs = await readFilesToDocs(Array.from(e.target.files));
+                              onUpdate(open,{docs:[...(req.docs||[]),...newDocs]});
+                              e.target.value='';
+                            }}/>
+                            <button onClick={()=>dirDocUploadRef.current?.click()}
+                              style={{marginLeft:'auto',padding:'3px 10px',borderRadius:6,background:'rgba(0,200,255,0.10)',border:'1px solid rgba(0,200,255,0.30)',color:'rgba(0,200,255,0.85)',fontFamily:F2,fontSize:'0.60rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
+                              + Add File
+                            </button>
+                          </div>
+                          {(req.docs||[]).length === 0 ? (
+                            <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files</div>
+                          ) : (req.docs||[]).map((d,i)=>(
+                            <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                              <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.80)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{docName(d)}</span>
+                              <button onClick={()=>onUpdate(open,{docs:(req.docs||[]).filter((_,j)=>j!==i)})}
+                                style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+
+                  {/* ── DECISION CONTROLS (left panel bottom) ── */}
+                  <div style={{flexShrink:0,background:'rgba(4,1,22,0.98)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,backdropFilter:'blur(20px)',padding:'12px 14px',display:'flex',flexDirection:'column',gap:8}}>
+                    {/* Margin % + Remarks */}
+                    <div style={{display:'grid',gridTemplateColumns:'88px 1fr',gap:7}}>
+                      <div>
+                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Revised Margin %</div>
+                        <div style={{display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:7,padding:'5px 8px'}}>
+                          <input type="number" value={req.revisedMargin||''} onChange={e=>onUpdate(open,{revisedMargin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
+                            style={{flex:1,background:'transparent',border:'none',outline:'none',fontFamily:'monospace',fontSize:'1.00rem',fontWeight:700,width:'100%',color:'rgba(255,255,255,0.95)'}}/>
+                          <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.35)',fontFamily:'monospace',fontWeight:700}}>%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>APEX-CA Remarks</div>
+                        <textarea value={req.directorNote||''} onChange={e=>onUpdate(open,{directorNote:e.target.value})} placeholder="Notes…" rows={2}
+                          style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:7,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.78rem',padding:'5px 9px',outline:'none',resize:'none',boxSizing:'border-box',lineHeight:1.4}}
+                          onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
                       </div>
                     </div>
-                    {req.customerRank > 0 && (() => {
-                      const rc=['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
-                      return (<div style={{display:'flex',alignItems:'center',gap:5,marginBottom:8}}><span style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Customer</span>{[1,2,3,4,5].map(n=>(<span key={n} style={{fontSize:'0.78rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.10)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>))}</div>);
-                    })()}
-                    {[['Client / Grantor',req.client],['Main Contractor',req.mainContractor],['Consultant',req.consultant],['Submitted By',req.submittedBy],['Lead Time',req.leadTime],['Address',req.address]].filter(([,v])=>v).map(([k,v])=>(
-                      <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8}}>
-                        <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
-                        <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',textAlign:'right',fontWeight:500}}>{v}</span>
+                    {/* Approve / Revise / Reject */}
+                    <div style={{display:'flex',gap:5}}>
+                      {DA.map(a=>(
+                        <button key={a.v} onClick={()=>{
+                          const ns = a.v==='approved'?'Approved':a.v==='rejected'?'Estimation Uploaded':'Pending Approval';
+                          const nr = a.v==='approved'?'completed':a.v==='rejected'?'onhold':'inprogress';
+                          onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr,directorSubmitted:false});
+                        }}
+                          style={{flex:1,padding:'7px 4px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.74rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',textAlign:'center',whiteSpace:'nowrap',boxShadow:req.directorAction===a.v?`0 0 14px ${a.c}22`:'none'}}
+                          onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
+                          onMouseLeave={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Submit Response */}
+                    {req.directorSubmitted ? (
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'8px 0',borderRadius:9,background:'rgba(0,220,130,0.10)',border:'1px solid rgba(0,220,130,0.38)',color:'rgba(0,230,150,0.95)',fontFamily:F2,fontSize:'0.82rem',fontWeight:700,boxShadow:'0 0 14px rgba(0,200,120,0.16)'}}>
+                        <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 7px rgba(0,220,130,0.8)',flexShrink:0,display:'inline-block'}}/>
+                        Response Submitted
                       </div>
-                    ))}
-                    {(req.email||req.mob||req.tel) && (
-                      <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
-                        {[['Email',req.email],['MOB',req.mob],['Tel',req.tel]].filter(([,v])=>v).map(([k,v])=>(
-                          <div key={k}><div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:1}}>{k}</div><div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.65)'}}>{v}</div></div>
-                        ))}
-                      </div>
-                    )}
-                    {req.remarks && (
-                      <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
-                        <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Remarks</div>
-                        <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.58)',lineHeight:1.6,borderLeft:'2px solid rgba(255,255,255,0.10)',paddingLeft:8}}>{req.remarks}</div>
-                      </div>
+                    ) : (
+                      <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Estimation Uploaded':'Pending Approval';const nr=req.directorAction==='approved'?'completed':req.directorAction==='rejected'?'onhold':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
+                        disabled={!req.directorAction}
+                        style={{width:'100%',padding:'9px',borderRadius:9,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 4px 20px rgba(120,60,255,0.30)':'none',outline:'none'}}>
+                        Submit Response
+                      </button>
                     )}
                   </div>
-                </div>
+
+                </div>{/* end left column */}
 
                 {/* ═══ CENTER: Documents (D) + AI Suggestions (P) ═══ */}
-                <div style={{flex:1,minWidth:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
+                <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:8,overflowY:'auto',paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
 
                   {/* ── ALL DOCUMENTS — D ── */}
                   <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:12,padding:'14px 18px',flexShrink:0}}>
-
                     <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:700,marginBottom:12}}>All Documents</div>
                     <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                      {/* Requester Documents */}
                       <div style={{background:'rgba(0,200,255,0.04)',border:'1px solid rgba(0,200,255,0.14)',borderRadius:8,padding:'10px 12px'}}>
                         <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.65)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -5532,7 +5736,6 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           </div>
                         ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
                       </div>
-                      {/* Original / Reference Documents */}
                       {req.originalDocs?.length > 0 && (
                         <div style={{background:'rgba(160,190,230,0.04)',border:'1px solid rgba(160,190,230,0.14)',borderRadius:8,padding:'10px 12px'}}>
                           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
@@ -5551,7 +5754,6 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           </div>
                         </div>
                       )}
-                      {/* Quotation Documents */}
                       <div style={{background:'rgba(0,220,130,0.04)',border:'1px solid rgba(0,220,130,0.14)',borderRadius:8,padding:'10px 12px'}}>
                         <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.60)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -5573,44 +5775,51 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     </div>
                   </div>
 
-                  {/* ── AI SUGGESTIONS — P ── */}
-                  <div style={{background:'rgba(130,40,255,0.06)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:12,padding:'14px 18px',flex:1,minHeight:160}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                  {/* ── AI SUGGESTIONS — P (collapsible) ── */}
+                  <div style={{background:'rgba(130,40,255,0.06)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:12,flexShrink:0,...(dirAiOpen?{flex:1,minHeight:120}:{}),display:'flex',flexDirection:'column',overflow:'hidden'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 18px',cursor:'pointer',userSelect:'none',borderBottom:dirAiOpen?'1px solid rgba(168,85,247,0.12)':'none',flexShrink:0}} onClick={()=>setDirAiOpen(v=>!v)}>
                       <div style={{width:6,height:6,borderRadius:'50%',background:'rgba(168,85,247,0.85)',boxShadow:'0 0 8px rgba(168,85,247,0.60)',flexShrink:0}}/>
                       <span style={{fontSize:'0.50rem',color:'rgba(168,85,247,0.80)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:700}}>AI Suggestions</span>
-                      <span style={{marginLeft:'auto',fontSize:'0.52rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic'}}>Powered by APEX Intelligence</span>
+                      <span style={{marginLeft:'auto',fontSize:'0.52rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic',marginRight:8}}>Powered by APEX Intelligence</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.60)" strokeWidth="2.5" style={{flexShrink:0}}>
+                        {dirAiOpen ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
+                      </svg>
                     </div>
-                    {histReqs.length > 0 ? (
-                      <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                        <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'10px 12px'}}>
-                          <div style={{fontSize:'0.46rem',color:'rgba(168,85,247,0.55)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700,marginBottom:6}}>Client Intelligence</div>
-                          {[['Past Requests',histReqs.length,'rgba(168,85,247,0.80)'],['Approved',histReqs.filter(r=>r.status==='Approved'||r.status==='Completed').length,'rgba(0,220,130,0.80)'],['Avg Margin',(()=>{const ms=histReqs.filter(r=>r.margin).map(r=>parseFloat(r.margin));return ms.length?(ms.reduce((a,b)=>a+b,0)/ms.length).toFixed(1)+'%':'—';})(),'rgba(0,200,255,0.80)']].map(([k,v,c])=>(
-                            <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                              <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.32)'}}>{k}</span>
-                              <span style={{fontSize:'0.70rem',fontWeight:700,color:c}}>{v}</span>
+                    {dirAiOpen && (
+                      <div style={{padding:'12px 18px 14px',overflowY:'auto',flex:1}}>
+                        {histReqs.length > 0 ? (
+                          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                            <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'10px 12px'}}>
+                              <div style={{fontSize:'0.46rem',color:'rgba(168,85,247,0.55)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700,marginBottom:6}}>Client Intelligence</div>
+                              {[['Past Requests',histReqs.length,'rgba(168,85,247,0.80)'],['Approved',histReqs.filter(r=>r.status==='Approved'||r.status==='Completed').length,'rgba(0,220,130,0.80)'],['Avg Margin',(()=>{const ms=histReqs.filter(r=>r.margin).map(r=>parseFloat(r.margin));return ms.length?(ms.reduce((a,b)=>a+b,0)/ms.length).toFixed(1)+'%':'—';})(),'rgba(0,200,255,0.80)']].map(([k,v,c])=>(
+                                <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.32)'}}>{k}</span>
+                                  <span style={{fontSize:'0.70rem',fontWeight:700,color:c}}>{v}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                        {req.margin && histReqs.filter(r=>r.margin).length > 0 && (() => {
-                          const avgM = histReqs.filter(r=>r.margin).reduce((a,r)=>a+parseFloat(r.margin),0)/histReqs.filter(r=>r.margin).length;
-                          const diff = parseFloat(req.margin) - avgM;
-                          if (Math.abs(diff) <= 3) return null;
-                          const isHigh = diff > 0;
-                          return (
-                            <div style={{background:isHigh?'rgba(255,150,0,0.07)':'rgba(0,200,255,0.07)',border:`1px solid ${isHigh?'rgba(255,150,0,0.25)':'rgba(0,200,255,0.25)'}`,borderRadius:8,padding:'10px 12px',display:'flex',gap:8,alignItems:'flex-start'}}>
-                              <span style={{fontSize:'0.88rem',flexShrink:0}}>{isHigh?'⚠️':'ℹ️'}</span>
-                              <div>
-                                <div style={{fontSize:'0.62rem',fontWeight:700,color:isHigh?'rgba(255,170,0,0.90)':'rgba(0,200,255,0.90)',marginBottom:3}}>{isHigh?'Margin Above Average':'Margin Below Average'}</div>
-                                <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>Current ({req.margin}%) is {Math.abs(diff).toFixed(1)}pp {isHigh?'above':'below'} client avg ({avgM.toFixed(1)}%).</div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px 0',gap:10,opacity:0.45}}>
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.60)" strokeWidth="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                        <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.28)',margin:0,textAlign:'center',lineHeight:1.5}}>No prior history with this client.<br/>Suggestions appear after first interaction.</p>
+                            {req.margin && histReqs.filter(r=>r.margin).length > 0 && (() => {
+                              const avgM = histReqs.filter(r=>r.margin).reduce((a,r)=>a+parseFloat(r.margin),0)/histReqs.filter(r=>r.margin).length;
+                              const diff = parseFloat(req.margin) - avgM;
+                              if (Math.abs(diff) <= 3) return null;
+                              const isHigh = diff > 0;
+                              return (
+                                <div style={{background:isHigh?'rgba(255,150,0,0.07)':'rgba(0,200,255,0.07)',border:`1px solid ${isHigh?'rgba(255,150,0,0.25)':'rgba(0,200,255,0.25)'}`,borderRadius:8,padding:'10px 12px',display:'flex',gap:8,alignItems:'flex-start'}}>
+                                  <span style={{fontSize:'0.88rem',flexShrink:0}}>{isHigh?'⚠️':'ℹ️'}</span>
+                                  <div>
+                                    <div style={{fontSize:'0.62rem',fontWeight:700,color:isHigh?'rgba(255,170,0,0.90)':'rgba(0,200,255,0.90)',marginBottom:3}}>{isHigh?'Margin Above Average':'Margin Below Average'}</div>
+                                    <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>Current ({req.margin}%) is {Math.abs(diff).toFixed(1)}pp {isHigh?'above':'below'} client avg ({avgM.toFixed(1)}%).</div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px 0',gap:10,opacity:0.45}}>
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.60)" strokeWidth="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                            <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.28)',margin:0,textAlign:'center',lineHeight:1.5}}>No prior history with this client.<br/>Suggestions appear after first interaction.</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -5618,7 +5827,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 </div>{/* end center column */}
 
                 {/* ═══ RIGHT: History/Tabs + Conversation (C) ═══ */}
-                <div style={{width:'30%',minWidth:220,display:'flex',flexDirection:'column',gap:8,overflowY:'hidden'}}>
+                <div style={{width:'28%',minWidth:210,display:'flex',flexDirection:'column',gap:8,overflow:'hidden'}}>
 
                   {/* Tab selector */}
                   <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:9,padding:3,gap:2,flexShrink:0}}>
@@ -5631,7 +5840,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   </div>
 
                   {/* Tab content */}
-                  <div style={{overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.06) transparent',maxHeight:'38%'}}>
+                  <div style={{overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.06) transparent',maxHeight:dirConvoOpen?'36%':'100%',transition:'max-height 0.25s ease',flexShrink:0}}>
                     {dirTab === 'history' && (<>
                       <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'11px 13px',flexShrink:0}}>
                         <div style={{fontSize:'0.48rem',color:'rgba(255,200,0,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:7}}>Rate Requester</div>
@@ -5703,89 +5912,49 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     </>)}
                   </div>
 
-                  {/* ── CONVERSATION — C ── */}
-                  <div style={{flex:1,background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:12,padding:'12px 14px',display:'flex',flexDirection:'column',gap:8,minHeight:0,overflow:'hidden'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,paddingBottom:8,borderBottom:'1px solid rgba(168,85,247,0.18)',flexShrink:0}}>
+                  {/* ── CONVERSATION — C (collapsible) ── */}
+                  <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:12,display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden',...(dirConvoOpen?{flex:1}:{flexShrink:0})}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderBottom:dirConvoOpen?'1px solid rgba(168,85,247,0.18)':'none',flexShrink:0,cursor:'pointer',userSelect:'none'}} onClick={()=>setDirConvoOpen(v=>!v)}>
                       <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(168,85,247,0.85)',boxShadow:'0 0 7px rgba(168,85,247,0.65)',flexShrink:0}}/>
                       <span style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',fontWeight:700}}>Conversation</span>
                       {(req.conversation||[]).length > 0 && (
                         <span style={{background:'rgba(168,85,247,0.18)',border:'1px solid rgba(168,85,247,0.32)',borderRadius:50,padding:'1px 7px',fontSize:'0.56rem',color:'rgba(196,181,253,0.90)',fontWeight:700}}>{(req.conversation||[]).length}</span>
                       )}
-                      {(req.salesPerson||req.estimator) && (
-                        <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.26)',marginLeft:'auto'}}>{[req.estimator,req.salesPerson].filter(Boolean).join(' & ')}</span>
-                      )}
+                      <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.26)',marginLeft:'auto',marginRight:6}}>{[req.estimator,req.salesPerson].filter(Boolean).join(' & ')||''}</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.60)" strokeWidth="2.5" style={{flexShrink:0}}>
+                        {dirConvoOpen ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
+                      </svg>
                     </div>
-                    <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.18) transparent'}}>
-                      {(req.conversation||[]).length === 0 ? (
-                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:10,opacity:0.40}}>
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                          <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.26)',margin:0,fontStyle:'italic',textAlign:'center',lineHeight:1.5}}>No messages yet.</p>
-                        </div>
-                      ) : (req.conversation||[]).map((msg,i)=>{
-                        const isEst = msg.role==='estimator';
-                        return (
-                          <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isEst?'flex-end':'flex-start'}}>
-                            <div style={{maxWidth:'88%',background:isEst?'rgba(109,40,217,0.22)':'rgba(255,255,255,0.05)',border:isEst?'1px solid rgba(168,85,247,0.28)':'1px solid rgba(255,255,255,0.08)',borderRadius:isEst?'11px 11px 3px 11px':'11px 11px 11px 3px',padding:'6px 10px'}}>
-                              <div style={{fontSize:'0.52rem',color:isEst?'rgba(196,181,253,0.60)':'rgba(100,200,255,0.55)',marginBottom:2,fontWeight:600}}>{msg.from} · {msg.ts}</div>
-                              <div style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.82)',lineHeight:1.4}}>{msg.text}</div>
+                    {dirConvoOpen && (
+                      <>
+                        <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:7,padding:'10px 14px',scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.18) transparent'}}>
+                          {(req.conversation||[]).length === 0 ? (
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:10,opacity:0.40}}>
+                              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                              <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.26)',margin:0,fontStyle:'italic',textAlign:'center',lineHeight:1.5}}>No messages yet.</p>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div style={{flexShrink:0,paddingTop:6,borderTop:'1px solid rgba(168,85,247,0.12)'}}>
-                      <div style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.20)',textAlign:'center',fontStyle:'italic'}}>Conversation between Sales &amp; Estimator</div>
-                    </div>
+                          ) : (req.conversation||[]).map((msg,i)=>{
+                            const isEst = msg.role==='estimator';
+                            return (
+                              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isEst?'flex-end':'flex-start'}}>
+                                <div style={{maxWidth:'88%',background:isEst?'rgba(109,40,217,0.22)':'rgba(255,255,255,0.05)',border:isEst?'1px solid rgba(168,85,247,0.28)':'1px solid rgba(255,255,255,0.08)',borderRadius:isEst?'11px 11px 3px 11px':'11px 11px 11px 3px',padding:'6px 10px'}}>
+                                  <div style={{fontSize:'0.52rem',color:isEst?'rgba(196,181,253,0.60)':'rgba(100,200,255,0.55)',marginBottom:2,fontWeight:600}}>{msg.from} · {msg.ts}</div>
+                                  <div style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.82)',lineHeight:1.4}}>{msg.text}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div style={{flexShrink:0,padding:'8px 14px',borderTop:'1px solid rgba(168,85,247,0.12)'}}>
+                          <div style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.20)',textAlign:'center',fontStyle:'italic'}}>Conversation between Sales &amp; Estimator</div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                 </div>{/* end right column */}
 
               </div>{/* end 3-column */}
-
-              {/* ═══ STICKY BOTTOM: Cost-Artist Decision ═══ */}
-              <div style={{flexShrink:0,background:'rgba(2,0,14,0.97)',borderTop:'1px solid rgba(255,255,255,0.10)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',padding:'10px 16px',display:'flex',gap:10,alignItems:'center',zIndex:20}}>
-                <div style={{flexShrink:0}}>
-                  <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Revised Margin %</div>
-                  <div style={{display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:7,padding:'6px 10px',width:100}}>
-                    <input type="number" value={req.revisedMargin||''} onChange={e=>onUpdate(open,{revisedMargin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
-                      style={{flex:1,background:'transparent',border:'none',outline:'none',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%',color:'rgba(255,255,255,0.95)'}}/>
-                    <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.35)',fontFamily:'monospace',fontWeight:700}}>%</span>
-                  </div>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Cost-Artist Remarks</div>
-                  <textarea value={req.directorNote||''} onChange={e=>onUpdate(open,{directorNote:e.target.value})} placeholder="Remarks or revision notes…" rows={1}
-                    style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:7,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.80rem',padding:'6px 10px',outline:'none',resize:'none',boxSizing:'border-box'}}
-                    onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
-                </div>
-                <div style={{display:'flex',gap:7,flexShrink:0}}>
-                  {DA.map(a=>(
-                    <button key={a.v} onClick={()=>{
-                      const ns = a.v==='approved'?'Approved':a.v==='rejected'?'Estimation Uploaded':'Pending Approval';
-                      const nr = a.v==='approved'?'completed':a.v==='rejected'?'onhold':'inprogress';
-                      onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr,directorSubmitted:false});
-                    }}
-                      style={{padding:'9px 16px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.82rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',display:'flex',alignItems:'center',gap:6,boxShadow:req.directorAction===a.v?`0 0 16px ${a.c}22`:'none',whiteSpace:'nowrap'}}
-                      onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
-                      onMouseLeave={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
-                      {req.directorAction===a.v&&<span style={{width:5,height:5,borderRadius:'50%',background:a.c,boxShadow:`0 0 6px ${a.c}`,flexShrink:0}}/>}
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-                {req.directorSubmitted ? (
-                  <div style={{display:'flex',alignItems:'center',gap:7,padding:'9px 20px',borderRadius:100,background:'rgba(0,220,130,0.12)',border:'1px solid rgba(0,220,130,0.40)',color:'rgba(0,230,150,0.95)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,whiteSpace:'nowrap',boxShadow:'0 0 16px rgba(0,200,120,0.18)',flexShrink:0}}>
-                    <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 7px rgba(0,220,130,0.8)',flexShrink:0}}/>
-                    Response Submitted
-                  </div>
-                ) : (
-                  <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Estimation Uploaded':'Pending Approval';const nr=req.directorAction==='approved'?'completed':req.directorAction==='rejected'?'onhold':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
-                    disabled={!req.directorAction}
-                    style={{padding:'9px 24px',borderRadius:100,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 4px 20px rgba(120,60,255,0.30)':'none',outline:'none',whiteSpace:'nowrap',flexShrink:0}}>
-                    Submit Response
-                  </button>
-                )}
-              </div>
 
             </div>
           );
@@ -6663,9 +6832,6 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const [diaryEntries, setDiaryEntries] = useState([]);
   const BIN_ID = "69dcdffeaaba882197f3c176";
   const API_KEY = "$2a$10$kpIFmWCwfUxqOw.M.TfqcOyhGnnArBzDluhGquW2s/t.L3vQJtBqW";
-  const AZURE_ACCOUNT = "apexfilestorage2";
-  const AZURE_CONTAINER = "estimation-docs";
-  const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
 
   // Load on startup
   useEffect(() => {
@@ -6744,6 +6910,10 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     );
     goLoad(match ? match.id : t, match);
   };
+
+const AZURE_ACCOUNT = "apexfilestorage2";
+const AZURE_CONTAINER = "estimation-docs";
+const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
 
 const uploadToAzure = async (file, requestId) => {
   try {
