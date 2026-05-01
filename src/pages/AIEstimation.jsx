@@ -1270,6 +1270,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
       ['Request ID', r.id], ['Project', r.proj || '—'], ['Client', r.client || '—'],
       ['Main Contractor', r.mainContractor || '—'], ['Consultant', r.consultant || '—'],
       ['Submitted By', r.submittedBy || '—'], ['Deal Type', r.deal || '—'],
+      ['Supply', r.supplyOnly ? 'Supply Only' : r.supplyInstall ? 'Supply & Install' : '—'],
       ['Email', r.email || '—'], ['MOB', r.mob || '—'], ['Tel', r.tel || '—'],
       ['Lead Time', r.leadTime || '—'], ['Address', r.address || '—'],
       ['Submitted On', r.date || '—'],
@@ -2766,7 +2767,8 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
     const quotReady = r.estimationFile || r.estimationDocs?.length;
     const infoRows = [
       ['Request ID', r.id], ['Project', r.proj||'—'], ['Client', r.client||'—'],
-      ['Deal Type', r.deal||'—'], ['Main Contractor', r.mainContractor||'—'],
+      ['Deal Type', r.deal||'—'], ['Supply', r.supplyOnly?'Supply Only':r.supplyInstall?'Supply & Install':'—'],
+      ['Main Contractor', r.mainContractor||'—'],
       ['Consultant', r.consultant||'—'], ['Email', r.email||'—'],
       ['MOB', r.mob||'—'], ['Lead Time', r.leadTime||'—'],
       ['Estimator', r.estimator||'—'], ['Submitted', r.date||'—'],
@@ -3393,12 +3395,82 @@ const Form = ({onSubmit, onBack}) => {
   const [deal,setDeal] = useState('Job In Hand');
   const [files,setFiles] = useState([]);
   const [drag,setDrag] = useState(false);
+  const [errors,setErrors] = useState({});
+  const [submitting,setSubmitting] = useState(false);
   const ref = useRef();
-  const u = k => e => setF(p=>({...p,[k]:e.target.value}));
-  const drop = e => { e.preventDefault(); setDrag(false); if(e.dataTransfer.files?.length) setFiles(p=>[...p,...Array.from(e.dataTransfer.files)]); };
+  const u = k => e => { setF(p=>({...p,[k]:e.target.value})); setErrors(p=>({...p,[k]:false})); };
+  const drop = e => { e.preventDefault(); setDrag(false); if(e.dataTransfer.files?.length){ setFiles(p=>[...p,...Array.from(e.dataTransfer.files)]); setErrors(p=>({...p,files:false})); } };
+
+  const handleSubmit = async () => {
+    const errs = {};
+    if (!f.submittedBy) errs.submittedBy = true;
+    if (!f.salesPerson) errs.salesPerson = true;
+    if (!f.proj.trim()) errs.proj = true;
+    if (!f.mainContractor.trim()) errs.mainContractor = true;
+    if (!f.consultant.trim()) errs.consultant = true;
+    if (!f.client.trim()) errs.client = true;
+    if (!f.email.trim()) errs.email = true;
+    if (!f.mob.trim()) errs.mob = true;
+    if (!f.tel.trim()) errs.tel = true;
+    if (!f.leadTime) errs.leadTime = true;
+    if (!f.customerRank) errs.customerRank = true;
+    if (!f.supplyOnly && !f.supplyInstall) errs.supply = true;
+    if (!f.address.trim()) errs.address = true;
+    if (!f.remarks.trim()) errs.remarks = true;
+    if (files.length === 0) errs.files = true;
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setSubmitting(true);
+    await onSubmit({...f,deal,docs:files.map(x=>x.name),docFiles:files});
+  };
+
+  const errBorder = key => errors[key] ? '1.5px solid rgba(255,80,80,0.85)' : undefined;
 
   return (
     <div className="form-page">
+
+      {/* ── Upload animation overlay ── */}
+      {submitting && (
+        <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(6,6,18,0.93)',backdropFilter:'blur(18px)'}}>
+          <style>{`
+            @keyframes _spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+            @keyframes _ring{0%{transform:scale(1);opacity:0.7}100%{transform:scale(1.9);opacity:0}}
+            @keyframes _bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+            @keyframes _bar{0%{width:0%}100%{width:90%}}
+          `}</style>
+          <div style={{position:'relative',width:110,height:110,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:28}}>
+            {/* pulsing rings */}
+            <div style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid rgba(100,200,255,0.55)',animation:'_ring 1.6s ease-out infinite'}}/>
+            <div style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid rgba(160,130,255,0.40)',animation:'_ring 1.6s ease-out 0.55s infinite'}}/>
+            {/* spinning arc */}
+            <div style={{width:76,height:76,borderRadius:'50%',border:'3px solid transparent',borderTopColor:'rgba(100,200,255,0.95)',borderRightColor:'rgba(160,130,255,0.65)',animation:'_spin 0.9s linear infinite'}}/>
+            {/* inner static ring */}
+            <div style={{position:'absolute',width:52,height:52,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.10)'}}/>
+            {/* upload arrow */}
+            <div style={{position:'absolute',display:'flex',flexDirection:'column',alignItems:'center',gap:1}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(100,200,255,0.92)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+            </div>
+          </div>
+          <div style={{color:'rgba(255,255,255,0.95)',fontSize:'1.15rem',fontWeight:700,fontFamily:"'Inter',sans-serif",letterSpacing:'0.02em',marginBottom:6}}>
+            Uploading Documents
+          </div>
+          <div style={{color:'rgba(255,255,255,0.40)',fontSize:'0.78rem',fontFamily:"'Inter',sans-serif",marginBottom:22}}>
+            Please wait while we store your request…
+          </div>
+          {/* progress bar */}
+          <div style={{width:220,height:3,borderRadius:2,background:'rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:18}}>
+            <div style={{height:'100%',borderRadius:2,background:'linear-gradient(90deg,rgba(100,200,255,0.9),rgba(160,130,255,0.9))',animation:'_bar 3s ease-out forwards'}}/>
+          </div>
+          {/* bouncing dots */}
+          <div style={{display:'flex',gap:8}}>
+            {[0,1,2].map(i=>(
+              <div key={i} style={{width:7,height:7,borderRadius:'50%',background:`rgba(${i===0?'100,200,255':i===1?'160,130,255':'100,220,180'},0.75)`,animation:`_bob 1.1s ease-in-out ${i*0.18}s infinite`}}/>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── LEFT — AIBOT2 image panel ── */}
       <div className="form-left">
@@ -3419,13 +3491,16 @@ const Form = ({onSubmit, onBack}) => {
             onDragOver={e=>{e.preventDefault();setDrag(true);}}
             onDragLeave={()=>setDrag(false)}
             onDrop={drop}
+            style={errors.files?{border:'1.5px solid rgba(255,80,80,0.85)',boxShadow:'0 0 0 3px rgba(255,80,80,0.12)'}:{}}
           >
             <input type="file" multiple ref={ref} style={{display:'none'}}
-              onChange={e=>{if(e.target.files?.length)setFiles(p=>[...p,...Array.from(e.target.files)]);}}/>
+              onChange={e=>{if(e.target.files?.length){setFiles(p=>[...p,...Array.from(e.target.files)]);setErrors(p=>({...p,files:false}));}}}/>
             {files.length===0 ? (
               <>
-                <FileText size={46} className="u-icon" color="rgba(255,255,255,0.35)"/>
-                <p className="u-text" style={{marginTop:8}}>Drag & drop files, or <b>click to browse</b></p>
+                <FileText size={46} className="u-icon" color={errors.files?"rgba(255,100,100,0.7)":"rgba(255,255,255,0.35)"}/>
+                <p className="u-text" style={{marginTop:8,color:errors.files?'rgba(255,120,120,0.9)':undefined}}>
+                  {errors.files ? '⚠ At least one file is required' : <>Drag & drop files, or <b>click to browse</b></>}
+                </p>
               </>
             ) : (
               <div style={{width:'100%',display:'flex',flexDirection:'column',gap:6}} onClick={e=>e.stopPropagation()}>
@@ -3433,13 +3508,7 @@ const Form = ({onSubmit, onBack}) => {
                   <span style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.7)',fontWeight:600}}>{files.length} FILE{files.length>1?'S':''}</span>
                   <span onClick={e=>{e.stopPropagation();ref.current.click();}} style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>+ Add More</span>
                 </div>
-                {/* Scrollable file list — fixed height when > 5 files to prevent overflow */}
-                <div style={{
-                  display:'flex',flexDirection:'column',gap:5,
-                  maxHeight: files.length > 5 ? 200 : 'none',
-                  overflowY: files.length > 5 ? 'auto' : 'visible',
-                  paddingRight: files.length > 5 ? 4 : 0,
-                }}>
+                <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:files.length>5?200:'none',overflowY:files.length>5?'auto':'visible',paddingRight:files.length>5?4:0}}>
                   {files.map((file,i)=>(
                     <div key={i} className="file-chip-g">
                       <FileText size={12} color="rgba(255,255,255,0.5)"/>
@@ -3469,10 +3538,10 @@ const Form = ({onSubmit, onBack}) => {
           </div>
           {/* Customer Rank stars — top right */}
           <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
-            <span style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:600}}>Customer Rank</span>
-            <div style={{display:'flex',gap:4}}>
+            <span style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:errors.customerRank?'rgba(255,100,100,0.85)':'rgba(255,255,255,0.22)',fontWeight:600}}>Customer Rank *</span>
+            <div style={{display:'flex',gap:4,border:errors.customerRank?'1.5px solid rgba(255,80,80,0.75)':'1.5px solid transparent',borderRadius:6,padding:'2px 4px'}}>
               {[1,2,3,4,5].map(n=>(
-                <button key={n} type="button" onClick={()=>setF(p=>({...p,customerRank:n}))}
+                <button key={n} type="button" onClick={()=>{setF(p=>({...p,customerRank:n}));setErrors(p=>({...p,customerRank:false}));}}
                   style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'1rem',lineHeight:1,
                     color:f.customerRank>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.15)',
                     transition:'color 0.15s',
@@ -3484,8 +3553,8 @@ const Form = ({onSubmit, onBack}) => {
 
         {/* ── Single-column fields ── */}
         <div className="two-col-row">
-          <select className="glass-input" value={f.submittedBy} onChange={u('submittedBy')} style={{cursor:'pointer'}}>
-            <option value="">— Select Requestor —</option>
+          <select className="glass-input" value={f.submittedBy} onChange={u('submittedBy')} style={{cursor:'pointer',border:errBorder('submittedBy')}}>
+            <option value="">— Select Requestor * —</option>
             <optgroup label="Sales">
               {['SX985','SX417','SE628','SE842','SE519','SM386'].map(c=>(
                 <option key={c} value={STAFF_NAMES[c]}>{STAFF_NAMES[c]}</option>
@@ -3497,23 +3566,23 @@ const Form = ({onSubmit, onBack}) => {
               ))}
             </optgroup>
           </select>
-          <select className="glass-input" value={f.salesPerson} onChange={u('salesPerson')} style={{cursor:'pointer'}}>
-            <option value="">— Select Sales Person —</option>
+          <select className="glass-input" value={f.salesPerson} onChange={u('salesPerson')} style={{cursor:'pointer',border:errBorder('salesPerson')}}>
+            <option value="">— Select Sales Person * —</option>
             {['SX985','SX417','SE628','SE842','SE519','SM386'].map(c=>(
               <option key={c} value={STAFF_NAMES[c]}>{STAFF_NAMES[c]}</option>
             ))}
           </select>
         </div>
-        <input className="glass-input" placeholder="Project" value={f.proj} onChange={u('proj')}/>
-        <input className="glass-input" placeholder="Main Contractor" value={f.mainContractor} onChange={u('mainContractor')}/>
-        <input className="glass-input" placeholder="Consultant" value={f.consultant} onChange={u('consultant')}/>
-        <input className="glass-input" placeholder="Client / Grantor" value={f.client} onChange={u('client')}/>
+        <input className="glass-input" placeholder="Project *" value={f.proj} onChange={u('proj')} style={{border:errBorder('proj')}}/>
+        <input className="glass-input" placeholder="Main Contractor *" value={f.mainContractor} onChange={u('mainContractor')} style={{border:errBorder('mainContractor')}}/>
+        <input className="glass-input" placeholder="Consultant *" value={f.consultant} onChange={u('consultant')} style={{border:errBorder('consultant')}}/>
+        <input className="glass-input" placeholder="Client / Grantor *" value={f.client} onChange={u('client')} style={{border:errBorder('client')}}/>
 
         {/* Email + MOB + Tel — 3 columns */}
         <div className="three-col-row">
-          <input className="glass-input" placeholder="Email ID" type="email" value={f.email} onChange={u('email')}/>
-          <input className="glass-input" placeholder="MOB" value={f.mob} onChange={u('mob')}/>
-          <input className="glass-input" placeholder="Tel" value={f.tel} onChange={u('tel')}/>
+          <input className="glass-input" placeholder="Email ID *" type="email" value={f.email} onChange={u('email')} style={{border:errBorder('email')}}/>
+          <input className="glass-input" placeholder="MOB *" value={f.mob} onChange={u('mob')} style={{border:errBorder('mob')}}/>
+          <input className="glass-input" placeholder="Tel *" value={f.tel} onChange={u('tel')} style={{border:errBorder('tel')}}/>
         </div>
 
         {/* Type + Lead Time + Supply checkboxes */}
@@ -3526,28 +3595,35 @@ const Form = ({onSubmit, onBack}) => {
               <button className={deal==='Tender'?'sel':''} onClick={()=>setDeal('Tender')}>Tender</button>
             </div>
           </div>
-          <div className="date-field-wrap glass-input">
-            <span className="date-field-lbl">Deliver Lead Time</span>
+          <div className="date-field-wrap glass-input" style={{border:errBorder('leadTime')}}>
+            <span className="date-field-lbl" style={{color:errors.leadTime?'rgba(255,100,100,0.85)':undefined}}>Deliver Lead Time *</span>
             <input type="month" className="date-inner" value={f.leadTime} onChange={u('leadTime')} style={{colorScheme:'dark'}}/>
           </div>
-          <div className="check-row">
+          <div className="check-row" style={{border:errors.supply?'1.5px solid rgba(255,80,80,0.85)':'1.5px solid transparent',borderRadius:8,padding:'2px 6px'}}>
             <label className="glass-check">
-              <input type="checkbox" checked={f.supplyOnly} onChange={e=>setF(p=>({...p,supplyOnly:e.target.checked,supplyInstall:e.target.checked?false:p.supplyInstall}))}/>
+              <input type="checkbox" checked={f.supplyOnly} onChange={e=>{setF(p=>({...p,supplyOnly:e.target.checked,supplyInstall:e.target.checked?false:p.supplyInstall}));setErrors(p=>({...p,supply:false}));}}/>
               <span className="check-box"/>
-              <span>Supply Only</span>
+              <span style={{color:errors.supply?'rgba(255,120,120,0.9)':undefined}}>Supply Only *</span>
             </label>
             <label className="glass-check">
-              <input type="checkbox" checked={f.supplyInstall} onChange={e=>setF(p=>({...p,supplyInstall:e.target.checked,supplyOnly:e.target.checked?false:p.supplyOnly}))}/>
+              <input type="checkbox" checked={f.supplyInstall} onChange={e=>{setF(p=>({...p,supplyInstall:e.target.checked,supplyOnly:e.target.checked?false:p.supplyOnly}));setErrors(p=>({...p,supply:false}));}}/>
               <span className="check-box"/>
-              <span>Supply &amp; Install</span>
+              <span style={{color:errors.supply?'rgba(255,120,120,0.9)':undefined}}>Supply &amp; Install *</span>
             </label>
           </div>
         </div>
 
-        <input className="glass-input" placeholder="Address" value={f.address} onChange={u('address')}/>
-        <textarea className="glass-textarea remarks-box" placeholder="Remarks" value={f.remarks} onChange={u('remarks')}/>
+        <input className="glass-input" placeholder="Address *" value={f.address} onChange={u('address')} style={{border:errBorder('address')}}/>
+        <textarea className="glass-textarea remarks-box" placeholder="Remarks *" value={f.remarks} onChange={u('remarks')} style={{border:errBorder('remarks')}}/>
 
-        <button className="submit-glass" style={{flexShrink:0}} onClick={()=>onSubmit({...f,deal,docs:files.map(x=>x.name),docFiles:files})}>
+        {Object.values(errors).some(Boolean) && (
+          <div style={{fontSize:'0.72rem',color:'rgba(255,100,100,0.85)',fontFamily:"'Inter',sans-serif",marginBottom:2,display:'flex',alignItems:'center',gap:5}}>
+            <span>⚠</span>
+            <span>Please fill in all required fields and upload at least one file.</span>
+          </div>
+        )}
+
+        <button className="submit-glass" style={{flexShrink:0,opacity:submitting?0.6:1,cursor:submitting?'not-allowed':'pointer'}} onClick={handleSubmit} disabled={submitting}>
           <span className="btn-text-glow">Submit Request &nbsp;↗</span>
         </button>
       </div>
@@ -4823,7 +4899,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const F2 = "'Inter',sans-serif";
 
     const rankLabels = ['','Bronze','Silver','Gold','Platinum','Diamond'];
-    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
+    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Supply',req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'—'],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
       <div className="dash-detail-wrap" style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'0 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
