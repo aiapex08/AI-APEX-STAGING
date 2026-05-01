@@ -3125,7 +3125,7 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
             Cost Artist Dashboard
           </button>
           <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
-            Sales Analysis
+            Analysis
           </button>
           <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
             Sales View
@@ -4383,7 +4383,7 @@ const TATTimeline = ({ r, compact }) => {
           </div>
           {/* flex-expanding connector + TAT duration */}
           {i < stages.length - 1 && (
-            <div style={{flex:1,minWidth:18,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px',paddingBottom:8,justifyContent:'flex-start',gap:1}}>
+            <div style={{flex:1,minWidth:18,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px',paddingBottom:0,justifyContent:'flex-start',gap:1}}>
               {(() => {
                 const segTat = stages[i+1].tat;
                 const segColor = stages[i+1].color;
@@ -4392,13 +4392,13 @@ const TATTimeline = ({ r, compact }) => {
                   (i === 1 && r.taggedAt && !r.quotationSubmittedAt && liveMs)
                 );
                 return (segTat || isLive) ? (
-                  <span style={{fontSize:compact?'0.50rem':'0.58rem',color:segTat?segColor:'rgba(255,200,50,0.75)',fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',letterSpacing:'0.04em',
+                  <span style={{fontSize:compact?'0.72rem':'0.80rem',color:segTat?segColor:'rgba(255,200,50,0.75)',fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',letterSpacing:'0.04em',
                     textShadow:segTat?`0 0 8px ${segColor}80`:'0 0 8px rgba(255,200,50,0.40)',
-                    marginBottom:3}}>
+                    marginBottom:2}}>
                     {segTat ? fms(segTat) : `${fms(liveMs)} ↻`}
                   </span>
                 ) : (
-                  <span style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.16)',fontFamily:'monospace',marginBottom:3}}>—</span>
+                  <span style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.16)',fontFamily:'monospace',marginBottom:2}}>—</span>
                 );
               })()}
               <div style={{width:'100%',height:1.5,borderRadius:1,
@@ -4920,7 +4920,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               <div style={{fontSize:'0.46rem',letterSpacing:'0.16em',textTransform:'uppercase',
                 background:'linear-gradient(90deg,rgba(255,255,255,0.90) 0%,rgba(100,200,255,0.80) 100%)',
                 WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
-                marginBottom:7,fontWeight:700}}>Request Timeline</div>
+                marginBottom:3,fontWeight:700}}>Request Timeline</div>
               <TATTimeline r={req} compact={viewMode !== 'director'}/>
             </div>
           ) : (
