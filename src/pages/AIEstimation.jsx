@@ -1215,7 +1215,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
         }}>
           <div>
             <p style={{ fontSize: '0.58rem', letterSpacing: '0.26em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 8, fontWeight: 700 }}>NAFFCO · AI SYSTEM</p>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>Track your Quotation</h2>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>My Dashboard</h2>
             <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Enter your name as registered in a request to view your assigned requests.</p>
           </div>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1323,7 +1323,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
             { label:'Submitted',   color:'rgba(120,180,255,0.90)', done:!!(r.submittedAt||r.date), tsMs: subMs, tat: null },
             { label:'Assigned',    color:'rgba(255,200,50,0.90)',  done:!!r.taggedAt,              tsMs: r.taggedAt||null, tat: r.taggedAt && subMs ? r.taggedAt - subMs : null },
             { label:'Quoted',      color:'rgba(160,130,255,0.90)', done:!!r.quotationSubmittedAt,  tsMs: r.quotationSubmittedAt ? new Date(r.quotationSubmittedAt).getTime() : null, tat: r.quotationSubmittedAt && r.taggedAt ? new Date(r.quotationSubmittedAt).getTime() - r.taggedAt : null },
-            { label:'Cost Artist', color:'rgba(0,220,180,0.90)',   done:!!r.directorRespondedAt,   tsMs: r.directorRespondedAt ? new Date(r.directorRespondedAt).getTime() : null, tat: r.directorRespondedAt && r.quotationSubmittedAt ? new Date(r.directorRespondedAt).getTime() - new Date(r.quotationSubmittedAt).getTime() : null },
+            { label:'Cost-Artist', color:'rgba(0,220,180,0.90)',   done:!!r.directorRespondedAt,   tsMs: r.directorRespondedAt ? new Date(r.directorRespondedAt).getTime() : null, tat: r.directorRespondedAt && r.quotationSubmittedAt ? new Date(r.directorRespondedAt).getTime() - new Date(r.quotationSubmittedAt).getTime() : null },
           ];
 
           // Sales cycle TAT: submitted → Won/Lost
@@ -1628,7 +1628,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
       {/* Header */}
       <div className="ss-hdr">
         <div>
-          <span className="ss-title">{showAll ? 'Sales Overview' : 'Track your Quotation'}</span>
+          <span className="ss-title">{showAll ? 'Sales Overview' : 'My Dashboard'}</span>
           <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
             {showAll
               ? <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>All Sales Requests</span>
@@ -1788,7 +1788,7 @@ const ROLE_CODES = {
   EX552:'estimator', EX719:'estimator', EX638:'estimator', EX904:'estimator',
   EX471:'estimator', EX856:'estimator', EX392:'estimator', EX681:'estimator',
   EX547:'estimator', EX903:'estimator', EX764:'estimator',
-  // Cost Artist
+  // Director
   COSTA:'director', STAR:'director',
 };
 
@@ -1847,7 +1847,7 @@ const RoleLogin = ({ onLogin }) => {
           {[
             { label:'Sales',       hint:'SX985 · SX417 · SE628 · SE842 · SE519 · SM386', color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
             { label:'Estimator',   hint:'EX552 · EX719 · EX638 · EX904 · EX471 · EX856 · EX392 · EX681 · EX547 · EX903 · EX764', color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
-            { label:'Cost Artist', hint:'COSTA · STAR',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
+            { label:'Cost-Artist', hint:'COSTA · STAR',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
           ].map(({label,hint,color,bg,bd}) => (
             <div key={label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
               background:bg, border:`1px solid ${bd}`, borderRadius:10, padding:'9px 14px'}}>
@@ -2333,8 +2333,8 @@ const STAFF_NAMES = {
   'EX392':'Jaffar Shaik','EX681':'Muzafar Khasab Abdul',
   'EX547':'Afridi Miyan Basheer','EX903':'Alfaj Muhammad',
   'EX764':'Vimal Vencent',
-  // Cost Artist
-  'COSTA':'Nour Alyazji','STAR':'Nour Alyazji',
+  // Director
+  'COSTA':'APEX-CA','STAR':'APEX-CA',
 };
 
 const EST_ROSTER = [
@@ -2373,7 +2373,7 @@ const PROFILE_PICS = {
   'afridi miyan basheer':'/O.jpg','alfaj muhammad':'/R.jpg',
   'vimal vencent':'/Q.jpg',
   // Cost Artist name key
-  'nour alyazji':'/R.jpg',
+  'apex-ca':'/R.jpg',
 };
 
 const EstAvatar = ({ name, size=40, code='' }) => {
@@ -2687,6 +2687,312 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   );
 };
 
+// ─── TRACK YOUR QUOTATION ────────────────────────────────────────────────────
+const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
+  const F = "'Inter',sans-serif";
+  const [search, setSearch]     = useState('');
+  const [openIdx, setOpenIdx]   = useState(null);
+  const [chatMsg, setChatMsg]   = useState('');
+  const chatEndRef              = useRef(null);
+
+  const myReqs = requests.filter(r => {
+    const matchSP = showAll || (r.salesPerson || '').toLowerCase() === (spName || '').toLowerCase() || (r.submittedBy || '').toLowerCase() === (spName || '').toLowerCase();
+    const matchSearch = !search || r.id?.toLowerCase().includes(search.toLowerCase()) || (r.proj||'').toLowerCase().includes(search.toLowerCase()) || (r.client||'').toLowerCase().includes(search.toLowerCase());
+    return matchSP && matchSearch;
+  }).sort((a,b) => (b.submittedAt||b.date||'').localeCompare(a.submittedAt||a.date||''));
+
+  const STAGES = [
+    { key:'submitted',  label:'Submitted',         color:'rgba(100,180,255,0.90)' },
+    { key:'assigned',   label:'Estimator Assigned', color:'rgba(255,200,50,0.90)'  },
+    { key:'quoted',     label:'Quotation Ready',    color:'rgba(168,85,247,0.90)'  },
+    { key:'dir_review', label:'Cost-Artist Review',    color:'rgba(255,140,50,0.90)'  },
+    { key:'completed',  label:'Approved',           color:'rgba(0,220,130,0.90)'   },
+  ];
+
+  const getStageIdx = r => {
+    if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 4;
+    if (r.reqStatus === 'pending-director') return 3;
+    if (r.estimationFile || r.estimationDocs?.length) return 2;
+    if (r.estimator) return 1;
+    return 0;
+  };
+  const statusColor = r => {
+    if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'rgba(0,220,130,0.90)';
+    if (r.directorAction === 'rejected') return 'rgba(255,80,80,0.90)';
+    if (r.directorAction === 'revised')  return 'rgba(255,160,40,0.90)';
+    if (r.reqStatus === 'pending-director') return 'rgba(255,140,50,0.90)';
+    if (r.estimationFile) return 'rgba(168,85,247,0.90)';
+    if (r.estimator)      return 'rgba(255,200,50,0.90)';
+    return 'rgba(100,180,255,0.90)';
+  };
+  const statusLabel = r => {
+    if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'Approved';
+    if (r.directorAction === 'rejected') return 'Rejected';
+    if (r.directorAction === 'revised')  return 'Revision Required';
+    if (r.reqStatus === 'pending-director') return 'Awaiting Cost-Artist';
+    if (r.estimationFile) return 'Quotation Ready';
+    if (r.estimator)      return 'Being Estimated';
+    return 'Pending Assignment';
+  };
+
+  const sendMsg = (req, realIdx) => {
+    if (!chatMsg.trim() || !onUpdate) return;
+    const ts = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    onUpdate(realIdx, { conversation:[...(req.conversation||[]),{from:req.salesPerson||spName||'Sales',role:'sales',text:chatMsg.trim(),ts,tsMs:Date.now()}] });
+    setChatMsg('');
+    setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:'smooth'}),60);
+  };
+
+  const downloadDoc = d => {
+    if (!d?.data) return;
+    const byteStr = atob(d.data.split(',')[1]||d.data);
+    const ab = new ArrayBuffer(byteStr.length);
+    const ia = new Uint8Array(ab);
+    for (let i=0;i<byteStr.length;i++) ia[i]=byteStr.charCodeAt(i);
+    const blob = new Blob([ab],{type:d.type||'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=d.name||'quotation';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  /* ── DETAIL VIEW ── */
+  if (openIdx !== null) {
+    const r = myReqs[openIdx];
+    if (!r) { setOpenIdx(null); return null; }
+    const realIdx = requests.indexOf(r);
+    const sc = statusColor(r);
+    const sl = statusLabel(r);
+    const stageIdx = getStageIdx(r);
+    const quotReady = r.estimationFile || r.estimationDocs?.length;
+    const infoRows = [
+      ['Request ID', r.id], ['Project', r.proj||'—'], ['Client', r.client||'—'],
+      ['Deal Type', r.deal||'—'], ['Main Contractor', r.mainContractor||'—'],
+      ['Consultant', r.consultant||'—'], ['Email', r.email||'—'],
+      ['MOB', r.mob||'—'], ['Lead Time', r.leadTime||'—'],
+      ['Estimator', r.estimator||'—'], ['Submitted', r.date||'—'],
+    ];
+    const msgs = r.conversation || [];
+    return (
+      <div style={{position:'relative',width:'100%',height:'100%',padding:'66px 32px 24px',fontFamily:F,color:'#e2e8f0',overflowY:'auto'}}>
+        {/* Back + header */}
+        <button onClick={()=>setOpenIdx(null)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.45)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',display:'flex',alignItems:'center',gap:6,marginBottom:18}}>
+          ← Back to Quotations
+        </button>
+        {/* Status bar */}
+        <div style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${sc}40`,borderRadius:10,padding:'12px 20px',display:'flex',alignItems:'center',gap:12,marginBottom:24,flexWrap:'wrap'}}>
+          <span style={{width:10,height:10,borderRadius:'50%',background:sc,boxShadow:`0 0 8px ${sc}`,flexShrink:0}}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:2}}>Status</div>
+            <div style={{fontSize:'0.96rem',fontWeight:700,color:sc}}>{sl}</div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.25)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Request ID</div>
+            <div style={{fontFamily:'monospace',fontSize:'0.90rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</div>
+          </div>
+        </div>
+        {/* Stage tracker */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'16px 20px',marginBottom:24}}>
+          <div style={{display:'flex',alignItems:'center',gap:0}}>
+            {STAGES.map((st,si)=>{
+              const done=si<=stageIdx; const active=si===stageIdx;
+              return (
+                <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
+                    <div style={{width:'100%',height:4,background:done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
+                    <div style={{width:10,height:10,borderRadius:'50%',marginTop:-7,background:done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 10px ${st.color}`:undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
+                    <div style={{fontSize:'0.52rem',color:done?st.color:'rgba(255,255,255,0.22)',marginTop:5,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
+                  </div>
+                  {si<STAGES.length-1&&<div style={{width:6,flexShrink:0}}/>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* 2-col: info + chat */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1.15fr',gap:20,alignItems:'start'}}>
+          {/* LEFT — info + download */}
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'16px 18px'}}>
+              <p style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:10}}>Request Info</p>
+              {infoRows.map(([k,v])=>(
+                <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:10}}>
+                  <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
+                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.75)',textAlign:'right'}}>{v}</span>
+                </div>
+              ))}
+            </div>
+            {/* Download quotation */}
+            <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${quotReady?'rgba(168,85,247,0.30)':'rgba(255,255,255,0.07)'}`,borderRadius:10,padding:'16px 18px'}}>
+              <p style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:quotReady?'rgba(168,85,247,0.70)':'rgba(255,255,255,0.22)',marginBottom:10}}>Quotation</p>
+              {quotReady ? (
+                <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                  {(r.estimationDocs||[r.estimationDoc]).filter(Boolean).map((d,i)=>(
+                    <button key={i} onClick={()=>d?.data?downloadDoc(d):null}
+                      style={{display:'flex',alignItems:'center',gap:8,padding:'9px 14px',borderRadius:8,background:'rgba(168,85,247,0.10)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(210,170,255,0.90)',fontFamily:F,fontSize:'0.80rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.20)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='rgba(168,85,247,0.10)'}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      {d?.name || r.estimationFile || `Quotation_${r.id}`}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.25)',lineHeight:1.6,margin:0}}>Quotation will be available once the estimator uploads it.</p>
+              )}
+            </div>
+            {/* Director remarks */}
+            {r.directorAction && (
+              <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'14px 18px'}}>
+                <p style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:8}}>Cost-Artist's Decision</p>
+                <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:r.directorNote?8:0}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:sc,boxShadow:`0 0 5px ${sc}`,flexShrink:0}}/>
+                  <span style={{fontSize:'0.80rem',fontWeight:700,color:sc}}>{sl}</span>
+                </div>
+                {r.directorNote && <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.60)',lineHeight:1.55,margin:0,paddingLeft:14,borderLeft:`2px solid ${sc}40`}}>{r.directorNote}</p>}
+              </div>
+            )}
+          </div>
+          {/* RIGHT — Chat box */}
+          <div style={{background:'rgba(109,40,17,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,minHeight:520}}>
+            <div style={{display:'flex',alignItems:'center',gap:9,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)'}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
+              <p style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',margin:0,fontWeight:700}}>Conversation</p>
+              {r.estimator && <span style={{marginLeft:'auto',fontSize:'0.65rem',color:'rgba(100,200,255,0.55)',fontWeight:500}}>with {r.estimator}</span>}
+            </div>
+            {/* Messages */}
+            <div style={{flex:1,display:'flex',flexDirection:'column',gap:10,overflowY:'auto',minHeight:0,maxHeight:360,paddingRight:4,scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.20) transparent'}}>
+              {msgs.length === 0 ? (
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:10,opacity:0.4}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.30)',margin:0,fontStyle:'italic'}}>No messages yet. Start the conversation.</p>
+                </div>
+              ) : msgs.map((msg,i)=>{
+                const isSales = msg.role==='sales';
+                return (
+                  <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isSales?'flex-end':'flex-start'}}>
+                    <div style={{maxWidth:'82%',background:isSales?'rgba(109,40,217,0.28)':'rgba(255,255,255,0.06)',border:isSales?'1px solid rgba(168,85,247,0.35)':'1px solid rgba(255,255,255,0.10)',borderRadius:isSales?'14px 14px 3px 14px':'14px 14px 14px 3px',padding:'9px 13px'}}>
+                      <div style={{fontSize:'0.58rem',color:isSales?'rgba(196,181,253,0.70)':'rgba(100,200,255,0.65)',marginBottom:4,fontWeight:600}}>{msg.from} · {msg.ts}</div>
+                      <div style={{fontSize:'0.86rem',color:'rgba(255,255,255,0.86)',lineHeight:1.5}}>{msg.text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef}/>
+            </div>
+            {/* Input */}
+            <div style={{display:'flex',gap:9,alignItems:'flex-end',paddingTop:10,borderTop:'1px solid rgba(168,85,247,0.14)'}}>
+              <textarea value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg(r,realIdx);}}}
+                placeholder="Type a message… (Enter to send)"
+                rows={2}
+                style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:10,padding:'10px 13px',color:'#e2e8f0',fontFamily:F,fontSize:'0.86rem',outline:'none',resize:'none',lineHeight:1.5}}
+              />
+              <button onClick={()=>sendMsg(r,realIdx)}
+                style={{width:40,height:40,borderRadius:10,flexShrink:0,background:'rgba(109,40,217,0.55)',border:'1px solid rgba(168,85,247,0.50)',color:'#e2d9ff',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',alignSelf:'flex-end'}}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── LIST VIEW ── */
+  return (
+    <div style={{position:'relative',width:'100%',minHeight:'100%',padding:'72px 36px 36px',fontFamily:F,color:'#e2e8f0',overflowY:'auto'}}>
+      <div style={{maxWidth:960,margin:'0 auto'}}>
+        {/* Header */}
+        <div style={{marginBottom:24}}>
+          <p style={{fontSize:'0.55rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',marginBottom:6,fontWeight:700}}>NAFFCO · AI SYSTEM</p>
+          <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.92)',margin:0,marginBottom:4}}>Track your Quotation</h2>
+          <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',margin:0}}>
+            {showAll ? 'All submitted quotation requests' : `Quotations submitted by ${spName || 'you'}`}
+          </p>
+        </div>
+        {/* Search */}
+        <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'8px 14px',marginBottom:24,maxWidth:360}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by ID, project or client…"
+            style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.82rem'}}/>
+        </div>
+        {/* Summary chips */}
+        {(()=>{
+          const all=myReqs.length,approved=myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length,pending=myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length,rejected=myReqs.filter(r=>r.directorAction==='rejected').length;
+          return (
+            <div style={{display:'flex',gap:10,marginBottom:24,flexWrap:'wrap'}}>
+              {[['Total',all,'rgba(100,160,255,0.80)','rgba(80,120,255,0.15)'],['Approved',approved,'rgba(0,220,130,0.90)','rgba(0,180,100,0.12)'],['In Progress',pending,'rgba(255,200,50,0.90)','rgba(220,160,0,0.12)'],['Rejected',rejected,'rgba(255,80,80,0.90)','rgba(200,40,40,0.12)']].map(([lbl,cnt,c,bg])=>(
+                <div key={lbl} style={{background:bg,border:`1px solid ${c}30`,borderRadius:8,padding:'8px 18px',display:'flex',flexDirection:'column',gap:2}}>
+                  <span style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:c,fontWeight:700}}>{lbl}</span>
+                  <span style={{fontSize:'1.4rem',fontWeight:800,color:c,lineHeight:1}}>{cnt}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+        {/* Cards */}
+        {myReqs.length === 0 ? (
+          <div style={{textAlign:'center',padding:'48px 0',color:'rgba(255,255,255,0.22)'}}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginBottom:12,opacity:0.3}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p style={{fontSize:'0.88rem',margin:0}}>No quotations found.</p>
+          </div>
+        ) : myReqs.map((r,i) => {
+          const stageIdx=getStageIdx(r),sc=statusColor(r),sl=statusLabel(r);
+          const hasNewMsg=(r.conversation||[]).some(m=>m.role==='estimator');
+          return (
+            <div key={r.id||i}
+              onClick={()=>setOpenIdx(i)}
+              style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'18px 20px',marginBottom:14,cursor:'pointer',transition:'all 0.2s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(168,85,247,0.40)';e.currentTarget.style.background='rgba(109,40,217,0.06)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.08)';e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:14}}>
+                <div>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                    <span style={{fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
+                    <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 10px',borderRadius:50,background:`${sc}18`,border:`1px solid ${sc}40`}}>
+                      <span style={{width:5,height:5,borderRadius:'50%',background:sc,boxShadow:`0 0 5px ${sc}`,flexShrink:0}}/>
+                      <span style={{fontSize:'0.65rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
+                    </span>
+                    {hasNewMsg && <span style={{fontSize:'0.60rem',color:'rgba(168,85,247,0.90)',fontWeight:700,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:50,padding:'1px 8px'}}>💬 Message</span>}
+                  </div>
+                  <div style={{fontSize:'0.84rem',fontWeight:600,color:'rgba(255,255,255,0.82)',marginBottom:2}}>{r.proj||'—'}</div>
+                  <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)'}}>{r.client||'—'}{r.deal?` · ${r.deal}`:''}</div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.25)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Submitted</div>
+                  <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.60)',fontWeight:600}}>{r.date||'—'}</div>
+                  {r.estimator&&<div style={{fontSize:'0.72rem',color:'rgba(100,200,255,0.65)',marginTop:4}}>Est: {r.estimator}</div>}
+                  <div style={{fontSize:'0.65rem',color:'rgba(168,85,247,0.55)',marginTop:6,fontWeight:600}}>Open →</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:0}}>
+                {STAGES.map((st,si)=>{
+                  const done=si<=stageIdx,active=si===stageIdx;
+                  return (
+                    <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
+                        <div style={{width:'100%',height:3,background:done?st.color:'rgba(255,255,255,0.08)',borderRadius:2}}/>
+                        <div style={{width:8,height:8,borderRadius:'50%',marginTop:-5.5,background:done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 8px ${st.color}`:undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
+                        <div style={{fontSize:'0.50rem',color:done?st.color:'rgba(255,255,255,0.22)',marginTop:4,letterSpacing:'0.06em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
+                      </div>
+                      {si<STAGES.length-1&&<div style={{width:8,flexShrink:0}}/>}
+                    </div>
+                  );
+                })}
+              </div>
+              {r.directorNote&&(
+                <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.06)',fontSize:'0.76rem',color:'rgba(255,200,140,0.75)',fontStyle:'italic'}}>
+                  Cost-Artist: "{r.directorNote}"
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
 const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout, onDirectTool, onDirectorAccess }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
@@ -2695,10 +3001,15 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
   const salesActive   = view === 'salesStatus';
   const perfActive    = view === 'salesPerformance';
   const diaryActive   = view === 'salesDiary';
+  const trackActive   = view === 'trackQuotation';
   const [showDirPrompt, setShowDirPrompt] = useState(false);
   const [dirCode, setDirCode] = useState('');
   const [dirErr, setDirErr] = useState(false);
   const dirInputRef = useRef(null);
+  const [showEstPrompt, setShowEstPrompt] = useState(false);
+  const [estCode, setEstCode] = useState('');
+  const [estErr, setEstErr] = useState(false);
+  const estInputRef = useRef(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   useEffect(() => {
     if (!showProfileMenu) return;
@@ -2736,6 +3047,26 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
           </div>
         </div>
       )}
+      {/* Estimation Dashboard access code prompt */}
+      {showEstPrompt && (
+        <div style={{position:'fixed',inset:0,zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(6px)'}}>
+          <div style={{background:'rgba(8,4,24,0.97)',border:'1px solid rgba(100,180,255,0.28)',borderRadius:14,padding:'28px 32px',width:300,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 20px 60px rgba(0,0,0,0.6)'}}>
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'rgba(100,180,255,0.60)',margin:0,fontWeight:700,fontFamily:"'Inter',sans-serif"}}>Estimation Access</p>
+            <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.65)',margin:0,fontFamily:"'Inter',sans-serif"}}>Enter estimator access code</p>
+            <input ref={estInputRef} type="password" value={estCode} onChange={e=>{setEstCode(e.target.value);setEstErr(false);}}
+              onKeyDown={e=>{if(e.key==='Enter'){const c=estCode.trim().toUpperCase();if(c==='EST'){setShowEstPrompt(false);setEstCode('');setView('dashboard');}else{setEstErr(true);setTimeout(()=>setEstErr(false),1200);}}}}
+              placeholder="· · · ·"
+              style={{background:'transparent',border:`1px solid ${estErr?'rgba(255,80,80,0.60)':'rgba(100,180,255,0.30)'}`,borderRadius:8,color:estErr?'rgba(255,100,100,0.90)':'rgba(100,200,255,0.90)',
+                fontFamily:"'Rajdhani','Orbitron',monospace",fontSize:'1.4rem',fontWeight:700,letterSpacing:'0.35em',textAlign:'center',
+                padding:'10px 14px',outline:'none',width:'100%',boxSizing:'border-box',transition:'border-color 0.2s',textTransform:'uppercase'}}/>
+            {estErr && <p style={{fontSize:'0.72rem',color:'rgba(255,80,80,0.80)',margin:0,textAlign:'center',fontFamily:"'Inter',sans-serif"}}>Invalid code — try again</p>}
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>{setShowEstPrompt(false);setEstCode('');}} style={{flex:1,padding:'9px 0',borderRadius:8,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.38)',fontFamily:"'Inter',sans-serif",fontSize:'0.82rem',cursor:'pointer',outline:'none'}}>Cancel</button>
+              <button onClick={()=>{const c=estCode.trim().toUpperCase();if(c==='EST'){setShowEstPrompt(false);setEstCode('');setView('dashboard');}else{setEstErr(true);setTimeout(()=>setEstErr(false),1200);}}} style={{flex:2,padding:'9px 0',borderRadius:8,background:'rgba(0,100,200,0.15)',border:'1px solid rgba(100,180,255,0.40)',color:'rgba(120,200,255,0.90)',fontFamily:"'Inter',sans-serif",fontSize:'0.84rem',fontWeight:700,cursor:'pointer',outline:'none'}}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Logo */}
       <button onClick={onHome} style={{background:'transparent',border:'none',cursor:'pointer',padding:0,marginRight:12,flexShrink:0,display:'flex',alignItems:'center'}}>
         <img src="/NN.png" alt="NAFFCO Home" style={{height:'clamp(26px,4vw,36px)',width:'auto',objectFit:'contain',display:'block'}}/>
@@ -2751,7 +3082,7 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
           <button className={`nav-btn${view==='openRequests'?' active':''}`} onClick={()=>setView('openRequests')}>
             Open Requests
           </button>
-          <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
+          <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>{setShowEstPrompt(true);setEstCode('');setEstErr(false);setTimeout(()=>estInputRef.current?.focus(),60);}}>
             Estimation Dashboard
           </button>
         </>}
@@ -2761,8 +3092,11 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
           <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
             Sales &amp; Marketing
           </button>
-          <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
+          <button className={`nav-btn${trackActive?' active':''}`} onClick={()=>setView('trackQuotation')}>
             Track your Quotation
+          </button>
+          <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
+            My Dashboard
           </button>
           <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
             Sales Performance
@@ -3194,7 +3528,7 @@ const Form = ({onSubmit, onBack}) => {
           </div>
           <div className="date-field-wrap glass-input">
             <span className="date-field-lbl">Deliver Lead Time</span>
-            <input type="date" className="date-inner" value={f.leadTime} onChange={u('leadTime')} style={{colorScheme:'dark'}}/>
+            <input type="month" className="date-inner" value={f.leadTime} onChange={u('leadTime')} style={{colorScheme:'dark'}}/>
           </div>
           <div className="check-row">
             <label className="glass-check">
@@ -3760,9 +4094,9 @@ const Results = ({id, req, q, setQ, go}) => {
                   : req.status === 'Pending Estimation'
                     ? 'Your request is being processed by our estimation team.'
                     : req.status === 'Pending Approval'
-                      ? 'Quotation is pending Director approval.'
+                      ? 'Quotation is pending Cost-Artist approval.'
                       : req.status === 'Estimation Uploaded'
-                        ? 'Estimation uploaded — awaiting Director review.'
+                        ? 'Estimation uploaded — awaiting Cost-Artist review.'
                         : 'Request is in progress.'}
               </p>
               {canDownload && (
@@ -3974,7 +4308,7 @@ const REQ_STATUS_STYLE = {
   onhold:             {c:'#ff9020',               bg:'rgba(255,135,0,0.08)',    bd:'rgba(255,135,0,0.35)',    label:'On Hold'},
   overdue:            {c:'#d05200',               bg:'rgba(210,82,0,0.09)',     bd:'rgba(210,82,0,0.38)',     label:'Overdue'},
   risky:              {c:'#dd3535',               bg:'rgba(215,45,45,0.09)',    bd:'rgba(215,55,55,0.38)',    label:'Risky'},
-  'pending-director': {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost Artist Under Review'},
+  'pending-director': {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost-Artist Under Review'},
   completed:          {c:'#00cc77',               bg:'rgba(0,180,90,0.09)',     bd:'rgba(0,210,100,0.35)',   label:'Approved ✓'},
 };
 
@@ -3996,37 +4330,53 @@ function calcTATStages(r) {
 }
 
 // ── Mini timeline pill strip ──────────────────────────────────────────────────
-const TATTimeline = ({ r }) => {
+const TATTimeline = ({ r, showTimestamps }) => {
   const F = "'Inter',sans-serif";
   const fms = ms => {
     if (!ms) return '—';
     const h = Math.floor(ms/3600000); const m = Math.floor((ms%3600000)/60000);
     return h > 23 ? `${Math.floor(h/24)}d ${h%24}h` : `${h}h ${m}m`;
   };
+  const fdt = ts => {
+    if (!ts) return null;
+    try { const d = new Date(typeof ts === 'number' ? ts : ts); return d.toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}); } catch { return null; }
+  };
   const { s1, s2, s3, cycles } = calcTATStages(r);
   const stages = [
-    { label: 'Submitted',  color: 'rgba(120,180,255,0.85)', done: !!r.submittedAt,  tat: null },
-    { label: 'Assigned',   color: 'rgba(255,200,50,0.85)',  done: !!r.taggedAt,     tat: s1 },
-    { label: 'Quoted',     color: 'rgba(160,130,255,0.90)', done: !!r.quotationSubmittedAt, tat: s2 },
-    { label: 'Cost Artist', color: 'rgba(0,220,180,0.85)',   done: !!r.directorRespondedAt, tat: s3 },
+    { label: 'Submitted',   color: 'rgba(120,180,255,0.85)', done: !!r.submittedAt,           tat: null, ts: r.submittedAt },
+    { label: 'Assigned',    color: 'rgba(255,200,50,0.85)',  done: !!r.taggedAt,              tat: s1,   ts: r.taggedAt },
+    { label: 'Quoted',      color: 'rgba(160,130,255,0.90)', done: !!r.quotationSubmittedAt,  tat: s2,   ts: r.quotationSubmittedAt },
+    { label: 'Cost-Artist', color: 'rgba(0,220,180,0.85)',   done: !!r.directorRespondedAt,   tat: s3,   ts: r.directorRespondedAt },
   ];
+  const mbAdj = showTimestamps ? 24 : 16;
   return (
-    <div style={{display:'flex',alignItems:'center',gap:0,flexWrap:'nowrap',overflow:'hidden',fontFamily:F}}>
+    <div style={{display:'flex',alignItems:'flex-start',gap:0,flexWrap:'nowrap',fontFamily:F}}>
       {stages.map((st, i) => (
-        <div key={i} style={{display:'flex',alignItems:'center',gap:0,flexShrink:0}}>
-          {/* dot + label */}
+        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:0,flexShrink:0}}>
+          {/* dot + label + timestamp */}
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-            <div style={{width:7,height:7,borderRadius:'50%',
-              background:st.done?st.color:'rgba(255,255,255,0.12)',
-              boxShadow:st.done?`0 0 6px ${st.color}`:'none',
-              border:st.done?'none':'1px solid rgba(255,255,255,0.18)',flexShrink:0}}/>
-            <span style={{fontSize:'0.50rem',color:st.done?'rgba(255,255,255,0.55)':'rgba(255,255,255,0.20)',letterSpacing:'0.08em',whiteSpace:'nowrap'}}>{st.label}</span>
+            <div style={{width:9,height:9,borderRadius:'50%',
+              background:st.done?st.color:'rgba(255,255,255,0.14)',
+              boxShadow:st.done?`0 0 8px ${st.color},0 0 16px ${st.color}55`:'none',
+              border:st.done?`1px solid ${st.color}`:'1px solid rgba(255,255,255,0.22)',flexShrink:0,marginBottom:1}}/>
+            <span style={{fontSize:'0.54rem',fontWeight:st.done?700:400,
+              background:st.done?`linear-gradient(135deg,#fff 0%,${st.color} 100%)`:'none',
+              WebkitBackgroundClip:st.done?'text':'unset',
+              WebkitTextFillColor:st.done?'transparent':'unset',
+              color:st.done?'unset':'rgba(255,255,255,0.28)',
+              letterSpacing:'0.07em',whiteSpace:'nowrap'}}>{st.label}</span>
+            {showTimestamps && st.done && fdt(st.ts) && (
+              <span style={{fontSize:'0.44rem',color:st.color,whiteSpace:'nowrap',fontFamily:'monospace',marginTop:1,fontWeight:600,opacity:0.90}}>{fdt(st.ts)}</span>
+            )}
           </div>
           {/* connector + TAT */}
           {i < stages.length - 1 && (
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',margin:'0 4px',marginBottom:14}}>
-              <span style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.22)',whiteSpace:'nowrap',marginBottom:1}}>{st.tat?fms(st.tat):''}</span>
-              <div style={{width:22,height:1,background:stages[i+1].done?'rgba(255,255,255,0.20)':'rgba(255,255,255,0.07)'}}/>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',margin:'0 8px',marginBottom:mbAdj}}>
+              <span style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.35)',whiteSpace:'nowrap',marginBottom:2,fontFamily:'monospace'}}>{st.tat?fms(st.tat):''}</span>
+              <div style={{width:32,height:1.5,borderRadius:1,
+                background:stages[i+1].done
+                  ?`linear-gradient(90deg,${st.color}90,${stages[i+1].color}90)`
+                  :'rgba(255,255,255,0.10)'}}/>
             </div>
           )}
         </div>
@@ -4216,7 +4566,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
               ) : (
                 <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:7}}>
                   <span style={{width:5,height:5,borderRadius:'50%',background:'rgba(255,180,0,0.70)',flexShrink:0}}/>
-                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>Available after Director approval</span>
+                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>Available after Cost-Artist approval</span>
                 </div>
               )}
             </GC>
@@ -4274,7 +4624,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
             </div>
             <div>
               <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:7,fontWeight:600}}>Remarks</div>
-              <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Add director remarks or revision notes…" rows={3}
+              <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Add Cost-Artist remarks or revision notes…" rows={3}
                 style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:10,color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.83rem',padding:'10px 14px',outline:'none',resize:'none',boxSizing:'border-box',backdropFilter:'blur(12px)',boxShadow:'inset 0 1px 0 rgba(255,255,255,0.05)'}}
                 onFocus={e=>e.target.style.borderColor='rgba(0,210,255,0.30)'}
                 onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
@@ -4283,7 +4633,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 
           {/* ── Director Decision ── */}
           <div>
-            <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:10,fontWeight:600}}>Director Decision</div>
+            <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:10,fontWeight:600}}>Cost-Artist Decision</div>
             <div style={{display:'flex',gap:10}}>
               {ACTIONS.map(a=>(
                 <button key={a.v} onClick={()=>setAction(a.v)}
@@ -4380,14 +4730,20 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [pinError, setPinError] = useState(false);
   const [dirTab, setDirTab] = useState('history'); // 'history' | 'analysis'
   const [deleteConfirm, setDeleteConfirm] = useState(null); // realIdx to delete
+  const [deleteCode, setDeleteCode] = useState('');          // must type 'xepa' to confirm
+  const [convoInput, setConvoInput] = useState('');
+  const [convoCollapsed, setConvoCollapsed] = useState(false);
+  const [dirConvoOpen, setDirConvoOpen] = useState(true);   // Conversation panel expanded
+  const [dirAiOpen, setDirAiOpen] = useState(true);         // AI Suggestions panel expanded
+  const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
 
-  const PIN = { estimator: 'est', director: 'star' };
+  const PIN = { estimator: 'EST', director: 'star' };
   const requestViewSwitch = (mode) => {
     if (mode === 'requester') { setViewMode('requester'); return; }
     setPinValue(''); setPinError(false); setPinPrompt(mode);
   };
   const confirmPin = () => {
-    if (pinValue === PIN[pinPrompt]) { setViewMode(pinPrompt); setPinPrompt(null); }
+    if (pinValue.trim().toUpperCase() === PIN[pinPrompt].toUpperCase()) { setViewMode(pinPrompt); setPinPrompt(null); }
     else { setPinError(true); setPinValue(''); }
   };
   const uploadRef = useRef();
@@ -4425,7 +4781,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const tatPctDash = Math.min(100, (tatElapsedDash / TAT_MS) * 100);
     const tatBarColor = tatPctDash >= 100 ? '#ff4d4d' : tatPctDash >= 75 ? '#ff7a30' : tatPctDash >= 50 ? '#ffb347' : '#00e5ff';
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-    const canSendToDirector = req.estimationFile && req.margin && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
+    const canSendToDirector = (req.estimationFile || (req.estimationDocs && req.estimationDocs.length > 0)) && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -4437,7 +4793,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
-      <div className="dash-detail-wrap" style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'62px 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
+      <div className="dash-detail-wrap" style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'0 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
 
         {/* ── Role watermark — top right ── */}
         {(viewMode === 'director' || viewMode === 'estimator') && (
@@ -4451,84 +4807,110 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             border: `1px solid ${viewMode==='director'?'rgba(0,220,255,0.10)':'rgba(255,200,50,0.10)'}`,
             borderRadius:4, padding:'3px 8px',
           }}>
-            {viewMode === 'director' ? '⬡ Director View' : '◈ Estimator View'}
+            {viewMode === 'director' ? '⬡ Cost-Artist View' : '◈ Estimator View'}
           </div>
         )}
 
         {reviewIdx !== null && (
           <DirectorReviewModal req={requests[reviewIdx]} idx={reviewIdx} now={now} onUpdate={onUpdate} onClose={()=>setReviewIdx(null)}/>
         )}
-        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:viewMode==='director'?8:16}}>
-          <button onClick={()=>setOpen(null)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:'0.82rem',fontFamily:F2,alignSelf:'flex-start',display:'flex',alignItems:'center',gap:6}}>
+        {/* ── Sticky sub-nav header ── */}
+        <div style={{
+          position:'sticky', top:0, zIndex:50,
+          margin:'0 -36px 16px',
+          padding:'10px 36px',
+          background:'rgba(6,2,20,0.92)',
+          backdropFilter:'blur(18px)',
+          WebkitBackdropFilter:'blur(18px)',
+          borderBottom:`1px solid ${rss.bd}`,
+          display:'flex', alignItems:'center', gap:14,
+        }}>
+          {/* Back */}
+          <button onClick={()=>setOpen(null)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.45)',cursor:'pointer',fontSize:'0.78rem',fontFamily:F2,display:'flex',alignItems:'center',gap:6,flexShrink:0,padding:'4px 0'}}>
             ← All Requests
           </button>
-          {viewMode === 'director' && (
-            <button
-              onClick={() => setDeleteConfirm(open)}
-              title="Delete this request"
-              style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:50,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(220,80,80,0.80)',fontFamily:F2,fontSize:'0.72rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',marginLeft:4}}
-              onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';e.currentTarget.style.borderColor='rgba(220,60,60,0.55)';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';e.currentTarget.style.borderColor='rgba(220,50,50,0.30)';}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-              Delete Request
-            </button>
-          )}
-          {(req.requestType==='revised'||req.requestType==='finalPrice') && (
-            <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:50,
-              background:req.requestType==='finalPrice'?'rgba(16,185,129,0.12)':'rgba(0,150,255,0.12)',
-              border:req.requestType==='finalPrice'?'1px solid rgba(52,211,153,0.32)':'1px solid rgba(0,180,255,0.32)'}}>
-              <span style={{width:6,height:6,borderRadius:'50%',
-                background:req.requestType==='finalPrice'?'rgba(52,211,153,0.9)':'rgba(0,200,255,0.9)',
-                boxShadow:req.requestType==='finalPrice'?'0 0 6px rgba(52,211,153,0.7)':'0 0 6px rgba(0,200,255,0.7)',flexShrink:0}}/>
-              <span style={{fontSize:'0.60rem',fontWeight:700,letterSpacing:'0.12em',
-                color:req.requestType==='finalPrice'?'rgba(52,211,153,0.95)':'rgba(0,200,255,0.90)',textTransform:'uppercase'}}>
-                {req.requestType==='finalPrice'?'Final Price Request':'Revised Request'}
-              </span>
-              {req.originalId && <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.32)',letterSpacing:'0.06em'}}>ref: {req.originalId}</span>}
+          <div style={{width:1,height:22,background:'rgba(255,255,255,0.10)',flexShrink:0}}/>
+          {/* Request ID + type badge */}
+          <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+            <div>
+              <div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:1}}>Request ID</div>
+              <div style={{fontSize:'0.88rem',fontWeight:700,color:'rgba(220,165,0,0.90)',fontFamily:'monospace'}}>{req.id}</div>
             </div>
-          )}
-        </div>
-
-        {/* ── Status bar — TOP, always first ── */}
-        <div style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${rss.bd}`,borderRadius:8,padding:viewMode==='director'?'5px 12px':'14px 20px',display:'flex',alignItems:'center',gap:10,marginBottom:viewMode==='director'?6:20,flexWrap:'wrap'}}>
-          <span style={{width:viewMode==='director'?7:11,height:viewMode==='director'?7:11,borderRadius:'50%',background:rss.c,flexShrink:0,boxShadow:`0 0 8px ${rss.c}`}}/>
-          <div style={{flex:1,minWidth:0}}>
-            {viewMode!=='director'&&<div style={{fontSize:'0.56rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:3}}>Request Status</div>}
-            <div style={{fontSize:viewMode==='director'?'0.78rem':'1rem',fontWeight:700,color:rss.c}}>{rss.label}</div>
-            {req.directorNote && viewMode!=='director' && <div style={{fontSize:'0.76rem',color:'rgba(255,140,100,0.85)',marginTop:3}}>{req.directorNote}</div>}
+            {(req.requestType==='revised'||req.requestType==='finalPrice') && (
+              <div style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:50,
+                background:req.requestType==='finalPrice'?'rgba(16,185,129,0.12)':'rgba(0,150,255,0.12)',
+                border:req.requestType==='finalPrice'?'1px solid rgba(52,211,153,0.32)':'1px solid rgba(0,180,255,0.32)'}}>
+                <span style={{width:5,height:5,borderRadius:'50%',background:req.requestType==='finalPrice'?'rgba(52,211,153,0.9)':'rgba(0,200,255,0.9)',flexShrink:0}}/>
+                <span style={{fontSize:'0.54rem',fontWeight:700,letterSpacing:'0.10em',color:req.requestType==='finalPrice'?'rgba(52,211,153,0.95)':'rgba(0,200,255,0.90)',textTransform:'uppercase'}}>
+                  {req.requestType==='finalPrice'?'Final Price':'Revised'}
+                </span>
+                {req.originalId && <span style={{fontSize:'0.54rem',color:'rgba(255,255,255,0.28)'}}>ref: {req.originalId}</span>}
+              </div>
+            )}
           </div>
-          <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'center'}}>
-            {req.customerRank > 0 && (() => {
-              const rc = ['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
-              return (
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Customer Rank</div>
-                  <div style={{display:'flex',gap:2,justifyContent:'flex-end'}}>
-                    {[1,2,3,4,5].map(n=>(
-                      <span key={n} style={{fontSize:'0.78rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.12)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>
-                    ))}
+          {/* Customer rank + Director action */}
+          {req.customerRank > 0 && (() => {
+            const rc=['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
+            return <div style={{display:'flex',gap:2,alignItems:'center',flexShrink:0}}>{[1,2,3,4,5].map(n=>(<span key={n} style={{fontSize:'0.70rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.10)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>))}</div>;
+          })()}
+          {req.directorAction && (
+            <span style={{fontSize:'0.72rem',fontWeight:700,flexShrink:0,color:req.directorAction==='approved'?'#00cc77':req.directorAction==='rejected'?'#dd3535':'rgba(120,180,255,0.90)'}}>
+              {req.directorAction.charAt(0).toUpperCase()+req.directorAction.slice(1)}
+            </span>
+          )}
+          {/* Estimator + Sales avatars */}
+          {(req.estimator || req.salesPerson) && (
+            <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0,paddingRight:14,borderRight:'1px solid rgba(255,255,255,0.08)'}}>
+              {req.estimator && (
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <EstAvatar name={req.estimator} size={26}/>
+                  <div>
+                    <div style={{fontSize:'0.46rem',color:'rgba(99,200,255,0.50)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700}}>Estimator</div>
+                    <div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.76)'}}>{req.estimator}</div>
                   </div>
                 </div>
-              );
-            })()}
-            <div style={{textAlign:'right'}}>
-              <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Request ID</div>
-              <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',fontFamily:'monospace'}}>{req.id}</div>
+              )}
+              {req.salesPerson && (
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <EstAvatar name={req.salesPerson} size={26}/>
+                  <div>
+                    <div style={{fontSize:'0.46rem',color:'rgba(160,130,255,0.50)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700}}>Sales</div>
+                    <div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.76)'}}>{req.salesPerson}</div>
+                  </div>
+                </div>
+              )}
             </div>
-            {req.estimator && <div style={{textAlign:'right'}}>
-              <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Estimator</div>
-              <div style={{fontSize:'0.82rem',fontWeight:600,color:'rgba(100,190,255,0.90)'}}>{req.estimator}</div>
-            </div>}
-            {req.margin && viewMode !== 'requester' && <div style={{textAlign:'right'}}>
-              <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Margin</div>
-              <div style={{fontSize:'1rem',fontWeight:800,color:'rgba(0,210,255,0.95)',fontFamily:'monospace'}}>{req.margin}%</div>
-            </div>}
-            {req.directorAction && <div style={{textAlign:'right'}}>
-              <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Director</div>
-              <div style={{fontSize:'0.82rem',fontWeight:700,color:req.directorAction==='approved'?'#00cc77':req.directorAction==='rejected'?'#dd3535':'rgba(120,180,255,0.90)'}}>{req.directorAction.charAt(0).toUpperCase()+req.directorAction.slice(1)}</div>
-            </div>}
+          )}
+          {/* Timeline — fills space between Sales and Status */}
+          {(viewMode === 'estimator' || viewMode === 'director') ? (
+            <div style={{flex:1,minWidth:0,paddingLeft:10,paddingRight:10}}>
+              <div style={{fontSize:'0.46rem',letterSpacing:'0.16em',textTransform:'uppercase',
+                background:'linear-gradient(90deg,rgba(255,255,255,0.90) 0%,rgba(100,200,255,0.80) 100%)',
+                WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+                marginBottom:7,fontWeight:700}}>Request Timeline</div>
+              <TATTimeline r={req} showTimestamps={viewMode === 'director'}/>
+            </div>
+          ) : (
+            <div style={{flex:1}}/>
+          )}
+          {/* Right: Delete (director only) + Status badge */}
+          <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+            {viewMode === 'director' && (
+              <button onClick={()=>setDeleteConfirm(open)} title="Delete this request"
+                style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 12px',borderRadius:50,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(220,80,80,0.80)',fontFamily:F2,fontSize:'0.70rem',fontWeight:700,cursor:'pointer',outline:'none'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';e.currentTarget.style.borderColor='rgba(220,60,60,0.55)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';e.currentTarget.style.borderColor='rgba(220,50,50,0.30)';}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                Delete
+              </button>
+            )}
+            <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.04)',border:`1px solid ${rss.bd}`,borderRadius:50,padding:'5px 14px 5px 10px'}}>
+              <span style={{width:7,height:7,borderRadius:'50%',background:rss.c,flexShrink:0,boxShadow:`0 0 7px ${rss.c}`}}/>
+              <div>
+                <div style={{fontSize:'0.46rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:1}}>Request Status</div>
+                <div style={{fontSize:'0.82rem',fontWeight:700,color:rss.c,lineHeight:1}}>{rss.label}</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -4538,7 +4920,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         {/* ══════════════════════════════════════════════════════════════════════ */}
 
         {viewMode !== 'director' && (
-          <div className="dash-2col" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,maxWidth:960,width:'100%'}}>
+          <div className="dash-2col" style={{display:'grid',gridTemplateColumns:viewMode==='estimator'?(convoCollapsed?'380px 1fr 44px':'380px 1fr 420px'):'1fr 1fr',gap:20,maxWidth:'100%',width:'100%'}}>
             {/* LEFT — request info */}
             <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'18px 20px'}}>
               <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:12}}>Request Info</p>
@@ -4599,11 +4981,30 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     <p style={{fontSize:'0.82rem',color:'rgba(255,255,255,0.65)',lineHeight:1.6}}>{req.remarks}</p>
                   </div>
                 )}
-                {req.directorNote && (
-                  <div style={{background:'rgba(255,140,60,0.06)',border:'1px solid rgba(255,140,60,0.20)',borderRadius:10,padding:'14px 18px'}}>
-                    <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,140,60,0.55)',marginBottom:8}}>Director Note</p>
-                    <p style={{fontSize:'0.82rem',color:'rgba(255,160,90,0.85)',lineHeight:1.6}}>{req.directorNote}</p>
-                  </div>
+                {/* Director Remarks & Status — visible to sales */}
+                {req.directorAction && (
+                  (() => {
+                    const isApproved = req.directorAction === 'approved';
+                    const isRejected = req.directorAction === 'rejected';
+                    const cfg = isApproved
+                      ? {bg:'rgba(0,200,100,0.06)',bd:'rgba(0,200,100,0.22)',dot:'rgba(0,220,120,0.90)',label:'Approved',sub:'Quotation approved by Cost-Artist'}
+                      : isRejected
+                      ? {bg:'rgba(220,60,60,0.06)',bd:'rgba(220,60,60,0.24)',dot:'rgba(255,90,90,0.95)',label:'Rejected',sub:'Quotation has been rejected'}
+                      : {bg:'rgba(255,160,40,0.06)',bd:'rgba(255,160,40,0.24)',dot:'rgba(255,180,60,0.95)',label:'Revision Required',sub:'Estimator is revising the quotation'};
+                    return (
+                      <div style={{background:cfg.bg,border:`1px solid ${cfg.bd}`,borderRadius:10,padding:'14px 16px',display:'flex',flexDirection:'column',gap:8}}>
+                        <span style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:600}}>Cost-Artist's Decision</span>
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{width:7,height:7,borderRadius:'50%',background:cfg.dot,boxShadow:`0 0 6px ${cfg.dot}`,flexShrink:0}}/>
+                          <span style={{fontSize:'0.78rem',fontWeight:700,color:cfg.dot}}>{cfg.label}</span>
+                          <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.35)',marginLeft:2}}>— {cfg.sub}</span>
+                        </div>
+                        {req.directorNote && (
+                          <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.60)',lineHeight:1.5,margin:0,paddingLeft:14,borderLeft:`2px solid ${cfg.dot}40`}}>{req.directorNote}</p>
+                        )}
+                      </div>
+                    );
+                  })()
                 )}
                 {(req.status==='Approved'||req.status==='Completed') ? (
                   <div style={{background:'rgba(0,40,20,0.50)',border:'1px solid rgba(0,200,100,0.28)',borderRadius:10,padding:'20px 22px'}}>
@@ -4616,81 +5017,51 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 ) : (
                   <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'20px 22px'}}>
                     <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:10}}>Quotation</p>
-                    <p style={{fontSize:'0.82rem',color:'rgba(255,255,255,0.28)',lineHeight:1.6}}>Quotation will be available once the Director approves it.</p>
+                    <p style={{fontSize:'0.82rem',color:'rgba(255,255,255,0.28)',lineHeight:1.6}}>Quotation will be available once the Cost-Artist approves it.</p>
                   </div>
                 )}
+                {/* Conversation — sales big chat box */}
+                <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,minHeight:420}}>
+                  <div style={{display:'flex',alignItems:'center',gap:9,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)'}}>
+                    <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
+                    <p style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',margin:0,fontWeight:700}}>Conversation</p>
+                    {req.estimator && <span style={{marginLeft:'auto',fontSize:'0.65rem',color:'rgba(100,200,255,0.55)',fontWeight:500}}>with {req.estimator}</span>}
+                  </div>
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:10,overflowY:'auto',minHeight:200,maxHeight:280,paddingRight:4,scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.20) transparent'}}>
+                    {(req.conversation||[]).length === 0 ? (
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:10,opacity:0.4}}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.30)',margin:0,fontStyle:'italic'}}>No messages yet. Start the conversation.</p>
+                      </div>
+                    ) : (req.conversation||[]).map((msg,i)=>{
+                      const isSales = msg.role==='sales';
+                      return (
+                        <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isSales?'flex-end':'flex-start'}}>
+                          <div style={{maxWidth:'82%',background:isSales?'rgba(109,40,217,0.28)':'rgba(255,255,255,0.06)',border:isSales?'1px solid rgba(168,85,247,0.35)':'1px solid rgba(255,255,255,0.10)',borderRadius:isSales?'14px 14px 3px 14px':'14px 14px 14px 3px',padding:'9px 13px'}}>
+                            <div style={{fontSize:'0.58rem',color:isSales?'rgba(196,181,253,0.70)':'rgba(100,200,255,0.65)',marginBottom:4,fontWeight:600}}>{msg.from} · {msg.ts}</div>
+                            <div style={{fontSize:'0.86rem',color:'rgba(255,255,255,0.86)',lineHeight:1.5}}>{msg.text}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{display:'flex',gap:9,alignItems:'flex-end',paddingTop:10,borderTop:'1px solid rgba(168,85,247,0.14)'}}>
+                    <textarea value={convoInput} onChange={e=>setConvoInput(e.target.value)}
+                      onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!convoInput.trim())return;const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.salesPerson||'Sales',role:'sales',text:convoInput.trim(),ts,tsMs:Date.now()}]});setConvoInput('');}}}
+                      placeholder="Type a message… (Enter to send)"
+                      rows={2}
+                      style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:10,padding:'10px 13px',color:'#e2e8f0',fontFamily:F2,fontSize:'0.86rem',outline:'none',resize:'none',lineHeight:1.5}}
+                    />
+                    <button onClick={()=>{if(!convoInput.trim())return;const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.salesPerson||'Sales',role:'sales',text:convoInput.trim(),ts,tsMs:Date.now()}]});setConvoInput('');}}
+                      style={{width:40,height:40,borderRadius:10,flexShrink:0,background:'rgba(109,40,217,0.55)',border:'1px solid rgba(168,85,247,0.50)',color:'#e2d9ff',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',alignSelf:'flex-end'}}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                  </div>
+                </div>
               </>)}
 
               {/* ── ESTIMATOR right panel ── */}
               {viewMode === 'estimator' && (<div style={{display:'flex',flexDirection:'column',gap:14,height:'100%'}}>
-
-                {/* ── TAT Timeline ── */}
-                <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'12px 16px'}}>
-                  <p style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:10,fontWeight:600}}>Request Timeline</p>
-                  <TATTimeline r={req}/>
-                  {(req.rejectionCycles?.length||0) > 0 && (
-                    <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,90,90,0.15)'}}>
-                      {req.rejectionCycles.map((c,i)=>{
-                        const fms=ms=>{if(!ms)return'—';const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h>23?`${Math.floor(h/24)}d ${h%24}h`:`${h}h ${m}m`;};
-                        return (
-                          <div key={i} style={{display:'flex',alignItems:'center',gap:8,fontSize:'0.62rem',color:'rgba(255,120,120,0.70)'}}>
-                            <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(255,90,90,0.70)',flexShrink:0}}/>
-                            <span>Cycle {c.cycle} rejection → re-assigned to <b style={{color:'rgba(255,160,160,0.85)'}}>{c.reassignedTo}</b></span>
-                            {c.s4 && <span style={{marginLeft:'auto',fontFamily:'monospace',color:'rgba(255,140,140,0.60)'}}>{fms(c.s4)}</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Request Status — top of right panel */}
-                {(() => {
-                  const rs = getReqStatus(req, now);
-                  const rss = REQ_STATUS_STYLE[rs];
-                  return (
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'10px 16px'}}>
-                      <span style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',fontWeight:600}}>Request Status</span>
-                      <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 12px',borderRadius:50,background:rss.bg,border:`1px solid ${rss.bd}`}}>
-                        <span style={{width:6,height:6,borderRadius:'50%',background:rss.c,boxShadow:`0 0 5px ${rss.c}`,flexShrink:0}}/>
-                        <span style={{fontSize:'0.68rem',color:rss.c,fontWeight:700,letterSpacing:'0.04em'}}>{rss.label}</span>
-                      </span>
-                    </div>
-                  );
-                })()}
-
-                {/* Director's Remarks — decision status badge + remarks text */}
-                {req.directorAction && (
-                  (() => {
-                    const isApproved = req.directorAction === 'approved' || req.reqStatus === 'completed';
-                    const isRejected = req.directorAction === 'rejected';
-                    const cfg = isApproved
-                      ? {bg:'rgba(0,200,100,0.06)',bd:'rgba(0,200,100,0.22)',dot:'rgba(0,220,120,0.90)',statusLabel:'Approved',statusSub:'Submitted to Sales / Requester & Estimator'}
-                      : isRejected
-                      ? {bg:'rgba(220,60,60,0.06)',bd:'rgba(220,60,60,0.24)',dot:'rgba(255,90,90,0.95)',statusLabel:'Rejected',statusSub:'Please redo the estimation'}
-                      : /* revised */ {bg:'rgba(255,160,40,0.06)',bd:'rgba(255,160,40,0.24)',dot:'rgba(255,180,60,0.95)',statusLabel:'Revision Required',statusSub:'Please revise and resubmit'};
-                    return (
-                      <div style={{background:cfg.bg,border:`1px solid ${cfg.bd}`,borderRadius:10,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
-                        {/* Label row */}
-                        <span style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:600}}>Director's Remarks</span>
-                        {/* Decision status — separate badge */}
-                        <div style={{display:'flex',alignItems:'center',gap:8}}>
-                          <span style={{width:7,height:7,borderRadius:'50%',background:cfg.dot,boxShadow:`0 0 6px ${cfg.dot}`,flexShrink:0}}/>
-                          <span style={{fontSize:'0.78rem',fontWeight:700,color:cfg.dot}}>{cfg.statusLabel}</span>
-                          <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.35)',marginLeft:2}}>— {cfg.statusSub}</span>
-                        </div>
-                        {/* Remarks text */}
-                        {req.directorNote && (
-                          <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55,margin:0,paddingLeft:15,borderLeft:`2px solid ${cfg.dot}40`}}>{req.directorNote}</p>
-                        )}
-                        {/* Revised margin if set */}
-                        {req.revisedMargin && (
-                          <p style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.40)',margin:0,paddingLeft:15}}>Suggested margin: <strong style={{color:'rgba(255,255,255,0.65)'}}>{req.revisedMargin}%</strong></p>
-                        )}
-                      </div>
-                    );
-                  })()
-                )}
 
                 {/* ── Revised / Final Price info card — estimator view ── */}
                 {(req.requestType==='revised'||req.requestType==='finalPrice') && (() => {
@@ -4740,9 +5111,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     dot:'rgba(180,180,255,0.80)', border:'rgba(120,120,255,0.20)', bg:'rgba(80,80,200,0.05)',
                     ref: origReq.id, date: origReq.date,
                   });
-                  // Original director note
+                  // Original Cost-Artist note
                   if (origReq?.directorNote) entries.push({
-                    role:'Cost Artist', label:'Cost Artist Response (Original)', text:origReq.directorNote,
+                    role:'Cost-Artist', label:'Cost-Artist Response (Original)', text:origReq.directorNote,
                     dot:'rgba(0,220,255,0.85)', border:'rgba(0,180,255,0.22)', bg:'rgba(0,150,255,0.05)',
                     ref: origReq.id, date: origReq.directorRespondedAt ? new Date(origReq.directorRespondedAt).toLocaleDateString('en-GB') : origReq.date,
                     extra: origReq.directorAction ? `Decision: ${origReq.directorAction.charAt(0).toUpperCase()+origReq.directorAction.slice(1)}` : null,
@@ -4753,9 +5124,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     dot:'rgba(52,211,153,0.85)', border:'rgba(52,200,130,0.22)', bg:'rgba(16,185,129,0.05)',
                     ref: req.id, date: req.date,
                   });
-                  // Current director note (if already responded)
+                  // Current Cost-Artist note (if already responded)
                   if (req.directorNote) entries.push({
-                    role:'Cost Artist', label:'Cost Artist Response', text:req.directorNote,
+                    role:'Cost-Artist', label:'Cost-Artist Response', text:req.directorNote,
                     dot:'rgba(0,220,255,0.85)', border:'rgba(0,180,255,0.22)', bg:'rgba(0,150,255,0.05)',
                     ref: req.id, date: req.directorRespondedAt ? new Date(req.directorRespondedAt).toLocaleDateString('en-GB') : req.date,
                     extra: req.directorAction ? `Decision: ${req.directorAction.charAt(0).toUpperCase()+req.directorAction.slice(1)}` : null,
@@ -4797,68 +5168,6 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     <p style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:6}}>Requester Remarks</p>
                     <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.60)',lineHeight:1.55,margin:0}}>{req.remarks}</p>
                   </div>
-                )}
-
-                {/* Sales Activity Log — visible to estimator & director */}
-                {req.salesLog?.length > 0 && (() => {
-                  const SLC = {
-                    Won:        {c:'#4ade80'}, Lost:      {c:'#f87171'},
-                    'Follow-up':{c:'#fbbf24'}, Risky:    {c:'#fb923c'},
-                    Pending:    {c:'rgba(255,255,255,0.40)'},
-                  };
-                  return (
-                    <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'14px 16px'}}>
-                      <p style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:12}}>Sales Activity Log</p>
-                      <div style={{display:'flex',flexDirection:'column',gap:0}}>
-                        {[...req.salesLog].reverse().map((entry,i)=>{
-                          const ec = SLC[entry.status]||SLC.Pending;
-                          return (
-                            <div key={i} style={{display:'flex',gap:10,paddingBottom:10,marginBottom:10,borderBottom:i<req.salesLog.length-1?'1px solid rgba(255,255,255,0.05)':'none'}}>
-                              <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
-                                <span style={{width:7,height:7,borderRadius:'50%',background:ec.c,boxShadow:`0 0 5px ${ec.c}`,marginTop:3,flexShrink:0}}/>
-                                {i<req.salesLog.length-1&&<div style={{width:1,flex:1,minHeight:10,background:'rgba(255,255,255,0.07)',marginTop:3}}/>}
-                              </div>
-                              <div style={{flex:1,minWidth:0}}>
-                                <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:entry.remark?4:0,flexWrap:'wrap'}}>
-                                  <span style={{fontSize:'0.74rem',fontWeight:700,color:ec.c}}>{entry.status}</span>
-                                  <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>· {entry.by}</span>
-                                  <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.20)',marginLeft:'auto'}}>{entry.ts}</span>
-                                </div>
-                                {entry.remark && <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.58)',lineHeight:1.5,margin:0,borderLeft:`2px solid ${ec.c}50`,paddingLeft:8}}>{entry.remark}</p>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Request Owners */}
-                {(req.estimator || req.salesPerson) && (
-                <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 18px'}}>
-                  <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:12,margin:'0 0 12px'}}>Request Owners</p>
-                  <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
-                    {req.estimator && (
-                      <div style={{display:'flex',alignItems:'center',gap:10}}>
-                        <EstAvatar name={req.estimator} size={42}/>
-                        <div>
-                          <div style={{fontSize:'0.56rem',color:'rgba(99,200,255,0.60)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700,marginBottom:2}}>Estimator</div>
-                          <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(255,255,255,0.85)'}}>{req.estimator}</div>
-                        </div>
-                      </div>
-                    )}
-                    {req.salesPerson && (
-                      <div style={{display:'flex',alignItems:'center',gap:10}}>
-                        <EstAvatar name={req.salesPerson} size={42}/>
-                        <div>
-                          <div style={{fontSize:'0.56rem',color:'rgba(160,130,255,0.60)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700,marginBottom:2}}>Sales</div>
-                          <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(255,255,255,0.85)'}}>{req.salesPerson}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
                 )}
 
                 {/* Upload + Margin % + Project Value in one card */}
@@ -4981,27 +5290,131 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(open,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3}
                       style={{background:'transparent',border:'none',outline:'none',color:'rgba(255,230,140,0.88)',fontFamily:F2,fontSize:'0.84rem',fontWeight:400,width:'100%',resize:'vertical',lineHeight:1.55}}/>
                   </div>
+                  {/* ── Submit to Director — inside card, below comments ── */}
+                  {req.reqStatus === 'pending-director' ? (
+                    <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(180,130,255,0.25)',borderRadius:8}}>
+                      <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(180,130,255,0.95)',boxShadow:'0 0 8px rgba(180,130,255,0.7)',flexShrink:0}}/>
+                      <span style={{fontSize:'0.80rem',color:'rgba(180,130,255,0.90)',fontWeight:600}}>Submitted — Awaiting Cost-Artist Review</span>
+                    </div>
+                  ) : (
+                    <button onClick={()=>{if(canSendToDirector){const ts=new Date().toISOString();onUpdate(open,{status:'Pending Approval',reqStatus:'pending-director',directorAction:null,directorNote:'',quotationSubmittedAt:ts,timeline:[...(req.timeline||[]),{event:'quoted',ts,label:'Quotation Submitted',by:req.estimator||''}]});}}}
+                      disabled={!canSendToDirector}
+                      style={{width:'100%',padding:'11px 0',borderRadius:100,background:canSendToDirector?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:canSendToDirector?'auroraShift 5s ease-in-out infinite':'none',border:canSendToDirector?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.07)',color:canSendToDirector?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.88rem',fontWeight:700,cursor:canSendToDirector?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:canSendToDirector?'0 4px 22px rgba(0,140,255,0.28)':'none',outline:'none'}}>
+                      ✦ Submit to Cost-Artist for Approval
+                    </button>
+                  )}
                 </div>
 
-                {/* Send to Director — always at bottom */}
-                {req.reqStatus === 'pending-director' ? (
-                  <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(180,130,255,0.25)',borderRadius:10,marginTop:'auto'}}>
-                    <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(180,130,255,0.95)',boxShadow:'0 0 8px rgba(180,130,255,0.7)',flexShrink:0}}/>
-                    <span style={{fontSize:'0.82rem',color:'rgba(180,130,255,0.90)',fontWeight:600}}>Submitted — Awaiting Director Review</span>
-                  </div>
-                ) : (
-                  <button onClick={()=>{if(canSendToDirector){ const ts=new Date().toISOString(); onUpdate(open,{status:'Pending Approval',reqStatus:'pending-director',directorAction:null,directorNote:'',quotationSubmittedAt:ts,timeline:[...(req.timeline||[]),{event:'quoted',ts,label:'Quotation Submitted',by:req.estimator||''}]}); }  }}
-                    disabled={!canSendToDirector}
-                    style={{width:'100%',padding:'13px 0',borderRadius:100,background:canSendToDirector?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:canSendToDirector?'auroraShift 5s ease-in-out infinite':'none',border:canSendToDirector?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.07)',color:canSendToDirector?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.92rem',fontWeight:700,cursor:canSendToDirector?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:canSendToDirector?'0 6px 28px rgba(0,140,255,0.28)':'none',outline:'none',marginTop:'auto'}}>
-                    ✦ Send to Director for Approval
-                  </button>
+                {/* Director's Remarks — shown after Submit button */}
+                {req.directorAction && (
+                  (() => {
+                    const isApproved = req.directorAction === 'approved' || req.reqStatus === 'completed';
+                    const isRejected = req.directorAction === 'rejected';
+                    const cfg = isApproved
+                      ? {bg:'rgba(0,200,100,0.06)',bd:'rgba(0,200,100,0.22)',dot:'rgba(0,220,120,0.90)',statusLabel:'Approved',statusSub:'Submitted to Sales / Requester & Estimator'}
+                      : isRejected
+                      ? {bg:'rgba(220,60,60,0.06)',bd:'rgba(220,60,60,0.24)',dot:'rgba(255,90,90,0.95)',statusLabel:'Rejected',statusSub:'Please redo the estimation'}
+                      : {bg:'rgba(255,160,40,0.06)',bd:'rgba(255,160,40,0.24)',dot:'rgba(255,180,60,0.95)',statusLabel:'Revision Required',statusSub:'Please revise and resubmit'};
+                    return (
+                      <div style={{background:cfg.bg,border:`1px solid ${cfg.bd}`,borderRadius:10,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
+                        <span style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:600}}>Cost-Artist's Remarks</span>
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{width:7,height:7,borderRadius:'50%',background:cfg.dot,boxShadow:`0 0 6px ${cfg.dot}`,flexShrink:0}}/>
+                          <span style={{fontSize:'0.78rem',fontWeight:700,color:cfg.dot}}>{cfg.statusLabel}</span>
+                          <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.35)',marginLeft:2}}>— {cfg.statusSub}</span>
+                        </div>
+                        {req.directorNote && (
+                          <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55,margin:0,paddingLeft:15,borderLeft:`2px solid ${cfg.dot}40`}}>{req.directorNote}</p>
+                        )}
+                        {req.revisedMargin && (
+                          <p style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.40)',margin:0,paddingLeft:15}}>Suggested margin: <strong style={{color:'rgba(255,255,255,0.65)'}}>{req.revisedMargin}%</strong></p>
+                        )}
+                      </div>
+                    );
+                  })()
                 )}
+
               </div>)}
             </div>
+            {/* ── 3rd column: Conversation (estimator view only) ── */}
+            {viewMode === 'estimator' && (
+              convoCollapsed ? (
+                /* Minimized strip */
+                <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'space-between',padding:'14px 0',position:'sticky',top:62,height:'100%',minHeight:200,cursor:'pointer'}} onClick={()=>setConvoCollapsed(false)}>
+                  <button onClick={e=>{e.stopPropagation();setConvoCollapsed(false);}} title="Expand conversation"
+                    style={{width:28,height:28,borderRadius:8,background:'rgba(168,85,247,0.18)',border:'1px solid rgba(168,85,247,0.35)',color:'rgba(168,85,247,0.90)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',outline:'none',flexShrink:0}}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <div style={{writingMode:'vertical-rl',textOrientation:'mixed',transform:'rotate(180deg)',fontSize:'0.52rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',fontWeight:700,userSelect:'none'}}>
+                    Conversation
+                    {(req.conversation||[]).length > 0 && <span style={{display:'block',fontSize:'0.60rem',color:'rgba(168,85,247,0.90)',fontWeight:800,letterSpacing:'0',marginTop:6,textAlign:'center'}}>{(req.conversation||[]).length}</span>}
+                  </div>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.70)',boxShadow:'0 0 6px rgba(168,85,247,0.60)',flexShrink:0}}/>
+                </div>
+              ) : (
+                /* Expanded panel */
+                <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,height:'100%',minHeight:560,position:'sticky',top:62}}>
+                  <div style={{display:'flex',alignItems:'center',gap:9,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)'}}>
+                    <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
+                    <p style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',margin:0,fontWeight:700}}>Conversation</p>
+                    {req.salesPerson && <span style={{fontSize:'0.65rem',color:'rgba(160,130,255,0.60)',fontWeight:500}}>with {req.salesPerson}</span>}
+                    <button onClick={()=>setConvoCollapsed(true)} title="Minimize conversation"
+                      style={{marginLeft:'auto',width:26,height:26,borderRadius:7,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(168,85,247,0.80)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',outline:'none',flexShrink:0}}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                  </div>
+                  {/* Messages */}
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:10,overflowY:'auto',paddingRight:4,scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.20) transparent'}}>
+                    {(req.conversation||[]).length === 0 ? (
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:12,opacity:0.45}}>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="1.4"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',margin:0,fontStyle:'italic',textAlign:'center',lineHeight:1.5}}>No messages yet.<br/>Start the conversation.</p>
+                      </div>
+                    ) : (req.conversation||[]).map((msg,i)=>{
+                      const isEst = msg.role==='estimator';
+                      return (
+                        <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isEst?'flex-end':'flex-start'}}>
+                          <div style={{maxWidth:'88%',background:isEst?'rgba(109,40,217,0.28)':'rgba(255,255,255,0.06)',border:isEst?'1px solid rgba(168,85,247,0.35)':'1px solid rgba(255,255,255,0.10)',borderRadius:isEst?'14px 14px 3px 14px':'14px 14px 14px 3px',padding:'9px 13px'}}>
+                            <div style={{fontSize:'0.58rem',color:isEst?'rgba(196,181,253,0.70)':'rgba(100,200,255,0.65)',marginBottom:4,fontWeight:600}}>{msg.from} · {msg.ts}</div>
+                            <div style={{fontSize:'0.86rem',color:'rgba(255,255,255,0.86)',lineHeight:1.5}}>{msg.text}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Input */}
+                  <div style={{display:'flex',gap:9,alignItems:'flex-end',paddingTop:10,borderTop:'1px solid rgba(168,85,247,0.14)'}}>
+                    <textarea value={convoInput} onChange={e=>setConvoInput(e.target.value)}
+                      onKeyDown={e=>{
+                        if(e.key==='Enter'&&!e.shiftKey){
+                          e.preventDefault();
+                          if(!convoInput.trim())return;
+                          const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+                          onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.estimator||'Estimator',role:'estimator',text:convoInput.trim(),ts,tsMs:Date.now()}]});
+                          setConvoInput('');
+                        }
+                      }}
+                      placeholder="Type a message…&#10;Enter to send · Shift+Enter for newline"
+                      rows={3}
+                      style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:10,padding:'10px 13px',color:'#e2e8f0',fontFamily:F2,fontSize:'0.86rem',outline:'none',resize:'none',lineHeight:1.5}}
+                    />
+                    <button onClick={()=>{
+                      if(!convoInput.trim())return;
+                      const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+                      onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.estimator||'Estimator',role:'estimator',text:convoInput.trim(),ts,tsMs:Date.now()}]});
+                      setConvoInput('');
+                    }}
+                      style={{width:42,height:42,borderRadius:10,flexShrink:0,background:'rgba(109,40,217,0.55)',border:'1px solid rgba(168,85,247,0.50)',color:'#e2d9ff',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',alignSelf:'flex-end'}}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
           </div>
         )}
 
-        {/* ── DIRECTOR view: 2-panel with right sidebar ── */}
+        {/* ── DIRECTOR view: 3-panel layout with sticky footer ── */}
         {viewMode === 'director' && (() => {
           const GLASSY = 'linear-gradient(135deg,rgba(255,255,255,1) 0%,rgba(255,255,255,0.88) 40%,rgba(255,255,255,0.72) 60%,rgba(255,255,255,0.96) 100%)';
           const DA = [{v:'approved',label:'Approve ✓',c:'#00e5b0',bg:'rgba(0,229,176,0.10)',bd:'rgba(0,229,176,0.38)'},{v:'revised',label:'Revise',c:'rgba(120,180,255,0.95)',bg:'rgba(80,140,255,0.10)',bd:'rgba(120,180,255,0.40)'},{v:'rejected',label:'Reject ✗',c:'rgba(255,90,90,0.95)',bg:'rgba(215,45,45,0.10)',bd:'rgba(215,55,55,0.40)'}];
@@ -5033,329 +5446,346 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           );
 
           return (
-            <div className="dir-layout" style={{display:'flex',gap:12,flex:1,minHeight:0,overflow:'hidden'}}>
+            <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
 
-              {/* ══ LEFT: main review content (scrollable) ══ */}
-              <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10,paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
+              {/* ═══ MAIN 3-COLUMN CONTENT ═══ */}
+              <div style={{display:'flex',gap:10,flex:1,minHeight:0,overflow:'hidden',paddingBottom:10}}>
 
-                {/* ── PROJECT BRIEF card ── */}
-                <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,padding:'16px 20px',backdropFilter:'blur(20px)',flexShrink:0}}>
-
-                  {/* Header row: project name + badges + customer rank */}
-                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:14}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      <div style={{width:3,height:36,borderRadius:2,background:'linear-gradient(180deg,rgba(255,255,255,0.70),rgba(255,255,255,0.06))',flexShrink:0}}/>
-                      <div>
-                        <div style={{fontSize:'0.46rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.18em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Project Brief</div>
-                        <div style={{fontSize:'1.35rem',fontWeight:900,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.1}}>{req.proj||'—'}</div>
+                {/* ═══ LEFT: Compact Project Info ═══ */}
+                <div style={{width:'27%',minWidth:200,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
+                  <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,padding:'14px 16px',flexShrink:0,backdropFilter:'blur(20px)'}}>
+                    <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:10}}>
+                      <div style={{width:3,height:30,borderRadius:2,background:'linear-gradient(180deg,rgba(255,255,255,0.70),rgba(255,255,255,0.06))',flexShrink:0}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:600,marginBottom:2}}>Project Brief</div>
+                        <div style={{fontSize:'0.96rem',fontWeight:900,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.1,overflow:'hidden',textOverflow:'ellipsis'}}>{req.proj||'—'}</div>
                       </div>
                     </div>
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
-                      {/* Customer rank stars */}
-                      {req.customerRank > 0 && (() => {
-                        const rc = ['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
-                        return (
-                          <div style={{display:'flex',gap:2,alignItems:'center'}}>
-                            <span style={{fontSize:'0.46rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginRight:5}}>Customer</span>
-                            {[1,2,3,4,5].map(n=>(
-                              <span key={n} style={{fontSize:'0.85rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.12)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      {/* Deal + category badges */}
-                      <div style={{display:'flex',gap:5,flexWrap:'wrap',justifyContent:'flex-end'}}>
-                        <span style={{fontSize:'0.66rem',fontWeight:600,color:'rgba(255,255,255,0.75)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:20,padding:'3px 10px'}}>{req.deal}</span>
-                        {req.supplyOnly && <span style={{fontSize:'0.66rem',fontWeight:600,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:20,padding:'3px 10px'}}>Supply Only</span>}
-                        {req.supplyInstall && <span style={{fontSize:'0.66rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.22)',borderRadius:20,padding:'3px 10px'}}>Supply & Install</span>}
-                      </div>
+                    <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
+                      <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(255,255,255,0.70)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:20,padding:'2px 8px'}}>{req.deal}</span>
+                      {req.supplyOnly && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.20)',borderRadius:20,padding:'2px 8px'}}>Supply Only</span>}
+                      {req.supplyInstall && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.20)',borderRadius:20,padding:'2px 8px'}}>S + I</span>}
                     </div>
-                  </div>
-
-                  {/* Info grid 3-col */}
-                  <div className="dir-3col" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
-                    {[['Client / Grantor',req.client],['Main Contractor',req.mainContractor],['Consultant',req.consultant],['Submitted By',req.submittedBy],['Lead Time',req.leadTime],['Address',req.address]].map(([k,v])=> v ? (
-                      <div key={k} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'8px 11px'}}>
-                        <div style={{fontSize:'0.46rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>{k}</div>
-                        <div style={{fontSize:'0.86rem',fontWeight:700,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.2}}>{v}</div>
-                      </div>
-                    ) : null)}
-                  </div>
-
-                  {/* Contact strip */}
-                  {(req.email||req.mob||req.tel) && (
-                    <div style={{display:'flex',gap:18,flexWrap:'wrap',marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                      {[['Email',req.email],['MOB',req.mob],['Tel',req.tel]].filter(([,v])=>v).map(([k,v])=>(
-                        <div key={k}><div style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:2}}>{k}</div><div style={{fontSize:'0.82rem',fontWeight:600,color:'rgba(255,255,255,0.68)'}}>{v}</div></div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Stats: Estimator · Margin · TAT · Value */}
-                  <div className="dir-4col" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                    <div style={{background:'rgba(100,160,255,0.05)',border:'1px solid rgba(100,160,255,0.14)',borderRadius:8,padding:'9px 12px'}}>
-                      <div style={{fontSize:'0.44rem',color:'rgba(100,160,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Estimator</div>
-                      <div style={{fontSize:'0.88rem',fontWeight:800,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{req.estimator||'—'}</div>
-                      {req.taggedAt && <div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.18)',marginTop:2}}>{tagDate}</div>}
-                    </div>
-                    <div style={{background:'rgba(0,200,255,0.05)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:8,padding:'9px 12px'}}>
-                      <div style={{fontSize:'0.44rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Margin</div>
-                      <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                        <span style={{fontSize:'1.4rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>{req.margin||'—'}</span>
-                        {req.margin && <span style={{fontSize:'0.85rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace',fontWeight:700}}>%</span>}
-                      </div>
-                    </div>
-                    <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'9px 12px'}}>
-                      <div style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>TAT (2-day)</div>
-                      <div style={{fontSize:'0.78rem',fontWeight:800,color:tatBarColor,fontFamily:'monospace',marginBottom:5,lineHeight:1,letterSpacing:'0.03em'}}>{formatTAT(tatElapsedDash)}</div>
-                      <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.07)',overflow:'hidden'}}>
-                        <div style={{height:'100%',borderRadius:2,width:`${tatPctDash}%`,background:`linear-gradient(90deg,${tatBarColor}50,${tatBarColor})`}}/>
-                      </div>
-                    </div>
-                    <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:8,padding:'9px 12px'}}>
-                      <div style={{fontSize:'0.44rem',color:'rgba(0,220,130,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Value (AED)</div>
-                      <div style={{fontSize:'0.96rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,240,160,1) 0%,rgba(0,200,255,0.80) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.2}}>{req.projValue?Number(req.projValue).toLocaleString('en-AE'):'—'}</div>
-                    </div>
-                  </div>
-
-                  {/* Remarks */}
-                  {req.remarks && (
-                    <div style={{marginBottom:10,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:8,padding:'10px 13px'}}>
-                      <div style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.15em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>Remarks</div>
-                      <div style={{fontSize:'0.83rem',color:'rgba(255,255,255,0.60)',lineHeight:1.65,borderLeft:'2px solid rgba(255,255,255,0.10)',paddingLeft:10}}>{req.remarks}</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ── ALL DOCUMENTS card ── */}
-                <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:12,padding:'14px 18px',flexShrink:0}}>
-                  <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:700,marginBottom:12}}>All Documents</div>
-                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
-
-                    {/* ── FOLDER 1: Requester Documents ── */}
-                    <div style={{background:'rgba(0,200,255,0.04)',border:'1px solid rgba(0,200,255,0.14)',borderRadius:8,padding:'10px 12px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.65)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                        <span style={{fontSize:'0.50rem',color:'rgba(0,200,255,0.65)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Requester Documents</span>
-                        <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.docs?.length||0} file{(req.docs?.length||0)!==1?'s':''}</span>
-                      </div>
-                      {req.docs?.length > 0 ? (
-                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                          {req.docs.map((d,i)=>(
-                            <button key={i} onClick={()=>downloadDoc(d)}
-                              style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.25)',color:'rgba(0,200,255,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
-                              onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.08)'}>
-                              <DlIco/>{docName(d)}
-                            </button>
-                          ))}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                      <div style={{background:'rgba(0,200,255,0.05)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:7,padding:'7px 10px'}}>
+                        <div style={{fontSize:'0.42rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Margin</div>
+                        <div style={{display:'flex',alignItems:'baseline',gap:1}}>
+                          <span style={{fontSize:'1.1rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>{req.margin||'—'}</span>
+                          {req.margin && <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace'}}>%</span>}
                         </div>
-                      ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
+                      </div>
+                      <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:7,padding:'7px 10px'}}>
+                        <div style={{fontSize:'0.42rem',color:'rgba(0,220,130,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Value (AED)</div>
+                        <div style={{fontSize:'0.78rem',fontWeight:800,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,240,160,1) 0%,rgba(0,200,255,0.80) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.2}}>{req.projValue?Number(req.projValue).toLocaleString('en-AE'):'—'}</div>
+                      </div>
                     </div>
-
-                    {/* ── FOLDER 2: Original / Reference Documents ── */}
-                    {req.originalDocs?.length > 0 && (
-                      <div style={{background:'rgba(160,190,230,0.04)',border:'1px solid rgba(160,190,230,0.14)',borderRadius:8,padding:'10px 12px'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(160,190,230,0.55)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                          <span style={{fontSize:'0.50rem',color:'rgba(160,190,230,0.60)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Original Documents — Reference</span>
-                          <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.originalDocs.length} file{req.originalDocs.length!==1?'s':''}</span>
-                        </div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                          {req.originalDocs.map((d,i)=>(
-                            <button key={i} onClick={()=>downloadDoc(d)}
-                              style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(160,190,230,0.07)',border:'1px solid rgba(160,190,230,0.22)',color:'rgba(160,190,230,0.84)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',fontStyle:'italic'}}
-                              onMouseEnter={e=>e.currentTarget.style.background='rgba(160,190,230,0.15)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(160,190,230,0.07)'}>
-                              <DlIco/>{docName(d)}
-                            </button>
-                          ))}
-                        </div>
+                    {req.customerRank > 0 && (() => {
+                      const rc=['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
+                      return (<div style={{display:'flex',alignItems:'center',gap:5,marginBottom:8}}><span style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.12em',textTransform:'uppercase'}}>Customer</span>{[1,2,3,4,5].map(n=>(<span key={n} style={{fontSize:'0.78rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.10)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>))}</div>);
+                    })()}
+                    {[['Client / Grantor',req.client],['Main Contractor',req.mainContractor],['Consultant',req.consultant],['Submitted By',req.submittedBy],['Lead Time',req.leadTime],['Address',req.address]].filter(([,v])=>v).map(([k,v])=>(
+                      <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8}}>
+                        <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
+                        <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',textAlign:'right',fontWeight:500}}>{v}</span>
+                      </div>
+                    ))}
+                    {(req.email||req.mob||req.tel) && (
+                      <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                        {[['Email',req.email],['MOB',req.mob],['Tel',req.tel]].filter(([,v])=>v).map(([k,v])=>(
+                          <div key={k}><div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:1}}>{k}</div><div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.65)'}}>{v}</div></div>
+                        ))}
                       </div>
                     )}
-
-                    {/* ── FOLDER 3: Quotation Documents ── */}
-                    <div style={{background:'rgba(0,220,130,0.04)',border:'1px solid rgba(0,220,130,0.14)',borderRadius:8,padding:'10px 12px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.60)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                        <span style={{fontSize:'0.50rem',color:'rgba(0,220,130,0.65)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Quotation Documents</span>
-                        <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.estimationDoc ? '1 file' : '0 files'}</span>
+                    {req.remarks && (
+                      <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                        <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Remarks</div>
+                        <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.58)',lineHeight:1.6,borderLeft:'2px solid rgba(255,255,255,0.10)',paddingLeft:8}}>{req.remarks}</div>
                       </div>
-                      {req.estimationDoc?.data || req.estimationDoc?.url ? (
-                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                          <button onClick={()=>downloadDoc(req.estimationDoc)}
-                            style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.30)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
-                            onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.08)'}>
-                            <DlIco/>{req.estimationFile || docName(req.estimationDoc)}
-                          </button>
-                        </div>
-                      ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
-                    </div>
-
+                    )}
                   </div>
                 </div>
 
-                {/* ── DIRECTOR DECISION card ── */}
-                <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:12,padding:'16px 20px',flexShrink:0}}>
-                  <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:700,marginBottom:14}}>Director Decision</div>
+                {/* ═══ CENTER: Documents (D) + AI Suggestions (P) ═══ */}
+                <div style={{flex:1,minWidth:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
 
-                  <div style={{display:'grid',gridTemplateColumns:'150px 1fr',gap:12,alignItems:'start',marginBottom:12}}>
-                    {/* Revised Margin */}
-                    <div>
-                      <div style={{fontSize:'0.48rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.13em',textTransform:'uppercase',fontWeight:600,marginBottom:6}}>Revised Margin %</div>
-                      <div style={{display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:8,padding:'7px 11px'}}>
-                        <input type="number" value={req.revisedMargin||''} onChange={e=>onUpdate(open,{revisedMargin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
-                          style={{flex:1,background:'transparent',border:'none',outline:'none',fontFamily:'monospace',fontSize:'1.2rem',fontWeight:700,width:'100%',color:'rgba(255,255,255,0.95)'}}/>
-                        <span style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.35)',fontFamily:'monospace',fontWeight:700}}>%</span>
+                  {/* ── ALL DOCUMENTS — D ── */}
+                  <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:12,padding:'14px 18px',flexShrink:0}}>
+
+                    <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:700,marginBottom:12}}>All Documents</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      {/* Requester Documents */}
+                      <div style={{background:'rgba(0,200,255,0.04)',border:'1px solid rgba(0,200,255,0.14)',borderRadius:8,padding:'10px 12px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.65)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                          <span style={{fontSize:'0.50rem',color:'rgba(0,200,255,0.65)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Requester Documents</span>
+                          <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.docs?.length||0} file{(req.docs?.length||0)!==1?'s':''}</span>
+                        </div>
+                        {req.docs?.length > 0 ? (
+                          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                            {req.docs.map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.25)',color:'rgba(0,200,255,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.08)'}>
+                                <DlIco/>{docName(d)}
+                              </button>
+                            ))}
+                          </div>
+                        ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
                       </div>
-                    </div>
-                    {/* Remarks textarea */}
-                    <div>
-                      <div style={{fontSize:'0.48rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.13em',textTransform:'uppercase',fontWeight:600,marginBottom:6}}>Director Remarks</div>
-                      <textarea value={req.directorNote||''} onChange={e=>onUpdate(open,{directorNote:e.target.value})} placeholder="Remarks or revision notes…" rows={2}
-                        style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:8,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.82rem',padding:'8px 11px',outline:'none',resize:'none',boxSizing:'border-box'}}
-                        onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
+                      {/* Original / Reference Documents */}
+                      {req.originalDocs?.length > 0 && (
+                        <div style={{background:'rgba(160,190,230,0.04)',border:'1px solid rgba(160,190,230,0.14)',borderRadius:8,padding:'10px 12px'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(160,190,230,0.55)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                            <span style={{fontSize:'0.50rem',color:'rgba(160,190,230,0.60)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Original Documents — Reference</span>
+                            <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.originalDocs.length} file{req.originalDocs.length!==1?'s':''}</span>
+                          </div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                            {req.originalDocs.map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(160,190,230,0.07)',border:'1px solid rgba(160,190,230,0.22)',color:'rgba(160,190,230,0.84)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',fontStyle:'italic'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(160,190,230,0.15)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(160,190,230,0.07)'}>
+                                <DlIco/>{docName(d)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Quotation Documents */}
+                      <div style={{background:'rgba(0,220,130,0.04)',border:'1px solid rgba(0,220,130,0.14)',borderRadius:8,padding:'10px 12px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.60)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                          <span style={{fontSize:'0.50rem',color:'rgba(0,220,130,0.65)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Quotation Documents</span>
+                          <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.estimationDocs?.length?`${req.estimationDocs.length} file${req.estimationDocs.length!==1?'s':''}`:req.estimationDoc?'1 file':'0 files'}</span>
+                        </div>
+                        {(req.estimationDocs?.length > 0 || req.estimationDoc?.data || req.estimationDoc?.url) ? (
+                          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                            {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.30)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.08)'}>
+                                <DlIco/>{d.name||req.estimationFile||`quotation-${i+1}`}
+                              </button>
+                            ))}
+                          </div>
+                        ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Decision buttons */}
-                  <div style={{display:'flex',gap:8,marginBottom:12}}>
-                    {DA.map(a=>(
-                      <button key={a.v} onClick={()=>{
-                        const ns = a.v==='approved'?'Approved':a.v==='rejected'?'Estimation Uploaded':'Pending Approval';
-                        const nr = a.v==='approved'?'completed':a.v==='rejected'?'onhold':'inprogress';
-                        onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr,directorSubmitted:false});
-                      }}
-                        style={{flex:1,padding:'10px 0',borderRadius:9,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.84rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',display:'flex',alignItems:'center',justifyContent:'center',gap:7,boxShadow:req.directorAction===a.v?`0 0 18px ${a.c}22`:'none'}}
-                        onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
-                        onMouseLeave={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
-                        {req.directorAction===a.v&&<span style={{width:6,height:6,borderRadius:'50%',background:a.c,boxShadow:`0 0 7px ${a.c}`,flexShrink:0}}/>}
-                        {a.label}
+                  {/* ── AI SUGGESTIONS — P ── */}
+                  <div style={{background:'rgba(130,40,255,0.06)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:12,padding:'14px 18px',flex:1,minHeight:160}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                      <div style={{width:6,height:6,borderRadius:'50%',background:'rgba(168,85,247,0.85)',boxShadow:'0 0 8px rgba(168,85,247,0.60)',flexShrink:0}}/>
+                      <span style={{fontSize:'0.50rem',color:'rgba(168,85,247,0.80)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:700}}>AI Suggestions</span>
+                      <span style={{marginLeft:'auto',fontSize:'0.52rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic'}}>Powered by APEX Intelligence</span>
+                    </div>
+                    {histReqs.length > 0 ? (
+                      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                        <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,padding:'10px 12px'}}>
+                          <div style={{fontSize:'0.46rem',color:'rgba(168,85,247,0.55)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700,marginBottom:6}}>Client Intelligence</div>
+                          {[['Past Requests',histReqs.length,'rgba(168,85,247,0.80)'],['Approved',histReqs.filter(r=>r.status==='Approved'||r.status==='Completed').length,'rgba(0,220,130,0.80)'],['Avg Margin',(()=>{const ms=histReqs.filter(r=>r.margin).map(r=>parseFloat(r.margin));return ms.length?(ms.reduce((a,b)=>a+b,0)/ms.length).toFixed(1)+'%':'—';})(),'rgba(0,200,255,0.80)']].map(([k,v,c])=>(
+                            <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                              <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.32)'}}>{k}</span>
+                              <span style={{fontSize:'0.70rem',fontWeight:700,color:c}}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {req.margin && histReqs.filter(r=>r.margin).length > 0 && (() => {
+                          const avgM = histReqs.filter(r=>r.margin).reduce((a,r)=>a+parseFloat(r.margin),0)/histReqs.filter(r=>r.margin).length;
+                          const diff = parseFloat(req.margin) - avgM;
+                          if (Math.abs(diff) <= 3) return null;
+                          const isHigh = diff > 0;
+                          return (
+                            <div style={{background:isHigh?'rgba(255,150,0,0.07)':'rgba(0,200,255,0.07)',border:`1px solid ${isHigh?'rgba(255,150,0,0.25)':'rgba(0,200,255,0.25)'}`,borderRadius:8,padding:'10px 12px',display:'flex',gap:8,alignItems:'flex-start'}}>
+                              <span style={{fontSize:'0.88rem',flexShrink:0}}>{isHigh?'⚠️':'ℹ️'}</span>
+                              <div>
+                                <div style={{fontSize:'0.62rem',fontWeight:700,color:isHigh?'rgba(255,170,0,0.90)':'rgba(0,200,255,0.90)',marginBottom:3}}>{isHigh?'Margin Above Average':'Margin Below Average'}</div>
+                                <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>Current ({req.margin}%) is {Math.abs(diff).toFixed(1)}pp {isHigh?'above':'below'} client avg ({avgM.toFixed(1)}%).</div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px 0',gap:10,opacity:0.45}}>
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.60)" strokeWidth="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.28)',margin:0,textAlign:'center',lineHeight:1.5}}>No prior history with this client.<br/>Suggestions appear after first interaction.</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>{/* end center column */}
+
+                {/* ═══ RIGHT: History/Tabs + Conversation (C) ═══ */}
+                <div style={{width:'30%',minWidth:220,display:'flex',flexDirection:'column',gap:8,overflowY:'hidden'}}>
+
+                  {/* Tab selector */}
+                  <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:9,padding:3,gap:2,flexShrink:0}}>
+                    {[{k:'history',label:'History'},{k:'analysis',label:'Analysis'}].map(({k,label})=>(
+                      <button key={k} onClick={()=>setDirTab(k)}
+                        style={{flex:1,padding:'7px 0',borderRadius:7,background:dirTab===k?'rgba(255,255,255,0.10)':'transparent',border:'none',color:dirTab===k?'rgba(255,255,255,0.92)':'rgba(255,255,255,0.35)',fontFamily:F2,fontSize:'0.76rem',fontWeight:dirTab===k?700:500,cursor:'pointer',outline:'none',transition:'all 0.2s',letterSpacing:'0.04em'}}>
+                        {label}
                       </button>
                     ))}
                   </div>
-                  {req.directorSubmitted ? (
-                    <div style={{width:'100%',padding:'11px 0',borderRadius:100,background:'rgba(0,220,130,0.12)',border:'1px solid rgba(0,220,130,0.40)',color:'rgba(0,230,150,0.95)',fontFamily:F2,fontSize:'0.90rem',fontWeight:700,letterSpacing:'0.06em',textAlign:'center',boxShadow:'0 0 18px rgba(0,200,120,0.20)',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-                      <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 8px rgba(0,220,130,0.8)',flexShrink:0}}/>
-                      Thank You — Response Submitted
-                    </div>
-                  ) : (
-                    <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Estimation Uploaded':'Pending Approval';const nr=req.directorAction==='approved'?'completed':req.directorAction==='rejected'?'onhold':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
-                      disabled={!req.directorAction}
-                      style={{width:'100%',padding:'11px 0',borderRadius:100,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.90rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 6px 24px rgba(120,60,255,0.30)':'none',outline:'none'}}>
-                      Submit Response
-                    </button>
-                  )}
-                </div>
 
-              </div>{/* end left panel */}
-
-              {/* ══ RIGHT SIDEBAR ══ */}
-              <div className="dir-sidebar" style={{width:268,flexShrink:0,display:'flex',flexDirection:'column',gap:8}}>
-
-                {/* Tab selector */}
-                <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:9,padding:3,gap:2,flexShrink:0}}>
-                  {[{k:'history',label:'History'},{k:'analysis',label:'Analysis'}].map(({k,label})=>(
-                    <button key={k} onClick={()=>setDirTab(k)}
-                      style={{flex:1,padding:'8px 0',borderRadius:7,background:dirTab===k?'rgba(255,255,255,0.10)':'transparent',border:'none',color:dirTab===k?'rgba(255,255,255,0.92)':'rgba(255,255,255,0.35)',fontFamily:F2,fontSize:'0.78rem',fontWeight:dirTab===k?700:500,cursor:'pointer',outline:'none',transition:'all 0.2s',letterSpacing:'0.04em'}}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Tab content */}
-                <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.06) transparent'}}>
-
-                  {/* ── HISTORY TAB ── */}
-                  {dirTab === 'history' && (<>
-
-                    {/* Rate Requester */}
-                    <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'12px 14px'}}>
-                      <div style={{fontSize:'0.50rem',color:'rgba(255,200,0,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:8}}>Rate Requester</div>
-                      <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginBottom:8,lineHeight:1.4}}>{req.submittedBy||'—'}</div>
-                      <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                        {[1,2,3,4,5].map(n=>(
-                          <button key={n} type="button" onClick={()=>onUpdate(open,{requesterRating:n})}
-                            style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'1.35rem',lineHeight:1,color:(req.requesterRating||0)>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.15)',transition:'color 0.15s, transform 0.15s',filter:(req.requesterRating||0)>=n?'drop-shadow(0 0 5px rgba(255,200,0,0.60))':'none'}}
-                            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.2)'} onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}>★</button>
-                        ))}
-                        {req.requesterRating > 0 && (
-                          <span style={{fontSize:'0.65rem',color:'rgba(255,200,0,0.50)',marginLeft:4}}>({req.requesterRating}/5)</span>
+                  {/* Tab content */}
+                  <div style={{overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.06) transparent',maxHeight:'38%'}}>
+                    {dirTab === 'history' && (<>
+                      <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'11px 13px',flexShrink:0}}>
+                        <div style={{fontSize:'0.48rem',color:'rgba(255,200,0,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:7}}>Rate Requester</div>
+                        <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.38)',marginBottom:7,lineHeight:1.4}}>{req.submittedBy||'—'}</div>
+                        <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                          {[1,2,3,4,5].map(n=>(
+                            <button key={n} type="button" onClick={()=>onUpdate(open,{requesterRating:n})}
+                              style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'1.2rem',lineHeight:1,color:(req.requesterRating||0)>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.15)',transition:'color 0.15s, transform 0.15s',filter:(req.requesterRating||0)>=n?'drop-shadow(0 0 5px rgba(255,200,0,0.60))':'none'}}
+                              onMouseEnter={e=>e.currentTarget.style.transform='scale(1.2)'} onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}>★</button>
+                          ))}
+                          {req.requesterRating > 0 && <span style={{fontSize:'0.62rem',color:'rgba(255,200,0,0.50)',marginLeft:3}}>({req.requesterRating}/5)</span>}
+                        </div>
+                      </div>
+                      <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'11px 13px',flexShrink:0}}>
+                        <div style={{fontSize:'0.48rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:7}}>
+                          Request History {(req.client||req.proj) && <span style={{color:'rgba(255,255,255,0.22)',textTransform:'none',letterSpacing:0,fontSize:'0.58rem',fontWeight:400}}>— {req.client||req.proj}</span>}
+                        </div>
+                        {histReqs.length === 0 ? (
+                          <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.22)',lineHeight:1.5,fontStyle:'italic'}}>No previous requests from this client or project.</div>
+                        ) : (
+                          <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                            {histReqs.slice(0,5).map((hr)=>(
+                              <div key={hr.id} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:7,padding:'7px 9px'}}>
+                                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:5,marginBottom:2}}>
+                                  <span style={{fontFamily:'monospace',fontSize:'0.66rem',fontWeight:700,color:'rgba(220,165,0,0.85)'}}>{hr.id}</span>
+                                  <Badge s={hr.status}/>
+                                </div>
+                                <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.60)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{hr.proj||'—'}</div>
+                                {hr.margin && <div style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.55)',marginTop:2}}>Margin: {hr.margin}%</div>}
+                              </div>
+                            ))}
+                            {histReqs.length > 5 && <div style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.22)',textAlign:'center'}}>+{histReqs.length-5} more</div>}
+                          </div>
                         )}
                       </div>
-                    </div>
-
-                    {/* Historical requests */}
-                    <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'12px 14px'}}>
-                      <div style={{fontSize:'0.50rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:8}}>
-                        Request History
-                        {(req.client||req.proj) && <span style={{color:'rgba(255,255,255,0.22)',textTransform:'none',letterSpacing:0,fontSize:'0.60rem',fontWeight:400,marginLeft:4}}>— {req.client||req.proj}</span>}
-                      </div>
-                      {histReqs.length === 0 ? (
-                        <div style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.22)',lineHeight:1.5,fontStyle:'italic'}}>No previous requests from this client or project.</div>
-                      ) : (
-                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                          {histReqs.slice(0,8).map((hr)=>(
-                            <div key={hr.id} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:7,padding:'8px 10px'}}>
-                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,marginBottom:3}}>
-                                <span style={{fontFamily:'monospace',fontSize:'0.70rem',fontWeight:700,color:'rgba(220,165,0,0.85)'}}>{hr.id}</span>
-                                <Badge s={hr.status}/>
-                              </div>
-                              <div style={{fontSize:'0.73rem',color:'rgba(255,255,255,0.62)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>{hr.proj||'—'}</div>
-                              <div style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.28)'}}>{hr.submittedBy||''}{hr.date?' · '+hr.date:''}</div>
-                              {hr.margin && <div style={{fontSize:'0.64rem',color:'rgba(0,200,255,0.55)',marginTop:2}}>Margin: {hr.margin}%</div>}
-                            </div>
-                          ))}
-                          {histReqs.length > 8 && <div style={{fontSize:'0.66rem',color:'rgba(255,255,255,0.22)',textAlign:'center'}}>+{histReqs.length-8} more</div>}
-                        </div>
-                      )}
-                    </div>
-
-                  </>)}
-
-                  {/* ── ANALYSIS TAB ── */}
-                  {dirTab === 'analysis' && (<>
-
-                    {/* SLA & status summary */}
-                    <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'12px 14px'}}>
-                      <div style={{fontSize:'0.50rem',color:'rgba(200,130,255,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:10}}>Request Analysis</div>
-                      {[
-                        ['TAT Elapsed', `${formatTAT(tatElapsedDash)} (${Math.round(tatPctDash)}%)`, tatPctDash>=100?'rgba(255,77,77,0.90)':tatPctDash>=75?'rgba(255,122,48,0.90)':'rgba(0,229,176,0.85)'],
-                        ['Request Type', req.requestType==='revised'?'Revised':req.requestType==='finalPrice'?'Final Price':'New Request', 'rgba(255,255,255,0.75)'],
-                        ['Deal Category', req.deal||'—', 'rgba(255,255,255,0.75)'],
-                        ['Supply Mode', req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'Not specified', 'rgba(255,255,255,0.65)'],
-                        ['Estimator Margin', req.margin?`${req.margin}%`:'Not set', req.margin?'rgba(0,210,255,0.90)':'rgba(255,255,255,0.30)'],
-                        ['Revised Margin', req.revisedMargin?`${req.revisedMargin}%`:'—', req.revisedMargin?'rgba(200,130,255,0.90)':'rgba(255,255,255,0.30)'],
-                        ['Director Rating', req.requesterRating?`${req.requesterRating} ★`:'Not rated', req.requesterRating?'rgba(255,200,0,0.85)':'rgba(255,255,255,0.30)'],
-                      ].map(([k,v,c])=>(
-                        <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'6px 0',gap:8}}>
-                          <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
-                          <span style={{fontSize:'0.70rem',fontWeight:600,color:c,textAlign:'right'}}>{v}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Client history stats */}
-                    {histReqs.length > 0 && (
-                      <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'12px 14px'}}>
-                        <div style={{fontSize:'0.50rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:10}}>Client Track Record</div>
+                    </>)}
+                    {dirTab === 'analysis' && (<>
+                      <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'11px 13px',flexShrink:0}}>
+                        <div style={{fontSize:'0.48rem',color:'rgba(200,130,255,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:9}}>Request Analysis</div>
                         {[
-                          ['Total Past Requests', histReqs.length],
-                          ['Approved', histReqs.filter(r=>r.status==='Approved'||r.status==='Completed').length],
-                          ['Pending / In Progress', histReqs.filter(r=>r.status==='Pending Estimation'||r.status==='Pending Approval'||r.status==='Estimation Uploaded').length],
-                          ['Avg Margin', (() => { const ms=histReqs.filter(r=>r.margin).map(r=>parseFloat(r.margin)); return ms.length?(ms.reduce((a,b)=>a+b,0)/ms.length).toFixed(1)+'%':'—'; })()],
-                        ].map(([k,v])=>(
-                          <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'6px 0',gap:8}}>
-                            <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)'}}>{k}</span>
-                            <span style={{fontSize:'0.70rem',fontWeight:700,color:'rgba(255,255,255,0.80)'}}>{v}</span>
+                          ['Request Type', req.requestType==='revised'?'Revised':req.requestType==='finalPrice'?'Final Price':'New Request', 'rgba(255,255,255,0.75)'],
+                          ['Deal Category', req.deal||'—', 'rgba(255,255,255,0.75)'],
+                          ['Supply Mode', req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'Not specified', 'rgba(255,255,255,0.65)'],
+                          ['Estimator Margin', req.margin?`${req.margin}%`:'Not set', req.margin?'rgba(0,210,255,0.90)':'rgba(255,255,255,0.30)'],
+                          ['Revised Margin', req.revisedMargin?`${req.revisedMargin}%`:'—', req.revisedMargin?'rgba(200,130,255,0.90)':'rgba(255,255,255,0.30)'],
+                          ['Rating', req.requesterRating?`${req.requesterRating} ★`:'Not rated', req.requesterRating?'rgba(255,200,0,0.85)':'rgba(255,255,255,0.30)'],
+                        ].map(([k,v,c])=>(
+                          <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8}}>
+                            <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
+                            <span style={{fontSize:'0.66rem',fontWeight:600,color:c,textAlign:'right'}}>{v}</span>
                           </div>
                         ))}
                       </div>
-                    )}
+                      {histReqs.length > 0 && (
+                        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'11px 13px',flexShrink:0}}>
+                          <div style={{fontSize:'0.48rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:9}}>Client Track Record</div>
+                          {[
+                            ['Total Past Requests', histReqs.length],
+                            ['Approved', histReqs.filter(r=>r.status==='Approved'||r.status==='Completed').length],
+                            ['Avg Margin', (()=>{const ms=histReqs.filter(r=>r.margin).map(r=>parseFloat(r.margin));return ms.length?(ms.reduce((a,b)=>a+b,0)/ms.length).toFixed(1)+'%':'—';})()],
+                          ].map(([k,v])=>(
+                            <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8}}>
+                              <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.30)'}}>{k}</span>
+                              <span style={{fontSize:'0.66rem',fontWeight:700,color:'rgba(255,255,255,0.80)'}}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>)}
+                  </div>
 
-                  </>)}
+                  {/* ── CONVERSATION — C ── */}
+                  <div style={{flex:1,background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:12,padding:'12px 14px',display:'flex',flexDirection:'column',gap:8,minHeight:0,overflow:'hidden'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,paddingBottom:8,borderBottom:'1px solid rgba(168,85,247,0.18)',flexShrink:0}}>
+                      <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(168,85,247,0.85)',boxShadow:'0 0 7px rgba(168,85,247,0.65)',flexShrink:0}}/>
+                      <span style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',fontWeight:700}}>Conversation</span>
+                      {(req.conversation||[]).length > 0 && (
+                        <span style={{background:'rgba(168,85,247,0.18)',border:'1px solid rgba(168,85,247,0.32)',borderRadius:50,padding:'1px 7px',fontSize:'0.56rem',color:'rgba(196,181,253,0.90)',fontWeight:700}}>{(req.conversation||[]).length}</span>
+                      )}
+                      {(req.salesPerson||req.estimator) && (
+                        <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.26)',marginLeft:'auto'}}>{[req.estimator,req.salesPerson].filter(Boolean).join(' & ')}</span>
+                      )}
+                    </div>
+                    <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.18) transparent'}}>
+                      {(req.conversation||[]).length === 0 ? (
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:10,opacity:0.40}}>
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                          <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.26)',margin:0,fontStyle:'italic',textAlign:'center',lineHeight:1.5}}>No messages yet.</p>
+                        </div>
+                      ) : (req.conversation||[]).map((msg,i)=>{
+                        const isEst = msg.role==='estimator';
+                        return (
+                          <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isEst?'flex-end':'flex-start'}}>
+                            <div style={{maxWidth:'88%',background:isEst?'rgba(109,40,217,0.22)':'rgba(255,255,255,0.05)',border:isEst?'1px solid rgba(168,85,247,0.28)':'1px solid rgba(255,255,255,0.08)',borderRadius:isEst?'11px 11px 3px 11px':'11px 11px 11px 3px',padding:'6px 10px'}}>
+                              <div style={{fontSize:'0.52rem',color:isEst?'rgba(196,181,253,0.60)':'rgba(100,200,255,0.55)',marginBottom:2,fontWeight:600}}>{msg.from} · {msg.ts}</div>
+                              <div style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.82)',lineHeight:1.4}}>{msg.text}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{flexShrink:0,paddingTop:6,borderTop:'1px solid rgba(168,85,247,0.12)'}}>
+                      <div style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.20)',textAlign:'center',fontStyle:'italic'}}>Conversation between Sales &amp; Estimator</div>
+                    </div>
+                  </div>
 
-                </div>{/* end tab content */}
+                </div>{/* end right column */}
 
-              </div>{/* end right sidebar */}
+              </div>{/* end 3-column */}
+
+              {/* ═══ STICKY BOTTOM: Cost-Artist Decision ═══ */}
+              <div style={{flexShrink:0,background:'rgba(2,0,14,0.97)',borderTop:'1px solid rgba(255,255,255,0.10)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',padding:'10px 16px',display:'flex',gap:10,alignItems:'center',zIndex:20}}>
+                <div style={{flexShrink:0}}>
+                  <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Revised Margin %</div>
+                  <div style={{display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:7,padding:'6px 10px',width:100}}>
+                    <input type="number" value={req.revisedMargin||''} onChange={e=>onUpdate(open,{revisedMargin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
+                      style={{flex:1,background:'transparent',border:'none',outline:'none',fontFamily:'monospace',fontSize:'1.05rem',fontWeight:700,width:'100%',color:'rgba(255,255,255,0.95)'}}/>
+                    <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.35)',fontFamily:'monospace',fontWeight:700}}>%</span>
+                  </div>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.40)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Cost-Artist Remarks</div>
+                  <textarea value={req.directorNote||''} onChange={e=>onUpdate(open,{directorNote:e.target.value})} placeholder="Remarks or revision notes…" rows={1}
+                    style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:7,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.80rem',padding:'6px 10px',outline:'none',resize:'none',boxSizing:'border-box'}}
+                    onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
+                </div>
+                <div style={{display:'flex',gap:7,flexShrink:0}}>
+                  {DA.map(a=>(
+                    <button key={a.v} onClick={()=>{
+                      const ns = a.v==='approved'?'Approved':a.v==='rejected'?'Estimation Uploaded':'Pending Approval';
+                      const nr = a.v==='approved'?'completed':a.v==='rejected'?'onhold':'inprogress';
+                      onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr,directorSubmitted:false});
+                    }}
+                      style={{padding:'9px 16px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.82rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',display:'flex',alignItems:'center',gap:6,boxShadow:req.directorAction===a.v?`0 0 16px ${a.c}22`:'none',whiteSpace:'nowrap'}}
+                      onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
+                      onMouseLeave={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
+                      {req.directorAction===a.v&&<span style={{width:5,height:5,borderRadius:'50%',background:a.c,boxShadow:`0 0 6px ${a.c}`,flexShrink:0}}/>}
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                {req.directorSubmitted ? (
+                  <div style={{display:'flex',alignItems:'center',gap:7,padding:'9px 20px',borderRadius:100,background:'rgba(0,220,130,0.12)',border:'1px solid rgba(0,220,130,0.40)',color:'rgba(0,230,150,0.95)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,whiteSpace:'nowrap',boxShadow:'0 0 16px rgba(0,200,120,0.18)',flexShrink:0}}>
+                    <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 7px rgba(0,220,130,0.8)',flexShrink:0}}/>
+                    Response Submitted
+                  </div>
+                ) : (
+                  <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Estimation Uploaded':'Pending Approval';const nr=req.directorAction==='approved'?'completed':req.directorAction==='rejected'?'onhold':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
+                    disabled={!req.directorAction}
+                    style={{padding:'9px 24px',borderRadius:100,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 4px 20px rgba(120,60,255,0.30)':'none',outline:'none',whiteSpace:'nowrap',flexShrink:0}}>
+                    Submit Response
+                  </button>
+                )}
+              </div>
 
             </div>
           );
@@ -5381,7 +5811,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   // Unified column layout
   const COL = '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px';
 
-  const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost Artist'};
+  const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost-Artist'};
   const VIEW_COLORS = {
     requester:{act:'rgba(100,200,255,0.90)', bg:'rgba(0,180,255,0.12)', bd:'rgba(0,200,255,0.30)'},
     estimator:{act:'rgba(160,255,180,0.90)', bg:'rgba(0,200,100,0.12)', bd:'rgba(0,220,130,0.30)'},
@@ -5494,7 +5924,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     const subMap = {
                       'not-started':   {label:'Pending Assignment', c:'rgba(255,200,50,0.60)'},
                       'inprogress':    {label:'Estimator Review',   c:'rgba(100,200,255,0.70)'},
-                      'pending-director':{label:'Director Review',  c:'rgba(180,130,255,0.80)'},
+                      'pending-director':{label:'Cost-Artist Review',  c:'rgba(180,130,255,0.80)'},
                       'completed':     {label:'Completed',          c:'rgba(52,211,153,0.80)'},
                       'onhold':        {label:'On Hold',            c:'rgba(255,120,60,0.70)'},
                     };
@@ -5573,26 +6003,38 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
 
       {/* ── Delete confirmation modal ── */}
       {deleteConfirm !== null && (
-        <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.60)',backdropFilter:'blur(6px)'}}>
-          <div style={{background:'rgba(12,18,30,0.97)',border:'1px solid rgba(220,60,60,0.35)',borderRadius:14,padding:'28px 32px',maxWidth:360,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.70)',display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(8px)'}}>
+          <div style={{background:'rgba(12,8,28,0.98)',border:'1px solid rgba(220,60,60,0.40)',borderRadius:14,padding:'28px 32px',maxWidth:380,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.80)',display:'flex',flexDirection:'column',gap:16}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <span style={{width:10,height:10,borderRadius:'50%',background:'rgba(220,60,60,0.90)',boxShadow:'0 0 10px rgba(220,60,60,0.60)',flexShrink:0}}/>
-              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.75)',fontWeight:600}}>Director · Delete Request</span>
+              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.80)',fontWeight:700}}>APEX-CA · Delete Request</span>
             </div>
             <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.80)',lineHeight:1.55,margin:0}}>
-              Are you sure you want to permanently delete request <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{requests[deleteConfirm]?.id}</strong>? This action cannot be undone.
+              Permanently delete <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{requests[deleteConfirm]?.id}</strong>? This cannot be undone.
             </p>
+            <div>
+              <div style={{fontSize:'0.56rem',color:'rgba(255,100,100,0.60)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:6}}>Type <strong style={{color:'rgba(255,150,150,0.90)',letterSpacing:'0.08em'}}>xepa</strong> to confirm</div>
+              <input
+                autoFocus
+                value={deleteCode}
+                onChange={e=>setDeleteCode(e.target.value)}
+                placeholder="xepa"
+                style={{width:'100%',background:'rgba(220,50,50,0.08)',border:`1px solid ${deleteCode.toLowerCase()==='xepa'?'rgba(220,60,60,0.60)':'rgba(255,255,255,0.14)'}`,borderRadius:7,color:'rgba(255,200,200,0.95)',fontFamily:'monospace',fontSize:'0.96rem',fontWeight:700,padding:'8px 12px',outline:'none',boxSizing:'border-box',letterSpacing:'0.12em',transition:'border-color 0.2s'}}
+              />
+            </div>
             <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
-              <button onClick={()=>setDeleteConfirm(null)}
+              <button onClick={()=>{setDeleteConfirm(null);setDeleteCode('');}}
                 style={{padding:'8px 20px',borderRadius:7,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.65)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:600,outline:'none',transition:'background 0.15s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
                 Cancel
               </button>
-              <button onClick={()=>{ onDelete(deleteConfirm); setDeleteConfirm(null); setOpen(null); }}
-                style={{padding:'8px 20px',borderRadius:7,background:'rgba(200,40,40,0.18)',border:'1px solid rgba(220,60,60,0.45)',color:'rgba(255,100,100,0.95)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'background 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(200,40,40,0.32)'}
-                onMouseLeave={e=>e.currentTarget.style.background='rgba(200,40,40,0.18)'}>
+              <button
+                disabled={deleteCode.toLowerCase()!=='xepa'}
+                onClick={()=>{ if(deleteCode.toLowerCase()==='xepa'){onDelete(deleteConfirm);setDeleteConfirm(null);setDeleteCode('');setOpen(null);} }}
+                style={{padding:'8px 20px',borderRadius:7,background:deleteCode.toLowerCase()==='xepa'?'rgba(200,40,40,0.25)':'rgba(255,255,255,0.03)',border:`1px solid ${deleteCode.toLowerCase()==='xepa'?'rgba(220,60,60,0.55)':'rgba(255,255,255,0.08)'}`,color:deleteCode.toLowerCase()==='xepa'?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',cursor:deleteCode.toLowerCase()==='xepa'?'pointer':'not-allowed',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'all 0.2s'}}
+                onMouseEnter={e=>{if(deleteCode.toLowerCase()==='xepa')e.currentTarget.style.background='rgba(200,40,40,0.38)';}}
+                onMouseLeave={e=>{if(deleteCode.toLowerCase()==='xepa')e.currentTarget.style.background='rgba(200,40,40,0.25)';}}>
                 Delete
               </button>
             </div>
@@ -5717,7 +6159,7 @@ const Analyse = ({ requests }) => {
       <div style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:28}}>
         <StatCard label="Total Requests"    value={total}           accent='rgba(255,255,255,0.85)' bg='rgba(255,255,255,0.04)' bd='rgba(255,255,255,0.10)'/>
         <StatCard label="Pending / In Prog" value={pending}         accent='rgba(255,190,60,0.90)'  bg='rgba(255,160,30,0.07)'  bd='rgba(255,180,50,0.20)'/>
-        <StatCard label="Awaiting Director" value={awaitDir}        accent='rgba(160,130,255,0.90)' bg='rgba(140,80,255,0.07)'  bd='rgba(160,120,255,0.20)'/>
+        <StatCard label="Awaiting Cost-Artist" value={awaitDir}        accent='rgba(160,130,255,0.90)' bg='rgba(140,80,255,0.07)'  bd='rgba(160,120,255,0.20)'/>
         <StatCard label="Approved"          value={approved}        accent='rgba(52,211,153,0.90)'  bg='rgba(16,185,129,0.07)'  bd='rgba(52,211,153,0.22)'/>
         <StatCard label="Rejected"          value={rejected}        accent='rgba(255,90,90,0.90)'   bg='rgba(200,50,50,0.07)'   bd='rgba(220,70,70,0.22)'/>
         <StatCard label="Total Value (AED)" value={`${fmt(totalValue)}`} sub={`avg ${fmt(avgValue)} / req`} accent='rgba(255,220,80,0.90)' bg='rgba(180,140,0,0.07)' bd='rgba(220,180,0,0.22)'/>
@@ -5779,7 +6221,7 @@ const Analyse = ({ requests }) => {
           {[
             { label:'Submission → Assignment', val:avgS1, color:'rgba(120,180,255,0.85)', icon:'①' },
             { label:'Assignment → Quotation',  val:avgS2, color:'rgba(255,200,50,0.85)',  icon:'②' },
-            { label:'Quotation → Director',    val:avgS3, color:'rgba(160,130,255,0.90)', icon:'③' },
+            { label:'Quotation → Cost-Artist',    val:avgS3, color:'rgba(160,130,255,0.90)', icon:'③' },
           ].map(({label,val,color,icon})=>(
             <div key={label} style={{flex:1,minWidth:180,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'16px 18px'}}>
               <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:8}}>
@@ -6022,8 +6464,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://estimation-tan.vercel.app/?code=${encodeURIComponent(userCode)}`
-    : 'https://estimation-tan.vercel.app/';
+    ? `https://estai8-4-338841056432.us-west1.run.app/?code=${encodeURIComponent(userCode)}`
+    : 'https://estai8-4-338841056432.us-west1.run.app/';
   return (
     <>
       {/* Full-screen glassy surface */}
@@ -6474,7 +6916,7 @@ const handleSubmit = async (formData) => {
       {((userRole && userRole !== 'sales' && userRole !== 'director') || (userRole === 'director' && view === 'form') || (!userRole && view === 'dashboard')) && (
         <button onClick={()=>setDirectOpen(true)}
           style={{
-            position:'fixed', top:10, left:'50%', transform:'translateX(40px)', zIndex:9501,
+            position:'fixed', top:10, right:265, zIndex:9501,
             display:'inline-flex', alignItems:'center', gap:6,
             background:'rgba(10,6,30,0.82)',
             border:'1px solid rgba(168,85,247,0.48)',
@@ -6508,6 +6950,10 @@ const handleSubmit = async (formData) => {
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
           initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>setDirectOpen(true)}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
+      {view==='trackQuotation' && <TrackQuotation requests={requests}
+          spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
+          showAll={userRole==='director'}
+          onUpdate={updateRequest}/>}
       {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}
           autoSpName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):undefined}
           showAll={userRole==='director'}/>}
