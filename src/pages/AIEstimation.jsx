@@ -4457,31 +4457,38 @@ const TATTimeline = ({ r, compact }) => {
               <span style={{fontSize:compact?'0.42rem':'0.46rem',color:st.color,whiteSpace:'nowrap',fontFamily:'monospace',fontWeight:600,opacity:0.85,marginTop:1}}>{fdt(st.ts)}</span>
             )}
           </div>
-          {/* flex-expanding connector + TAT duration */}
+          {/* flex-expanding connector — arrows + inline duration */}
           {i < stages.length - 1 && (
-            <div style={{flex:1,minWidth:18,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px',paddingBottom:0,justifyContent:'flex-start',gap:1}}>
+            <div style={{flex:1,minWidth:18,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 3px'}}>
               {(() => {
+                const reversed = r.directorAction === 'rejected' || r.directorAction === 'revise';
                 const segTat = stages[i+1].tat;
                 const segColor = stages[i+1].color;
                 const isLive = !segTat && (
                   (i === 0 && !r.taggedAt && liveMs) ||
                   (i === 1 && r.taggedAt && !r.quotationSubmittedAt && liveMs)
                 );
-                return (segTat || isLive) ? (
-                  <span style={{fontSize:compact?'0.72rem':'0.80rem',color:segTat?segColor:'rgba(255,200,50,0.75)',fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',letterSpacing:'0.04em',
-                    textShadow:segTat?`0 0 8px ${segColor}80`:'0 0 8px rgba(255,200,50,0.40)',
-                    marginBottom:2}}>
-                    {segTat ? fms(segTat) : `${fms(liveMs)} ↻`}
-                  </span>
+                const duration = segTat ? fms(segTat) : isLive ? `${fms(liveMs)} ↻` : null;
+                const arrow = reversed ? '‹' : '›';
+                const arrowColor = reversed
+                  ? 'rgba(255,100,100,0.85)'
+                  : stages[i+1].done ? stages[i+1].color
+                  : st.done ? `${st.color}80`
+                  : 'rgba(255,255,255,0.18)';
+                const arrowSz = compact ? '0.65rem' : '0.72rem';
+                const A = ({k}) => <span key={k} style={{color:arrowColor,fontSize:arrowSz,lineHeight:1,fontWeight:600}}>{arrow}</span>;
+                return duration ? (
+                  <>
+                    <A k="a0"/><A k="a1"/><A k="a2"/>
+                    <span style={{fontSize:compact?'0.68rem':'0.76rem',color:reversed?'rgba(255,120,120,0.90)':segColor,fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',letterSpacing:'0.02em',textShadow:`0 0 8px ${reversed?'rgba(255,100,100,0.50)':segColor+'80'}`,padding:'0 2px'}}>
+                      {duration}
+                    </span>
+                    <A k="b0"/><A k="b1"/><A k="b2"/>
+                  </>
                 ) : (
-                  <span style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.16)',fontFamily:'monospace',marginBottom:2}}>—</span>
+                  <>{[0,1,2,3,4].map(k=><A key={k} k={k}/>)}</>
                 );
               })()}
-              <div style={{width:'100%',height:1.5,borderRadius:1,
-                background:stages[i+1].done
-                  ?`linear-gradient(90deg,${st.color}80,${stages[i+1].color}80)`
-                  :st.done?`linear-gradient(90deg,${st.color}50,rgba(255,255,255,0.08))`
-                  :'rgba(255,255,255,0.08)'}}/>
             </div>
           )}
         </div>
