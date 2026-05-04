@@ -22,6 +22,8 @@ const S = `
   @keyframes callout  { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
   @keyframes coreOrb  { to{transform:rotate(360deg)} }
   @keyframes glowBtn  { 0%,100%{box-shadow:0 0 16px rgba(220,165,0,0.15)} 50%{box-shadow:0 0 36px rgba(220,165,0,0.38)} }
+  @keyframes notifIn  { from{opacity:0;transform:translateX(32px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes notifOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(32px)} }
 
   .root {
     position:fixed; inset:0; width:100vw; height:100vh; z-index:100;
@@ -218,28 +220,74 @@ const S = `
   .nav-pills {
     display: flex;
     align-items: center;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 50px;
-    padding: 4px;
-    gap: 2px;
+    padding: 3px;
+    gap: 1px;
+  }
+  @keyframes navShimmer {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes navSpark {
+    0%   { transform: translateX(-100%) skewX(-18deg); opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
   }
   .nav-btn {
     background: transparent;
     border: none;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255,255,255,0.42);
     font-family: 'Inter', sans-serif;
     font-size: 0.78rem;
     font-weight: 500;
-    letter-spacing: 0.05em;
-    padding: 7px 20px;
+    letter-spacing: 0.04em;
+    padding: 7px 18px;
     border-radius: 50px;
     cursor: pointer;
-    transition: all 0.22s;
+    transition: color 0.22s, background 0.22s, box-shadow 0.22s;
     white-space: nowrap;
+    position: relative;
+    overflow: hidden;
   }
-  .nav-btn:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.08); }
-  .nav-btn.active { color: #fff; background: rgba(255,255,255,0.14); font-weight: 600; }
+  .nav-btn:not(.active):hover {
+    color: rgba(255,255,255,0.88);
+    background: rgba(255,255,255,0.07);
+  }
+  .nav-btn.active {
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border: none;
+    background: linear-gradient(120deg,
+      rgba(99,102,241,0.65),
+      rgba(139,92,246,0.60),
+      rgba(236,72,153,0.52),
+      rgba(6,182,212,0.55),
+      rgba(99,102,241,0.65));
+    background-size: 300% 300%;
+    animation: navShimmer 5s ease infinite;
+    box-shadow:
+      0 0 24px rgba(139,92,246,0.52),
+      0 4px 20px rgba(0,0,0,0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    text-shadow: 0 1px 8px rgba(180,140,255,0.55);
+  }
+  .nav-btn.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 38%;
+    height: 100%;
+    background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.22) 50%, transparent 100%);
+    border-radius: 50px;
+    animation: navSpark 3s ease-in-out infinite;
+    pointer-events: none;
+  }
   .nav-back {
     margin-left: auto;
     background: transparent;
@@ -988,12 +1036,16 @@ const AIChatPanel = ({ onClose }) => {
 };
 
 // ─── SALES PERFORMANCE ───────────────────────────────────────────────────────
-const SalesPerformance = ({ spName, showAll }) => {
+const SalesPerformance = ({ spName, showAll, requests=[] }) => {
   const F = "'Inter',sans-serif";
-  const SK = `sp_perf_${spName||'all'}`;
-  const [rows, setRows] = useState(() => { try { return JSON.parse(localStorage.getItem(SK)||'[]'); } catch { return []; } });
+  const SK  = `sp_perf_${spName||'all'}`;
+  const TK  = `sp_target_${spName||'all'}`;
+  const [rows, setRows]       = useState(() => { try { return JSON.parse(localStorage.getItem(SK)||'[]'); } catch { return []; } });
+  const [target, setTarget]   = useState(() => { try { return localStorage.getItem(TK)||''; } catch { return ''; } });
+  const [editTarget, setEditTarget] = useState(false);
+  const [targetDraft, setTargetDraft] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const blank = { customer:'', so:'', invoiceValue:'', collection:'' };
+  const blank = { customer:'', so:'', soValue:'', invoiceValue:'', collection:'', netProfit:'' };
   const [form, setForm] = useState(blank);
   const UP = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -1009,21 +1061,37 @@ const SalesPerformance = ({ spName, showAll }) => {
     setRows(updated);
     try { localStorage.setItem(SK, JSON.stringify(updated)); } catch {}
   };
+  const saveTarget = () => {
+    setTarget(targetDraft); setEditTarget(false);
+    try { localStorage.setItem(TK, targetDraft); } catch {}
+  };
 
-  const maxInv = Math.max(1, ...rows.map(r => Number(r.invoiceValue)||0));
-  const totalInv = rows.reduce((s,r) => s + (Number(r.invoiceValue)||0), 0);
-  const totalCol = rows.reduce((s,r) => s + (Number(r.collection)||0), 0);
-  const fmt = v => Number(v) >= 1000 ? `${(Number(v)/1000).toFixed(1)}K` : String(Number(v)||0);
+  const totalSO    = rows.reduce((s,r) => s + (Number(r.soValue)||0), 0);
+  const totalInv   = rows.reduce((s,r) => s + (Number(r.invoiceValue)||0), 0);
+  const totalCol   = rows.reduce((s,r) => s + (Number(r.collection)||0), 0);
+  const totalProfit= rows.reduce((s,r) => s + (Number(r.netProfit)||0), 0);
+  const maxSO      = Math.max(1, ...rows.map(r => Number(r.soValue)||0));
 
-  const inp = (ex={}) => ({ width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:7, color:'rgba(255,255,255,0.85)', fontFamily:F, fontSize:'0.84rem', padding:'9px 12px', outline:'none', boxSizing:'border-box', ...ex });
+  // Lost count from actual approved requests
+  const myLost = requests.filter(r =>
+    r.salesStatus === 'Lost' && (
+      showAll || (r.salesPerson||'').toLowerCase() === (spName||'').toLowerCase()
+    )
+  ).length;
+
+  const fmt  = v => { const n = Number(v)||0; return n>=1000000?`${(n/1000000).toFixed(1)}M`:n>=1000?`${(n/1000).toFixed(1)}K`:String(n); };
+  const fmtN = v => Number(v||0).toLocaleString();
+  const inp  = (ex={}) => ({ width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:7, color:'rgba(255,255,255,0.85)', fontFamily:F, fontSize:'0.84rem', padding:'9px 12px', outline:'none', boxSizing:'border-box', ...ex });
+
+  const COL = '1fr 90px 140px 140px 140px 140px 36px';
 
   return (
     <div className="ss-page" style={{ overflowY:'auto', fontFamily:F }}>
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 style={{ fontSize:'1.3rem', fontWeight:800, letterSpacing:'0.10em', color:'rgba(255,255,255,0.88)', textTransform:'uppercase', margin:0 }}>Sales Performance</h2>
-          <p style={{ fontSize:'0.70rem', color:'rgba(255,255,255,0.30)', marginTop:4, letterSpacing:'0.06em' }}>Customer · SO # · Invoice Value · Collection</p>
+          <h2 style={{ fontSize:'1.3rem', fontWeight:800, letterSpacing:'0.10em', color:'rgba(255,255,255,0.88)', textTransform:'uppercase', margin:0 }}>My Performance</h2>
+          <p style={{ fontSize:'0.70rem', color:'rgba(255,255,255,0.30)', marginTop:4, letterSpacing:'0.06em' }}>SO Value · Invoice · Collection · Net Profit · Lost</p>
         </div>
         {!showAll && (
           <button onClick={()=>setShowAdd(s=>!s)}
@@ -1035,88 +1103,134 @@ const SalesPerformance = ({ spName, showAll }) => {
 
       {/* Add form */}
       {showAdd && (
-        <div style={{ background:'rgba(4,6,20,0.95)', border:'1px solid rgba(168,85,247,0.25)', borderRadius:14, padding:'22px 24px', marginBottom:20, display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:10, alignItems:'flex-end' }}>
-          {[['Customer','customer','Company name'],['SO #','so','Sales order #'],['Invoice Value (AED)','invoiceValue','0'],['Collection (AED)','collection','0']].map(([lbl,key,ph])=>(
-            <div key={key}>
-              <label style={{ fontSize:'0.54rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.32)', display:'block', marginBottom:5 }}>{lbl}</label>
-              <input value={form[key]} onChange={e=>UP(key,e.target.value)} placeholder={ph} style={inp(key==='invoiceValue'||key==='collection'?{textAlign:'right'}:{})}/>
+        <div style={{ background:'rgba(4,6,20,0.95)', border:'1px solid rgba(168,85,247,0.25)', borderRadius:14, padding:'22px 24px', marginBottom:20 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr 1fr auto', gap:10, alignItems:'flex-end' }}>
+            {[['Customer','customer','Company name',{}],['SO #','so','Order ref',{}],['SO Value (AED)','soValue','0',{textAlign:'right'}],['Invoice Value (AED)','invoiceValue','0',{textAlign:'right'}],['Collection (AED)','collection','0',{textAlign:'right'}],['Net Profit (AED)','netProfit','0',{textAlign:'right'}]].map(([lbl,key,ph,ex])=>(
+              <div key={key}>
+                <label style={{ fontSize:'0.54rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.32)', display:'block', marginBottom:5 }}>{lbl}</label>
+                <input value={form[key]} onChange={e=>UP(key,e.target.value)} placeholder={ph} style={inp(ex)}/>
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:6 }}>
+              <button onClick={()=>setShowAdd(false)} style={{ padding:'9px 12px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.38)', fontFamily:F, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>✕</button>
+              <button onClick={save} style={{ padding:'9px 18px', borderRadius:8, background:'rgba(168,85,247,0.20)', border:'1px solid rgba(168,85,247,0.45)', color:'rgba(200,160,255,0.95)', fontFamily:F, fontSize:'0.84rem', fontWeight:700, cursor:'pointer', outline:'none' }}>Save</button>
             </div>
-          ))}
-          <div style={{ display:'flex', gap:6 }}>
-            <button onClick={()=>setShowAdd(false)} style={{ padding:'9px 12px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.38)', fontFamily:F, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>✕</button>
-            <button onClick={save} style={{ padding:'9px 18px', borderRadius:8, background:'rgba(168,85,247,0.20)', border:'1px solid rgba(168,85,247,0.45)', color:'rgba(200,160,255,0.95)', fontFamily:F, fontSize:'0.84rem', fontWeight:700, cursor:'pointer', outline:'none' }}>Save</button>
           </div>
         </div>
       )}
 
+      {/* KPI Chips row */}
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:20 }}>
+        {/* Target chip — editable */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(168,85,247,0.08)', border:'1px solid rgba(168,85,247,0.25)', display:'flex', flexDirection:'column', gap:4, minWidth:130, position:'relative' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+            <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(168,85,247,0.60)', fontWeight:700 }}>Target</span>
+            {!showAll && <button onClick={()=>{ setEditTarget(true); setTargetDraft(target); }} style={{ background:'none', border:'none', color:'rgba(168,85,247,0.55)', cursor:'pointer', fontSize:'0.62rem', padding:0, outline:'none' }}>✎</button>}
+          </div>
+          {editTarget ? (
+            <div style={{ display:'flex', gap:4 }}>
+              <input value={targetDraft} onChange={e=>setTargetDraft(e.target.value)} placeholder="AED target"
+                style={{ flex:1, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(168,85,247,0.35)', borderRadius:5, color:'#fff', fontFamily:F, fontSize:'0.78rem', padding:'3px 7px', outline:'none', width:70 }}/>
+              <button onClick={saveTarget} style={{ background:'rgba(168,85,247,0.25)', border:'1px solid rgba(168,85,247,0.45)', borderRadius:5, color:'rgba(200,160,255,0.95)', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', padding:'2px 8px', outline:'none' }}>✓</button>
+            </div>
+          ) : (
+            <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(168,85,247,0.90)' }}>{target ? `AED ${Number(target).toLocaleString()}` : '—'}</span>
+          )}
+        </div>
+        {/* Lost */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.22)', display:'flex', flexDirection:'column', gap:4, minWidth:110 }}>
+          <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(239,68,68,0.60)', fontWeight:700 }}>Lost Deals</span>
+          <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(248,113,113,0.90)' }}>{myLost}</span>
+        </div>
+        {/* SO Value */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', flexDirection:'column', gap:4, minWidth:130 }}>
+          <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>SO Value</span>
+          <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(255,200,80,0.90)' }}>AED {fmtN(totalSO)}</span>
+        </div>
+        {/* Invoice Value */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', flexDirection:'column', gap:4, minWidth:130 }}>
+          <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(99,200,255,0.55)', fontWeight:700 }}>Invoice Value</span>
+          <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(99,200,255,0.90)' }}>AED {fmtN(totalInv)}</span>
+        </div>
+        {/* Collection */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', flexDirection:'column', gap:4, minWidth:130 }}>
+          <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(52,211,153,0.55)', fontWeight:700 }}>Collection</span>
+          <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(52,211,153,0.90)' }}>AED {fmtN(totalCol)}</span>
+        </div>
+        {/* Net Profit */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', flexDirection:'column', gap:4, minWidth:130 }}>
+          <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(180,130,255,0.55)', fontWeight:700 }}>Net Profit</span>
+          <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(180,130,255,0.90)' }}>AED {fmtN(totalProfit)}</span>
+        </div>
+        {/* Outstanding */}
+        <div style={{ padding:'10px 16px', borderRadius:12, background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.18)', display:'flex', flexDirection:'column', gap:4, minWidth:130 }}>
+          <span style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(251,191,36,0.55)', fontWeight:700 }}>Outstanding</span>
+          <span style={{ fontSize:'1.0rem', fontWeight:800, color:'rgba(251,191,36,0.90)' }}>AED {fmtN(Math.max(0,totalInv-totalCol))}</span>
+        </div>
+      </div>
+
       {rows.length === 0 ? (
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:260, gap:12, opacity:0.35 }}>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:220, gap:12, opacity:0.35 }}>
           <span style={{ fontSize:'2.4rem' }}>📊</span>
-          <p style={{ fontSize:'0.88rem', color:'rgba(255,255,255,0.40)', textAlign:'center' }}>No performance records yet.<br/>Add your first record above.</p>
+          <p style={{ fontSize:'0.88rem', color:'rgba(255,255,255,0.40)', textAlign:'center' }}>No records yet. Add your first record above.</p>
         </div>
       ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-          {/* Summary chips */}
-          <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-            {[['Total Records', rows.length, 'rgba(168,85,247,0.80)'],['Total Invoice', `AED ${totalInv.toLocaleString()}`, 'rgba(99,200,255,0.80)'],['Total Collection', `AED ${totalCol.toLocaleString()}`, 'rgba(52,211,153,0.80)'],['Outstanding', `AED ${Math.max(0,totalInv-totalCol).toLocaleString()}`, 'rgba(251,191,36,0.80)']].map(([l,v,c])=>(
-              <div key={l} style={{ padding:'10px 18px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', flexDirection:'column', gap:4, minWidth:140 }}>
-                <span style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:600 }}>{l}</span>
-                <span style={{ fontSize:'1.0rem', fontWeight:800, color:c }}>{v}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Bar chart */}
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, padding:'18px 20px' }}>
-            <p style={{ fontSize:'0.56rem', letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', marginBottom:16, fontWeight:700 }}>Invoice vs Collection by Customer</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+          {/* Bar chart — SO Value per customer */}
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, padding:'16px 20px' }}>
+            <p style={{ fontSize:'0.56rem', letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', marginBottom:14, fontWeight:700 }}>SO Value · Invoice · Collection by Customer</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {rows.map(r => {
+                const so  = Number(r.soValue)||0;
                 const inv = Number(r.invoiceValue)||0;
                 const col = Number(r.collection)||0;
-                const pInv = (inv/maxInv)*100;
-                const pCol = inv > 0 ? (col/inv)*100 : 0;
+                const pSO  = (so/maxSO)*100;
+                const pInv = so>0?(inv/so)*100:0;
+                const pCol = inv>0?(col/inv)*100:0;
                 return (
-                  <div key={r.id} style={{ display:'grid', gridTemplateColumns:'160px 1fr 100px', gap:10, alignItems:'center' }}>
-                    <span style={{ fontSize:'0.74rem', color:'rgba(255,255,255,0.70)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.customer}</span>
-                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      <div style={{ height:8, borderRadius:4, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:`${pInv}%`, background:'rgba(99,160,255,0.70)', borderRadius:4 }}/>
-                      </div>
-                      <div style={{ height:8, borderRadius:4, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:`${pCol}%`, background:'rgba(52,211,153,0.70)', borderRadius:4 }}/>
-                      </div>
+                  <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 1fr 120px', gap:10, alignItems:'center' }}>
+                    <span style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.70)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.customer}</span>
+                    <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                      {[['rgba(255,200,80,0.70)',pSO],['rgba(99,160,255,0.70)',pInv],['rgba(52,211,153,0.70)',pCol]].map(([c,p],bi)=>(
+                        <div key={bi} style={{ height:6, borderRadius:3, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${p}%`, background:c, borderRadius:3 }}/>
+                        </div>
+                      ))}
                     </div>
-                    <div style={{ textAlign:'right' }}>
-                      <div style={{ fontSize:'0.68rem', color:'rgba(99,160,255,0.80)', fontWeight:600 }}>AED {fmt(inv)}</div>
-                      <div style={{ fontSize:'0.64rem', color:'rgba(52,211,153,0.70)' }}>AED {fmt(col)}</div>
+                    <div style={{ textAlign:'right', display:'flex', flexDirection:'column', gap:1 }}>
+                      <span style={{ fontSize:'0.62rem', color:'rgba(255,200,80,0.80)', fontWeight:600 }}>SO {fmt(so)}</span>
+                      <span style={{ fontSize:'0.60rem', color:'rgba(99,160,255,0.75)' }}>Inv {fmt(inv)}</span>
+                      <span style={{ fontSize:'0.58rem', color:'rgba(52,211,153,0.70)' }}>Col {fmt(col)}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div style={{ display:'flex', gap:14, marginTop:14 }}>
-              {[['rgba(99,160,255,0.70)','Invoice Value'],['rgba(52,211,153,0.70)','Collection']].map(([c,l])=>(
+            <div style={{ display:'flex', gap:14, marginTop:12 }}>
+              {[['rgba(255,200,80,0.70)','SO Value'],['rgba(99,160,255,0.70)','Invoice'],['rgba(52,211,153,0.70)','Collection']].map(([c,l])=>(
                 <div key={l} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                  <div style={{ width:22, height:6, borderRadius:3, background:c }}/>
-                  <span style={{ fontSize:'0.60rem', color:'rgba(255,255,255,0.35)' }}>{l}</span>
+                  <div style={{ width:18, height:5, borderRadius:3, background:c }}/>
+                  <span style={{ fontSize:'0.58rem', color:'rgba(255,255,255,0.35)' }}>{l}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Table */}
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, overflow:'hidden' }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 160px 160px 36px', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
-              {['Customer','SO #','Invoice Value','Collection',''].map(h=>(
-                <span key={h} style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>{h}</span>
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, overflow:'auto' }}>
+            <div style={{ display:'grid', gridTemplateColumns:COL, padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', minWidth:700 }}>
+              {['Customer','SO #','SO Value','Invoice Value','Collection','Net Profit',''].map(h=>(
+                <span key={h} style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>{h}</span>
               ))}
             </div>
             {rows.map((r,i) => (
-              <div key={r.id} style={{ display:'grid', gridTemplateColumns:'1fr 120px 160px 160px 36px', padding:'12px 16px', borderBottom: i<rows.length-1?'1px solid rgba(255,255,255,0.05)':'none', alignItems:'center' }}>
-                <span style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(255,255,255,0.80)' }}>{r.customer}</span>
-                <span style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.45)', fontFamily:'monospace' }}>{r.so||'—'}</span>
-                <span style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(99,160,255,0.85)', textAlign:'right' }}>AED {Number(r.invoiceValue||0).toLocaleString()}</span>
-                <span style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(52,211,153,0.85)', textAlign:'right' }}>AED {Number(r.collection||0).toLocaleString()}</span>
+              <div key={r.id} style={{ display:'grid', gridTemplateColumns:COL, padding:'11px 16px', borderBottom: i<rows.length-1?'1px solid rgba(255,255,255,0.05)':'none', alignItems:'center', minWidth:700 }}>
+                <span style={{ fontSize:'0.80rem', fontWeight:600, color:'rgba(255,255,255,0.80)' }}>{r.customer}</span>
+                <span style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.40)', fontFamily:'monospace' }}>{r.so||'—'}</span>
+                <span style={{ fontSize:'0.78rem', fontWeight:600, color:'rgba(255,200,80,0.85)', textAlign:'right' }}>AED {fmtN(r.soValue)}</span>
+                <span style={{ fontSize:'0.78rem', fontWeight:600, color:'rgba(99,160,255,0.85)', textAlign:'right' }}>AED {fmtN(r.invoiceValue)}</span>
+                <span style={{ fontSize:'0.78rem', fontWeight:600, color:'rgba(52,211,153,0.85)', textAlign:'right' }}>AED {fmtN(r.collection)}</span>
+                <span style={{ fontSize:'0.78rem', fontWeight:600, color:'rgba(180,130,255,0.85)', textAlign:'right' }}>AED {fmtN(r.netProfit)}</span>
                 {!showAll && (
                   <button onClick={()=>del(r.id)} style={{ background:'rgba(220,50,50,0.08)', border:'1px solid rgba(220,50,50,0.22)', borderRadius:6, color:'rgba(255,100,100,0.65)', fontFamily:F, fontSize:'0.68rem', padding:'3px 7px', cursor:'pointer', outline:'none' }}>✕</button>
                 )}
@@ -1145,6 +1259,8 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   const [dsearch, setDsearch] = useState('');
   const [pendingStatus, setPendingStatus] = useState(null);
   const [remarkDraft, setRemarkDraft] = useState('');
+  const [showSupport, setShowSupport] = useState(false);
+  const [supportDraft, setSupportDraft] = useState('');
 
   const handleLogin = (e) => {
     e && e.preventDefault();
@@ -1160,13 +1276,16 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     setLoginError(false);
   };
 
-  // filtered to this salesperson only (or all if director/showAll)
+  // For sales: only show approved requests (quotation approved by Cost-Artist)
+  // Director showAll sees everything
   const myRequests = showAll
     ? requests
     : loggedIn
       ? requests.filter(r =>
-          (r.salesPerson || '').toLowerCase() === spName.toLowerCase() ||
-          (r.salesPerson || '').toUpperCase() === spName.toUpperCase()
+          r.directorAction === 'approved' && (
+            (r.salesPerson || '').toLowerCase() === spName.toLowerCase() ||
+            (r.salesPerson || '').toUpperCase() === spName.toUpperCase()
+          )
         )
       : [];
 
@@ -1595,6 +1714,46 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               )}
             </div>
 
+            {/* 🚩 Highlight / Escalate to Director or Cost-Artist */}
+            <div style={{ background: r.salesNeedsSupport ? 'rgba(255,130,30,0.07)' : 'rgba(255,255,255,0.03)', border: `1px solid ${r.salesNeedsSupport ? 'rgba(255,140,40,0.38)' : 'rgba(255,255,255,0.07)'}`, borderRadius: 10, padding: '14px 18px' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: r.salesNeedsSupport || showSupport ? 10 : 0 }}>
+                <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: r.salesNeedsSupport ? 'rgba(255,150,50,0.80)' : 'rgba(255,255,255,0.25)', fontWeight:700, margin:0 }}>🚩 Escalate for Support</p>
+                {!showAll && (
+                  <button onClick={() => { setShowSupport(s=>!s); setSupportDraft(r.salesNeedsSupport?.note||''); }}
+                    style={{ padding:'4px 14px', borderRadius:50, background: showSupport ? 'rgba(255,140,40,0.18)' : 'rgba(255,255,255,0.05)', border:`1px solid ${showSupport?'rgba(255,140,40,0.40)':'rgba(255,255,255,0.12)'}`, color: showSupport ? 'rgba(255,170,60,0.95)' : 'rgba(255,255,255,0.40)', fontFamily:F2, fontSize:'0.72rem', fontWeight:700, cursor:'pointer', outline:'none', transition:'all 0.2s' }}>
+                    {r.salesNeedsSupport ? 'Update' : '+ Flag'}
+                  </button>
+                )}
+              </div>
+              {r.salesNeedsSupport && !showSupport && (
+                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                  <span style={{ fontSize:'0.60rem', color:'rgba(255,150,50,0.60)', letterSpacing:'0.10em', textTransform:'uppercase' }}>Flagged by {r.salesNeedsSupport.by} · {r.salesNeedsSupport.ts}</span>
+                  <p style={{ fontSize:'0.82rem', color:'rgba(255,200,100,0.80)', lineHeight:1.5, margin:0, borderLeft:'2px solid rgba(255,140,40,0.38)', paddingLeft:10 }}>{r.salesNeedsSupport.note}</p>
+                </div>
+              )}
+              {showSupport && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <textarea value={supportDraft} onChange={e=>setSupportDraft(e.target.value)}
+                    placeholder="Describe what support or clarification you need from Cost-Artist or Director…"
+                    rows={3}
+                    style={{ width:'100%', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,140,40,0.30)', borderRadius:8, padding:'10px 13px', color:'rgba(255,255,255,0.85)', fontFamily:F2, fontSize:'0.84rem', outline:'none', resize:'none', boxSizing:'border-box', lineHeight:1.5 }}/>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button onClick={()=>{ setShowSupport(false); setSupportDraft(''); }}
+                      style={{ padding:'7px 16px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.38)', fontFamily:F2, fontSize:'0.80rem', cursor:'pointer', outline:'none' }}>Cancel</button>
+                    <button onClick={()=>{
+                      if (!supportDraft.trim()) return;
+                      const ts = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+                      onUpdate(openIdx, { salesNeedsSupport: { note: supportDraft.trim(), by: spName||'Sales', ts, tsMs: Date.now() } });
+                      setShowSupport(false); setSupportDraft('');
+                    }}
+                      style={{ flex:1, padding:'7px 16px', borderRadius:8, background:'rgba(255,140,40,0.18)', border:'1px solid rgba(255,140,40,0.38)', color:'rgba(255,200,80,0.95)', fontFamily:F2, fontSize:'0.82rem', fontWeight:700, cursor:'pointer', outline:'none' }}>
+                      🚩 Send Flag
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Attached submitted files */}
             {r.docs?.filter(d => d && typeof d === 'object' && (d.data || d.url)).length > 0 && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
@@ -1713,12 +1872,15 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               <div key={r.id}
                 style={{ display:'grid', gridTemplateColumns:'110px 1fr 150px 150px 140px 36px', gap:10,
                   padding:'12px 14px', borderRadius:12,
-                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : 'rgba(255,255,255,0.03)',
-                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : 'rgba(255,255,255,0.07)'}`,
+                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.04)' : 'rgba(255,255,255,0.03)',
+                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.25)' : 'rgba(255,255,255,0.07)'}`,
                   alignItems:'center', transition:'all 0.3s' }}>
 
                 {/* Request # */}
-                <span style={{ fontSize:'0.76rem', fontWeight:700, color:'rgba(220,165,0,0.90)', fontFamily:'monospace', letterSpacing:'0.04em' }}>{r.id}</span>
+                <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                  <span style={{ fontSize:'0.76rem', fontWeight:700, color:'rgba(220,165,0,0.90)', fontFamily:'monospace', letterSpacing:'0.04em' }}>{r.id}</span>
+                  {r.salesNeedsSupport && <span style={{ fontSize:'0.50rem', color:'rgba(255,150,50,0.90)', fontWeight:700, letterSpacing:'0.06em' }}>🚩 Flagged</span>}
+                </div>
 
                 {/* Project · Customer */}
                 <div style={{ minWidth:0 }}>
@@ -1890,6 +2052,215 @@ const RoleLogin = ({ onLogin }) => {
           }}>
             Continue →
           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── MY DAILY ACTIVITIES ─────────────────────────────────────────────────────
+const ACT_TAGS = [
+  { label:'Note',       color:'rgba(148,163,184,0.90)', bg:'rgba(148,163,184,0.12)' },
+  { label:'Meeting',    color:'rgba(139,92,246,0.90)',  bg:'rgba(139,92,246,0.12)'  },
+  { label:'Call',       color:'rgba(34,197,94,0.90)',   bg:'rgba(34,197,94,0.12)'   },
+  { label:'Task',       color:'rgba(251,191,36,0.90)',  bg:'rgba(251,191,36,0.12)'  },
+  { label:'Visit',      color:'rgba(99,179,237,0.90)',  bg:'rgba(99,179,237,0.12)'  },
+  { label:'Follow-up',  color:'rgba(251,113,133,0.90)', bg:'rgba(251,113,133,0.12)' },
+];
+const ACT_TAG_MAP = Object.fromEntries(ACT_TAGS.map(t => [t.label, t]));
+
+const MyDailyActivities = ({ spName, showAll }) => {
+  const F = "'Inter',sans-serif";
+  const storageKey = `sp_acts_${spName||'all'}`;
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  const [acts, setActs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(storageKey)||'[]'); } catch { return []; }
+  });
+  const [curYear,  setCurYear]  = useState(today.getFullYear());
+  const [curMonth, setCurMonth] = useState(today.getMonth());
+  const [selDate,  setSelDate]  = useState(todayStr);
+  const [draft,    setDraft]    = useState('');
+  const [draftTag, setDraftTag] = useState('Note');
+  const [editId,   setEditId]   = useState(null);
+  const [editText, setEditText] = useState('');
+  const textareaRef = useRef(null);
+
+  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(acts)); }, [acts, storageKey]);
+
+  const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+  const firstDow    = new Date(curYear, curMonth, 1).getDay();
+  const monthName   = new Date(curYear, curMonth).toLocaleString('en', { month:'long' });
+  const prevMonth   = () => { if (curMonth===0){setCurYear(y=>y-1);setCurMonth(11);}else setCurMonth(m=>m-1); };
+  const nextMonth   = () => { if (curMonth===11){setCurYear(y=>y+1);setCurMonth(0);}else setCurMonth(m=>m+1); };
+
+  const dotDays = new Set(acts.map(a => a.date));
+
+  const dateStr = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+  const dayEntries = acts.filter(a => a.date === selDate).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+
+  const saveEntry = () => {
+    if (!draft.trim()) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    setActs(prev => [
+      ...prev,
+      { id:'A'+Date.now(), date:selDate, time:timeStr, tag:draftTag, content:draft.trim(), createdAt:now.toISOString() }
+    ]);
+    setDraft('');
+    setTimeout(()=>textareaRef.current?.focus(), 60);
+  };
+
+  const deleteEntry = id => setActs(prev => prev.filter(a => a.id !== id));
+
+  const saveEdit = id => {
+    setActs(prev => prev.map(a => a.id===id ? {...a, content:editText.trim(), editedAt:new Date().toISOString()} : a));
+    setEditId(null); setEditText('');
+  };
+
+  const selLabel = new Date(selDate+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  return (
+    <div style={{minHeight:'100vh',background:'transparent',padding:'32px 24px 60px',fontFamily:F}}>
+      {/* Header */}
+      <div style={{marginBottom:28}}>
+        <h2 style={{fontSize:'1.3rem',fontWeight:800,letterSpacing:'0.10em',color:'rgba(255,255,255,0.88)',textTransform:'uppercase',margin:0}}>My Daily Activities</h2>
+        <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.30)',margin:'4px 0 0',letterSpacing:'0.06em'}}>{showAll?'All staff':'Personal'} activity log — stored locally</p>
+      </div>
+
+      <div style={{display:'flex',gap:20,alignItems:'flex-start'}}>
+        {/* ── Left: Calendar ── */}
+        <div style={{width:220,flexShrink:0,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,padding:'14px 12px'}}>
+          {/* Month nav */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <button onClick={prevMonth} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',cursor:'pointer',fontSize:'1rem',padding:'0 4px',lineHeight:1}}>‹</button>
+            <span style={{fontSize:'0.78rem',fontWeight:700,color:'rgba(255,255,255,0.80)'}}>{monthName} {curYear}</span>
+            <button onClick={nextMonth} style={{background:'none',border:'none',color:'rgba(255,255,255,0.45)',cursor:'pointer',fontSize:'1rem',padding:'0 4px',lineHeight:1}}>›</button>
+          </div>
+          {/* Day-of-week headers */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:4}}>
+            {['S','M','T','W','T','F','S'].map((d,i)=>(
+              <div key={i} style={{textAlign:'center',fontSize:'0.52rem',fontWeight:700,color:'rgba(255,255,255,0.22)',letterSpacing:'0.08em'}}>{d}</div>
+            ))}
+          </div>
+          {/* Day cells */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2}}>
+            {Array.from({length:firstDow}).map((_,i)=><div key={'e'+i}/>)}
+            {Array.from({length:daysInMonth}).map((_,i)=>{
+              const d=i+1, ds=dateStr(curYear,curMonth,d), isSel=ds===selDate, isToday=ds===todayStr, hasDot=dotDays.has(ds);
+              return (
+                <div key={d} onClick={()=>setSelDate(ds)}
+                  style={{position:'relative',textAlign:'center',padding:'4px 0',borderRadius:6,cursor:'pointer',fontSize:'0.72rem',fontWeight:isSel||isToday?700:400,
+                    color: isSel?'#000':isToday?'rgba(100,210,255,0.95)':'rgba(255,255,255,0.65)',
+                    background: isSel?'rgba(100,210,255,0.90)':'transparent',
+                    outline: isToday&&!isSel?'1px solid rgba(100,210,255,0.35)':'none',transition:'all 0.15s'}}>
+                  {d}
+                  {hasDot && !isSel && <span style={{position:'absolute',bottom:1,left:'50%',transform:'translateX(-50%)',width:3,height:3,borderRadius:'50%',background:'rgba(100,210,255,0.70)',display:'block'}}/>}
+                </div>
+              );
+            })}
+          </div>
+          {/* Recent days with entries */}
+          <div style={{marginTop:14,borderTop:'1px solid rgba(255,255,255,0.07)',paddingTop:10}}>
+            <p style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',margin:'0 0 6px',fontWeight:700}}>Recent Active Days</p>
+            {[...dotDays].sort((a,b)=>b.localeCompare(a)).slice(0,6).map(ds=>{
+              const label=new Date(ds+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+              const cnt=acts.filter(a=>a.date===ds).length;
+              return (
+                <div key={ds} onClick={()=>{setSelDate(ds);setCurYear(parseInt(ds.split('-')[0]));setCurMonth(parseInt(ds.split('-')[1])-1);}}
+                  style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 6px',borderRadius:6,cursor:'pointer',
+                    background:ds===selDate?'rgba(100,210,255,0.10)':'transparent',marginBottom:2,transition:'background 0.15s'}}>
+                  <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.60)',fontWeight:ds===selDate?700:400}}>{label}</span>
+                  <span style={{fontSize:'0.60rem',color:'rgba(100,210,255,0.60)',fontWeight:600}}>{cnt}</span>
+                </div>
+              );
+            })}
+            {dotDays.size===0 && <p style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.20)',margin:0}}>No entries yet</p>}
+          </div>
+        </div>
+
+        {/* ── Right: Day view ── */}
+        <div style={{flex:1,minWidth:0}}>
+          {/* Day header */}
+          <div style={{marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <p style={{margin:0,fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700}}>Selected Day</p>
+              <p style={{margin:'2px 0 0',fontSize:'0.90rem',fontWeight:700,color:'rgba(255,255,255,0.85)'}}>{selLabel}</p>
+            </div>
+            <span style={{fontSize:'0.68rem',color:'rgba(100,210,255,0.55)',fontWeight:600}}>{dayEntries.length} {dayEntries.length===1?'entry':'entries'}</span>
+          </div>
+
+          {/* Entries */}
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+            {dayEntries.length===0 && (
+              <div style={{padding:'28px 20px',textAlign:'center',background:'rgba(255,255,255,0.02)',border:'1px dashed rgba(255,255,255,0.08)',borderRadius:12}}>
+                <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.22)',margin:0}}>No entries for this day — add one below</p>
+              </div>
+            )}
+            {dayEntries.map(a => {
+              const tag = ACT_TAG_MAP[a.tag] || ACT_TAGS[0];
+              const isEditing = editId === a.id;
+              return (
+                <div key={a.id} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:'12px 14px',position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:isEditing?10:6}}>
+                    <span style={{fontSize:'0.58rem',fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:tag.color,background:tag.bg,padding:'2px 8px',borderRadius:50}}>{a.tag}</span>
+                    <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.28)',fontWeight:500}}>{a.time}</span>
+                    {a.editedAt && <span style={{fontSize:'0.54rem',color:'rgba(255,255,255,0.20)',fontStyle:'italic'}}>edited</span>}
+                    <div style={{marginLeft:'auto',display:'flex',gap:6}}>
+                      {!isEditing && <button onClick={()=>{setEditId(a.id);setEditText(a.content);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.30)',cursor:'pointer',fontSize:'0.72rem',padding:'0 2px',lineHeight:1}} title="Edit">✎</button>}
+                      <button onClick={()=>deleteEntry(a.id)} style={{background:'none',border:'none',color:'rgba(255,80,80,0.40)',cursor:'pointer',fontSize:'0.72rem',padding:'0 2px',lineHeight:1}} title="Delete">✕</button>
+                    </div>
+                  </div>
+                  {isEditing ? (
+                    <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                      <textarea value={editText} onChange={e=>setEditText(e.target.value)}
+                        onKeyDown={e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveEdit(a.id);} }}
+                        style={{width:'100%',minHeight:60,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(100,210,255,0.25)',borderRadius:8,color:'rgba(255,255,255,0.88)',fontFamily:F,fontSize:'0.82rem',padding:'8px 10px',resize:'vertical',outline:'none',boxSizing:'border-box'}}
+                        autoFocus/>
+                      <div style={{display:'flex',gap:6}}>
+                        <button onClick={()=>saveEdit(a.id)} style={{padding:'5px 14px',borderRadius:7,background:'rgba(100,210,255,0.12)',border:'1px solid rgba(100,210,255,0.30)',color:'rgba(100,210,255,0.90)',fontSize:'0.72rem',fontWeight:700,cursor:'pointer'}}>Save</button>
+                        <button onClick={()=>{setEditId(null);setEditText('');}} style={{padding:'5px 10px',borderRadius:7,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.35)',fontSize:'0.72rem',cursor:'pointer'}}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{margin:0,fontSize:'0.82rem',color:'rgba(255,255,255,0.80)',lineHeight:1.55,whiteSpace:'pre-wrap'}}>{a.content}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* New entry input */}
+          <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:14,padding:'14px 16px'}}>
+            {/* Tag picker */}
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+              {ACT_TAGS.map(t=>(
+                <button key={t.label} onClick={()=>setDraftTag(t.label)}
+                  style={{padding:'3px 12px',borderRadius:50,fontSize:'0.62rem',fontWeight:700,letterSpacing:'0.06em',cursor:'pointer',border:'none',
+                    background: draftTag===t.label ? t.bg : 'rgba(255,255,255,0.04)',
+                    color: draftTag===t.label ? t.color : 'rgba(255,255,255,0.28)',
+                    outline: draftTag===t.label ? `1px solid ${t.color.replace('0.90','0.40')}` : 'none',
+                    transition:'all 0.15s'}}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <textarea ref={textareaRef} value={draft} onChange={e=>setDraft(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveEntry();} }}
+              placeholder="What did you do today? (Ctrl+Enter to save)"
+              style={{width:'100%',minHeight:80,background:'transparent',border:'none',borderBottom:'1px solid rgba(255,255,255,0.08)',color:'rgba(255,255,255,0.85)',fontFamily:F,fontSize:'0.84rem',padding:'4px 0',resize:'none',outline:'none',boxSizing:'border-box',lineHeight:1.6}}/>
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:10}}>
+              <button onClick={saveEntry} disabled={!draft.trim()}
+                style={{padding:'7px 20px',borderRadius:8,background:draft.trim()?'rgba(100,210,255,0.14)':'rgba(255,255,255,0.04)',
+                  border:`1px solid ${draft.trim()?'rgba(100,210,255,0.35)':'rgba(255,255,255,0.08)'}`,
+                  color:draft.trim()?'rgba(100,210,255,0.90)':'rgba(255,255,255,0.20)',
+                  fontSize:'0.76rem',fontWeight:700,cursor:draft.trim()?'pointer':'default',transition:'all 0.15s'}}>
+                + Add Entry
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2352,6 +2723,16 @@ const EST_ROSTER = [
   {code:'EX764',name:'Vimal Vencent'},
 ];
 
+const FULL_STAFF = [
+  {code:'SX985',name:'Ammar Khaldoun',    role:'sales'},
+  {code:'SX417',name:'Ashik Bin Shams',   role:'sales'},
+  {code:'SE628',name:'Mohammad Hindawi',  role:'sales'},
+  {code:'SE842',name:'Ibrahim Odeh',      role:'sales'},
+  {code:'SE519',name:'Yazan Al Agha',     role:'sales'},
+  {code:'SM386',name:'Ali Hussnain',      role:'sales'},
+  ...EST_ROSTER.map(e => ({ ...e, role:'estimator' })),
+];
+
 const PROFILE_PICS = {
   // Sales (A–f)
   'SX985':'/A.jpg','SX417':'/b.jpg','SE628':'/c.jpg',
@@ -2688,6 +3069,33 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   );
 };
 
+// ─── NOTIFICATION HELPERS ─────────────────────────────────────────────────────
+const _getSeen = () => { try { return JSON.parse(localStorage.getItem('apex_seen_msgs')||'{}'); } catch { return {}; }};
+const _markSeen = (reqId, watchRole) => {
+  const s = _getSeen(); s[reqId] = {...(s[reqId]||{}), [watchRole]: Date.now()};
+  localStorage.setItem('apex_seen_msgs', JSON.stringify(s));
+};
+const _unreadCount = (convo, reqId, watchRole) => {
+  const last = (_getSeen()[reqId]||{})[watchRole] || 0;
+  return (convo||[]).filter(m => m.role===watchRole && (m.tsMs||0) > last).length;
+};
+
+const NotifToast = ({ toasts, onDismiss }) => (
+  <div style={{position:'fixed',bottom:28,right:28,zIndex:99999,display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end',pointerEvents:'none'}}>
+    {toasts.map(t=>(
+      <div key={t.id} onClick={()=>onDismiss(t.id)}
+        style={{background:'rgba(8,4,22,0.97)',border:'1px solid rgba(100,210,255,0.38)',borderRadius:12,padding:'12px 16px',width:294,boxShadow:'0 10px 40px rgba(0,0,0,0.70)',animation:'notifIn 0.32s cubic-bezier(0.22,1,0.36,1) both',display:'flex',flexDirection:'column',gap:5,pointerEvents:'auto',cursor:'pointer',backdropFilter:'blur(14px)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+          <span style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(100,210,255,0.80)',fontWeight:700,fontFamily:"'Inter',sans-serif"}}>💬 New Message · {t.reqId}</span>
+          <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.28)',lineHeight:1}}>✕</span>
+        </div>
+        <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.90)',fontWeight:700,fontFamily:"'Inter',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.client||t.proj||'—'}</div>
+        <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.48)',lineHeight:1.4,fontFamily:"'Inter',sans-serif"}}><span style={{color:'rgba(168,85,247,0.95)',fontWeight:600}}>{t.from}: </span>{(t.text||'').slice(0,90)}{(t.text||'').length>90?'…':''}</div>
+      </div>
+    ))}
+  </div>
+);
+
 // ─── TRACK YOUR QUOTATION ────────────────────────────────────────────────────
 const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   const F = "'Inter',sans-serif";
@@ -2695,6 +3103,22 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   const [openIdx, setOpenIdx]   = useState(null);
   const [chatMsg, setChatMsg]   = useState('');
   const chatEndRef              = useRef(null);
+  const [seenTs, setSeenTs]       = useState(() => _getSeen());
+  const [showAddPpl, setShowAddPpl] = useState(false);
+  const [addPplQ,    setAddPplQ]    = useState('');
+  const addPplRef = useRef(null);
+
+  const markReqSeen = (reqId) => {
+    _markSeen(reqId, 'estimator');
+    setSeenTs(_getSeen());
+  };
+
+  useEffect(() => {
+    if (!showAddPpl) return;
+    const close = e => { if (addPplRef.current && !addPplRef.current.contains(e.target)) { setShowAddPpl(false); setAddPplQ(''); } };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showAddPpl]);
 
   const myReqs = requests.filter(r => {
     const matchSP = showAll || (r.salesPerson || '').toLowerCase() === (spName || '').toLowerCase() || (r.submittedBy || '').toLowerCase() === (spName || '').toLowerCase();
@@ -2856,10 +3280,49 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
           </div>
           {/* RIGHT — Chat box */}
           <div style={{background:'rgba(109,40,17,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,minHeight:520}}>
-            <div style={{display:'flex',alignItems:'center',gap:9,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)',position:'relative'}}>
               <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
               <p style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',margin:0,fontWeight:700}}>Conversation</p>
-              {r.estimator && <span style={{marginLeft:'auto',fontSize:'0.65rem',color:'rgba(100,200,255,0.55)',fontWeight:500}}>with {r.estimator}</span>}
+              {/* Participants + add button */}
+              <div ref={addPplRef} style={{display:'flex',alignItems:'center',gap:5,marginLeft:'auto'}}>
+                {(r.chatParticipants||[]).map((p,pi)=>(
+                  <div key={pi} title={p.name} style={{position:'relative',cursor:'default'}}>
+                    <EstAvatar name={p.name} code={p.code} size={22}/>
+                  </div>
+                ))}
+                {onUpdate && (
+                  <button onClick={()=>{setShowAddPpl(o=>!o);setAddPplQ('');}}
+                    title="Add person to conversation"
+                    style={{width:24,height:24,borderRadius:'50%',background:'rgba(168,85,247,0.18)',border:'1px solid rgba(168,85,247,0.40)',color:'rgba(168,85,247,0.95)',fontSize:'1.1rem',lineHeight:1,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,outline:'none',fontWeight:300}}>+</button>
+                )}
+                {showAddPpl && (
+                  <div style={{position:'absolute',top:'calc(100% + 8px)',right:0,zIndex:300,background:'rgba(10,5,26,0.98)',border:'1px solid rgba(168,85,247,0.38)',borderRadius:10,padding:'10px',width:230,boxShadow:'0 12px 44px rgba(0,0,0,0.70)',backdropFilter:'blur(16px)'}}>
+                    <div style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',fontWeight:700,marginBottom:8}}>Add to conversation</div>
+                    <input value={addPplQ} onChange={e=>setAddPplQ(e.target.value)} placeholder="Search name…"
+                      autoFocus
+                      style={{width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:6,padding:'6px 10px',color:'rgba(255,255,255,0.82)',fontFamily:F,fontSize:'0.76rem',outline:'none',marginBottom:6,boxSizing:'border-box'}}/>
+                    <div style={{maxHeight:180,overflowY:'auto',display:'flex',flexDirection:'column',gap:2}}>
+                      {FULL_STAFF
+                        .filter(s => !(r.chatParticipants||[]).some(p=>p.code===s.code))
+                        .filter(s => !addPplQ || s.name.toLowerCase().includes(addPplQ.toLowerCase()))
+                        .map(s => (
+                          <div key={s.code}
+                            onClick={()=>{ onUpdate(realIdx,{chatParticipants:[...(r.chatParticipants||[]),{name:s.name,code:s.code,role:s.role}]}); setShowAddPpl(false); setAddPplQ(''); }}
+                            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:7,cursor:'pointer',transition:'background 0.15s'}}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.18)'}
+                            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                            <EstAvatar name={s.name} code={s.code} size={24}/>
+                            <div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
+                              <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.82)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+                              <span style={{fontSize:'0.50rem',color:s.role==='sales'?'rgba(255,200,80,0.60)':'rgba(100,200,255,0.55)',letterSpacing:'0.08em',textTransform:'uppercase'}}>{s.role}</span>
+                            </div>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             {/* Messages */}
             <div style={{flex:1,display:'flex',flexDirection:'column',gap:10,overflowY:'auto',minHeight:0,maxHeight:360,paddingRight:4,scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.20) transparent'}}>
@@ -2940,33 +3403,57 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
           </div>
         ) : myReqs.map((r,i) => {
           const stageIdx=getStageIdx(r),sc=statusColor(r),sl=statusLabel(r);
-          const hasNewMsg=(r.conversation||[]).some(m=>m.role==='estimator');
+          const unread = _unreadCount(r.conversation, r.id, 'estimator');
           return (
             <div key={r.id||i}
-              onClick={()=>setOpenIdx(i)}
-              style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'18px 20px',marginBottom:14,cursor:'pointer',transition:'all 0.2s'}}
+              onClick={()=>{ setOpenIdx(i); markReqSeen(r.id); }}
+              style={{background: unread>0 ? 'rgba(100,210,255,0.04)' : 'rgba(255,255,255,0.03)', border: unread>0 ? '1px solid rgba(100,210,255,0.22)' : '1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'18px 20px',marginBottom:14,cursor:'pointer',transition:'all 0.2s'}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(168,85,247,0.40)';e.currentTarget.style.background='rgba(109,40,217,0.06)';}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.08)';e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:14}}>
-                <div>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                    <span style={{fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
-                    <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 10px',borderRadius:50,background:`${sc}18`,border:`1px solid ${sc}40`}}>
-                      <span style={{width:5,height:5,borderRadius:'50%',background:sc,boxShadow:`0 0 5px ${sc}`,flexShrink:0}}/>
-                      <span style={{fontSize:'0.65rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
-                    </span>
-                    {hasNewMsg && <span style={{fontSize:'0.60rem',color:'rgba(168,85,247,0.90)',fontWeight:700,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:50,padding:'1px 8px'}}>💬 Message</span>}
-                  </div>
-                  <div style={{fontSize:'0.84rem',fontWeight:600,color:'rgba(255,255,255,0.82)',marginBottom:2}}>{r.proj||'—'}</div>
-                  <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)'}}>{r.client||'—'}{r.deal?` · ${r.deal}`:''}</div>
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=unread>0?'rgba(100,210,255,0.22)':'rgba(255,255,255,0.08)';e.currentTarget.style.background=unread>0?'rgba(100,210,255,0.04)':'rgba(255,255,255,0.03)';}}>
+              {/* Header row: ID + badge + message indicator + Open */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
+                  <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 10px',borderRadius:50,background:`${sc}18`,border:`1px solid ${sc}40`}}>
+                    <span style={{width:5,height:5,borderRadius:'50%',background:sc,boxShadow:`0 0 5px ${sc}`,flexShrink:0}}/>
+                    <span style={{fontSize:'0.65rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
+                  </span>
+                  {unread > 0 && <span style={{fontSize:'0.60rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.14)',border:'1px solid rgba(100,210,255,0.35)',borderRadius:50,padding:'1px 9px'}}>💬 {unread} new</span>}
                 </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.25)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:2}}>Submitted</div>
-                  <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.60)',fontWeight:600}}>{r.date||'—'}</div>
-                  {r.estimator&&<div style={{fontSize:'0.72rem',color:'rgba(100,200,255,0.65)',marginTop:4}}>Est: {r.estimator}</div>}
-                  <div style={{fontSize:'0.65rem',color:'rgba(168,85,247,0.55)',marginTop:6,fontWeight:600}}>Open →</div>
-                </div>
+                <span style={{fontSize:'0.65rem',color:'rgba(168,85,247,0.55)',fontWeight:600}}>Open →</span>
               </div>
+              {/* Client highlighted */}
+              <div style={{fontSize:'1.10rem',fontWeight:800,color:'rgba(100,210,255,0.95)',letterSpacing:'0.01em',marginBottom:2,lineHeight:1.2}}>{r.client||'—'}</div>
+              {/* Project name secondary */}
+              <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.48)',fontWeight:500,marginBottom:12}}>{r.proj||'—'}</div>
+              {/* Details grid */}
+              {(()=>{
+                const supplyLabel = r.supplyInstall ? 'Supply & Install' : r.supplyOnly ? 'Supply Only' : r.deal||'—';
+                const fields = [
+                  ['Main Contractor', r.mainContractor],
+                  ['Consultant',      r.consultant],
+                  ['Deal',            r.deal],
+                  ['Supply',          supplyLabel],
+                  ['Lead Time',       r.leadTime],
+                  ['Submitted',       r.date],
+                  ['Estimator',       r.estimator],
+                  ['Email',           r.email],
+                  ['Mobile',          r.mob],
+                  ['Tel',             r.tel],
+                  ['Address',         r.address],
+                  ['Remarks',         r.remarks],
+                ];
+                return (
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px 14px',marginBottom:14}}>
+                    {fields.map(([lbl,val])=>(
+                      <div key={lbl} style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
+                        <span style={{fontSize:'0.48rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700}}>{lbl}</span>
+                        <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.72)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               <div style={{display:'flex',alignItems:'center',gap:0}}>
                 {STAGES.map((st,si)=>{
                   const done=si<=stageIdx,active=si===stageIdx;
@@ -3002,6 +3489,7 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
   const analyseActive = view === 'analyse';
   const salesActive   = view === 'salesStatus';
   const perfActive    = view === 'salesPerformance';
+  const actActive     = view === 'myActivities';
   const diaryActive   = view === 'salesDiary';
   const trackActive   = view === 'trackQuotation';
   const [showDirPrompt, setShowDirPrompt] = useState(false);
@@ -3101,7 +3589,10 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
             My Dashboard
           </button>
           <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
-            Sales Performance
+            My Performance
+          </button>
+          <button className={`nav-btn${actActive?' active':''}`} onClick={()=>setView('myActivities')}>
+            My Daily Activities
           </button>
           <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
             My Diary
@@ -3133,7 +3624,10 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
             Sales View
           </button>
           <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
-            Sales Performance
+            My Performance
+          </button>
+          <button className={`nav-btn${actActive?' active':''}`} onClick={()=>setView('myActivities')}>
+            My Daily Activities
           </button>
           <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
             My Diary
@@ -4425,68 +4919,82 @@ const TATTimeline = ({ r, compact }) => {
     return () => clearInterval(id);
   }, []);
   const now = Date.now();
-  const liveMs = !r.quotationSubmittedAt && r.taggedAt ? now - r.taggedAt
+  const liveMs = !r.directorRespondedAt && r.quotationSubmittedAt ? now - new Date(r.quotationSubmittedAt).getTime()
+    : !r.quotationSubmittedAt && r.taggedAt ? now - r.taggedAt
     : !r.taggedAt && r.submittedAt ? now - new Date(r.submittedAt).getTime()
     : null;
+
+  const resultLabel = r.directorAction === 'approved' ? 'Approved'
+    : r.directorAction === 'rejected' ? 'Rejected'
+    : r.directorAction === 'revise'   ? 'Revised'
+    : 'Result';
+  const resultColor = r.directorAction === 'approved' ? 'rgba(50,220,100,0.92)'
+    : r.directorAction === 'rejected' ? 'rgba(255,80,80,0.92)'
+    : r.directorAction === 'revise'   ? 'rgba(255,160,30,0.92)'
+    : 'rgba(180,180,180,0.35)';
 
   const stages = [
     { label: 'Submitted',   color: 'rgba(120,180,255,0.90)', done: !!r.submittedAt,           tat: null, ts: r.submittedAt },
     { label: 'Assigned',    color: 'rgba(255,200,50,0.90)',  done: !!r.taggedAt,              tat: s1,   ts: r.taggedAt },
     { label: 'Quoted',      color: 'rgba(160,130,255,0.95)', done: !!r.quotationSubmittedAt,  tat: s2,   ts: r.quotationSubmittedAt },
-    { label: 'Cost-Artist', color: 'rgba(0,220,180,0.90)',   done: !!r.directorRespondedAt,   tat: s3,   ts: r.directorRespondedAt },
+    { label: 'Cost-Artist', color: 'rgba(0,220,180,0.90)',   done: !!r.quotationSubmittedAt,  tat: null, ts: r.quotationSubmittedAt },
+    { label: resultLabel,   color: resultColor,               done: !!r.directorRespondedAt,   tat: s3,   ts: r.directorRespondedAt },
   ];
-  const dotSz = compact ? 8 : 10;
+  const dotSz = compact ? 7 : 8;
   return (
-    <div style={{display:'flex',alignItems:'flex-start',width:'100%',fontFamily:F}}>
+    <div style={{display:'flex',alignItems:'center',width:'100%',fontFamily:F}}>
       {stages.map((st, i) => (
         <div key={i} style={{display:'contents'}}>
-          {/* dot + label + timestamp */}
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}}>
+          {/* inline: dot · label · timestamp — all on one line */}
+          <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
             <div style={{width:dotSz,height:dotSz,borderRadius:'50%',
               background:st.done?st.color:'rgba(255,255,255,0.14)',
-              boxShadow:st.done?`0 0 8px ${st.color},0 0 18px ${st.color}55`:'none',
-              border:st.done?`1.5px solid ${st.color}`:'1px solid rgba(255,255,255,0.24)',
-              flexShrink:0,marginBottom:2}}/>
-            <span style={{fontSize:compact?'0.52rem':'0.58rem',fontWeight:st.done?700:400,
-              background:st.done?`linear-gradient(135deg,#fff 0%,${st.color} 100%)`:'none',
-              WebkitBackgroundClip:st.done?'text':'unset',
-              WebkitTextFillColor:st.done?'transparent':'unset',
-              color:st.done?'unset':'rgba(255,255,255,0.28)',
-              letterSpacing:'0.07em',whiteSpace:'nowrap'}}>{st.label}</span>
+              boxShadow:st.done?`0 0 7px ${st.color}`:'none',
+              border:st.done?`1.5px solid ${st.color}`:'1px solid rgba(255,255,255,0.22)',
+              flexShrink:0}}/>
+            <span style={{fontSize:compact?'0.54rem':'0.60rem',fontWeight:st.done?700:400,
+              color:st.done?'rgba(255,255,255,0.90)':'rgba(255,255,255,0.28)',
+              whiteSpace:'nowrap',letterSpacing:'0.05em'}}>
+              {st.label}
+            </span>
             {st.done && fdt(st.ts) && (
-              <span style={{fontSize:compact?'0.42rem':'0.46rem',color:st.color,whiteSpace:'nowrap',fontFamily:'monospace',fontWeight:600,opacity:0.85,marginTop:1}}>{fdt(st.ts)}</span>
+              <span style={{fontSize:compact?'0.44rem':'0.48rem',color:st.color,whiteSpace:'nowrap',
+                fontFamily:'monospace',fontWeight:600,opacity:0.80}}>
+                {fdt(st.ts)}
+              </span>
             )}
           </div>
-          {/* flex-expanding connector — arrows + inline duration */}
+          {/* inline connector: › duration (arrow first, then duration) */}
           {i < stages.length - 1 && (
-            <div style={{flex:1,minWidth:18,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 3px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:3,padding:'0 3px',flexShrink:0}}>
               {(() => {
-                const reversed = r.directorAction === 'rejected' || r.directorAction === 'revise';
+                const isLastSeg = i === stages.length - 2;
+                const reversed = isLastSeg && (r.directorAction === 'rejected' || r.directorAction === 'revise');
                 const segTat = stages[i+1].tat;
                 const segColor = stages[i+1].color;
                 const isLive = !segTat && (
                   (i === 0 && !r.taggedAt && liveMs) ||
-                  (i === 1 && r.taggedAt && !r.quotationSubmittedAt && liveMs)
+                  (i === 1 && r.taggedAt && !r.quotationSubmittedAt && liveMs) ||
+                  (i === 3 && r.quotationSubmittedAt && !r.directorRespondedAt && liveMs)
                 );
                 const duration = segTat ? fms(segTat) : isLive ? `${fms(liveMs)} ↻` : null;
                 const arrow = reversed ? '‹' : '›';
-                const arrowColor = reversed
-                  ? 'rgba(255,100,100,0.85)'
+                const arrowColor = reversed ? 'rgba(255,100,100,0.85)'
                   : stages[i+1].done ? stages[i+1].color
                   : st.done ? `${st.color}80`
-                  : 'rgba(255,255,255,0.18)';
-                const arrowSz = compact ? '0.65rem' : '0.72rem';
-                const A = ({k}) => <span key={k} style={{color:arrowColor,fontSize:arrowSz,lineHeight:1,fontWeight:600}}>{arrow}</span>;
-                return duration ? (
+                  : 'rgba(255,255,255,0.20)';
+                return (
                   <>
-                    <A k="a0"/><A k="a1"/><A k="a2"/>
-                    <span style={{fontSize:compact?'0.68rem':'0.76rem',color:reversed?'rgba(255,120,120,0.90)':segColor,fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',letterSpacing:'0.02em',textShadow:`0 0 8px ${reversed?'rgba(255,100,100,0.50)':segColor+'80'}`,padding:'0 2px'}}>
-                      {duration}
-                    </span>
-                    <A k="b0"/><A k="b1"/><A k="b2"/>
+                    <span style={{color:arrowColor,fontSize:compact?'0.60rem':'0.66rem',lineHeight:1,fontWeight:600}}>{arrow}</span>
+                    {duration && (
+                      <span style={{fontSize:compact?'0.62rem':'0.70rem',
+                        color:reversed?'rgba(255,120,120,0.90)':segColor,
+                        fontFamily:'monospace',fontWeight:700,whiteSpace:'nowrap',
+                        textShadow:`0 0 7px ${reversed?'rgba(255,100,100,0.40)':segColor+'70'}`}}>
+                        {duration}
+                      </span>
+                    )}
                   </>
-                ) : (
-                  <>{[0,1,2,3,4].map(k=><A key={k} k={k}/>)}</>
                 );
               })()}
             </div>
@@ -4835,6 +5343,17 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool }) => {
   const [open, setOpen] = useState(null);
   const [reviewIdx, setReviewIdx] = useState(null);
+  const [seenTs, setSeenTs] = useState(() => _getSeen());
+  const markDashSeen = (reqId) => { _markSeen(reqId, 'sales'); setSeenTs(_getSeen()); };
+  const [showDashAddPpl, setShowDashAddPpl] = useState(false);
+  const [dashAddPplQ,    setDashAddPplQ]    = useState('');
+  const dashAddPplRef = useRef(null);
+  useEffect(() => {
+    if (!showDashAddPpl) return;
+    const close = e => { if (dashAddPplRef.current && !dashAddPplRef.current.contains(e.target)) { setShowDashAddPpl(false); setDashAddPplQ(''); } };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showDashAddPpl]);
   const [dsearch, setDsearch] = useState('');
   const [, setTick] = useState(0);
   const lockViewMode = !!initialViewMode; // hide view switcher when role is set externally
@@ -4851,6 +5370,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [dirConvoOpen, setDirConvoOpen] = useState(true);   // Conversation panel expanded
   const [dirAiOpen, setDirAiOpen] = useState(true);         // AI Suggestions panel expanded
   const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
+  const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
 
   const PIN = { estimator: 'EST', director: 'star' };
   const requestViewSwitch = (mode) => {
@@ -5525,12 +6045,48 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               ) : (
                 /* Expanded panel */
                 <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,height:'100%',minHeight:560,position:'sticky',top:62}}>
-                  <div style={{display:'flex',alignItems:'center',gap:9,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)',position:'relative'}}>
                     <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
                     <p style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',margin:0,fontWeight:700}}>Conversation</p>
                     {req.salesPerson && <span style={{fontSize:'0.65rem',color:'rgba(160,130,255,0.60)',fontWeight:500}}>with {req.salesPerson}</span>}
+                    {/* Participants + add button */}
+                    <div ref={dashAddPplRef} style={{display:'flex',alignItems:'center',gap:5,marginLeft:'auto'}}>
+                      {(req.chatParticipants||[]).map((p,pi)=>(
+                        <div key={pi} title={p.name}><EstAvatar name={p.name} code={p.code} size={22}/></div>
+                      ))}
+                      <button onClick={()=>{setShowDashAddPpl(o=>!o);setDashAddPplQ('');}}
+                        title="Add person to conversation"
+                        style={{width:24,height:24,borderRadius:'50%',background:'rgba(168,85,247,0.18)',border:'1px solid rgba(168,85,247,0.40)',color:'rgba(168,85,247,0.95)',fontSize:'1.1rem',lineHeight:1,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,outline:'none',fontWeight:300}}>+</button>
+                      {showDashAddPpl && (
+                        <div style={{position:'absolute',top:'calc(100% + 8px)',right:32,zIndex:300,background:'rgba(10,5,26,0.98)',border:'1px solid rgba(168,85,247,0.38)',borderRadius:10,padding:'10px',width:230,boxShadow:'0 12px 44px rgba(0,0,0,0.70)',backdropFilter:'blur(16px)'}}>
+                          <div style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',fontWeight:700,marginBottom:8}}>Add to conversation</div>
+                          <input value={dashAddPplQ} onChange={e=>setDashAddPplQ(e.target.value)} placeholder="Search name…"
+                            autoFocus
+                            style={{width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:6,padding:'6px 10px',color:'rgba(255,255,255,0.82)',fontFamily:F2,fontSize:'0.76rem',outline:'none',marginBottom:6,boxSizing:'border-box'}}/>
+                          <div style={{maxHeight:180,overflowY:'auto',display:'flex',flexDirection:'column',gap:2}}>
+                            {FULL_STAFF
+                              .filter(s => !(req.chatParticipants||[]).some(p=>p.code===s.code))
+                              .filter(s => !dashAddPplQ || s.name.toLowerCase().includes(dashAddPplQ.toLowerCase()))
+                              .map(s => (
+                                <div key={s.code}
+                                  onClick={()=>{ onUpdate(open,{chatParticipants:[...(req.chatParticipants||[]),{name:s.name,code:s.code,role:s.role}]}); setShowDashAddPpl(false); setDashAddPplQ(''); }}
+                                  style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:7,cursor:'pointer',transition:'background 0.15s'}}
+                                  onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.18)'}
+                                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                                  <EstAvatar name={s.name} code={s.code} size={24}/>
+                                  <div style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
+                                    <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.82)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+                                    <span style={{fontSize:'0.50rem',color:s.role==='sales'?'rgba(255,200,80,0.60)':'rgba(100,200,255,0.55)',letterSpacing:'0.08em',textTransform:'uppercase'}}>{s.role}</span>
+                                  </div>
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <button onClick={()=>setConvoCollapsed(true)} title="Minimize conversation"
-                      style={{marginLeft:'auto',width:26,height:26,borderRadius:7,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(168,85,247,0.80)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',outline:'none',flexShrink:0}}>
+                      style={{width:26,height:26,borderRadius:7,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(168,85,247,0.80)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',outline:'none',flexShrink:0}}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                   </div>
@@ -5597,10 +6153,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'hidden'}}>
 
               {/* ═══ MAIN 3-COLUMN CONTENT ═══ */}
-              <div style={{display:'flex',gap:10,flex:1,minHeight:0,overflow:'hidden'}}>
+              <div style={{display:'flex',gap:10,flex:1,minHeight:0}}>
 
                 {/* ═══ LEFT: Project Info + Decision Controls ═══ */}
-                <div style={{width:'30%',minWidth:230,display:'flex',flexDirection:'column',gap:8,overflow:'hidden'}}>
+                <div style={{width:'30%',minWidth:220,display:'flex',flexDirection:'column',gap:8,minHeight:0,overflow:'hidden'}}>
 
                   {/* Project info — scrollable */}
                   <div style={{flex:1,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent',paddingRight:2}}>
@@ -5652,13 +6208,13 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       })()}
 
                       {/* Info rows — editable for Cost-Artist */}
-                      {[['Client / Grantor','client',req.client],['Main Contractor','mainContractor',req.mainContractor],['Consultant','consultant',req.consultant],['Submitted By','submittedBy',req.submittedBy],['Lead Time','leadTime',req.leadTime],['Address','address',req.address]].filter(([,,v])=>v||dirEditMode).map(([k,field,v])=>(
+                      {[['Request ID','id',req.id,false],['Sales Person','salesPerson',req.salesPerson,true],['Submitted By','submittedBy',req.submittedBy,true],['Client / Grantor','client',req.client,true],['Main Contractor','mainContractor',req.mainContractor,true],['Consultant','consultant',req.consultant,true],['Lead Time','leadTime',req.leadTime,true],['Address','address',req.address,true],['Submitted','date',req.date,false]].map(([k,field,v,editable])=>(
                         <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8,alignItems:'center'}}>
                           <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
-                          {dirEditMode ? (
+                          {dirEditMode && editable ? (
                             <input value={v||''} onChange={e=>onUpdate(open,{[field]:e.target.value})} style={{...inpStyle,textAlign:'right',width:'60%'}} placeholder={k}/>
                           ) : (
-                            <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',textAlign:'right',fontWeight:500}}>{v}</span>
+                            <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',textAlign:'right',fontWeight:500}}>{v||'—'}</span>
                           )}
                         </div>
                       ))}
@@ -5795,7 +6351,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 </div>{/* end left column */}
 
                 {/* ═══ CENTER: Documents (D) + AI Suggestions (P) ═══ */}
-                <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:8,overflowY:'auto',paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
+                <div style={{flex:1,minWidth:0,minHeight:0,display:'flex',flexDirection:'column',gap:8,overflowY:'auto',paddingRight:2,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
 
                   {/* ── ALL DOCUMENTS — D ── */}
                   <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:12,padding:'14px 18px',flexShrink:0}}>
@@ -5808,12 +6364,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.docs?.length||0} file{(req.docs?.length||0)!==1?'s':''}</span>
                         </div>
                         {req.docs?.length > 0 ? (
-                          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                          <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:130,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(0,200,255,0.15) transparent',paddingRight:2}}>
                             {req.docs.map((d,i)=>(
                               <button key={i} onClick={()=>downloadDoc(d)}
-                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.25)',color:'rgba(0,200,255,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
-                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.08)'}>
-                                <DlIco/>{docName(d)}
+                                style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:'rgba(0,200,255,0.07)',border:'1px solid rgba(0,200,255,0.22)',color:'rgba(0,200,255,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left',minWidth:0}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,200,255,0.16)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,200,255,0.07)'}>
+                                <DlIco/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{docName(d)}</span>
                               </button>
                             ))}
                           </div>
@@ -5844,12 +6400,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.estimationDocs?.length?`${req.estimationDocs.length} file${req.estimationDocs.length!==1?'s':''}`:req.estimationDoc?'1 file':'0 files'}</span>
                         </div>
                         {(req.estimationDocs?.length > 0 || req.estimationDoc?.data || req.estimationDoc?.url) ? (
-                          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                          <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:130,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(0,220,130,0.15) transparent',paddingRight:2}}>
                             {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
                               <button key={i} onClick={()=>downloadDoc(d)}
-                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:6,background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.30)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
-                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.18)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.08)'}>
-                                <DlIco/>{d.name||req.estimationFile||`quotation-${i+1}`}
+                                style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:'rgba(0,220,130,0.07)',border:'1px solid rgba(0,220,130,0.28)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left',minWidth:0}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.16)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.07)'}>
+                                <DlIco/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||req.estimationFile||`quotation-${i+1}`}</span>
                               </button>
                             ))}
                           </div>
@@ -5910,7 +6466,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 </div>{/* end center column */}
 
                 {/* ═══ RIGHT: History/Tabs + Conversation (C) ═══ */}
-                <div style={{width:'28%',minWidth:210,display:'flex',flexDirection:'column',gap:8,overflow:'hidden'}}>
+                <div style={{width:'28%',minWidth:210,display:'flex',flexDirection:'column',gap:8,minHeight:0,overflow:'hidden'}}>
 
                   {/* Tab selector */}
                   <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:9,padding:3,gap:2,flexShrink:0}}>
@@ -5922,8 +6478,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     ))}
                   </div>
 
-                  {/* Tab content */}
-                  <div style={{overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.06) transparent',maxHeight:dirConvoOpen?'36%':'100%',transition:'max-height 0.25s ease',flexShrink:0}}>
+                  {/* Tab content — fixed height, internal scroll */}
+                  <div style={{overflowY:'auto',display:'flex',flexDirection:'column',gap:7,scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.06) transparent',flex:dirConvoOpen?'0 0 220px':'1',minHeight:0}}>
                     {dirTab === 'history' && (<>
                       <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'11px 13px',flexShrink:0}}>
                         <div style={{fontSize:'0.48rem',color:'rgba(255,200,0,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:7}}>Rate Requester</div>
@@ -5996,7 +6552,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   </div>
 
                   {/* ── CONVERSATION — C (collapsible) ── */}
-                  <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:12,display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden',...(dirConvoOpen?{flex:1}:{flexShrink:0})}}>
+                  <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:12,display:'flex',flexDirection:'column',overflow:'hidden',...(dirConvoOpen?{flex:1,minHeight:0}:{flexShrink:0})}}>
                     <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderBottom:dirConvoOpen?'1px solid rgba(168,85,247,0.18)':'none',flexShrink:0,cursor:'pointer',userSelect:'none'}} onClick={()=>setDirConvoOpen(v=>!v)}>
                       <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(168,85,247,0.85)',boxShadow:'0 0 7px rgba(168,85,247,0.65)',flexShrink:0}}/>
                       <span style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',fontWeight:700}}>Conversation</span>
@@ -6017,19 +6573,54 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                               <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.26)',margin:0,fontStyle:'italic',textAlign:'center',lineHeight:1.5}}>No messages yet.</p>
                             </div>
                           ) : (req.conversation||[]).map((msg,i)=>{
+                            const isDir = msg.role==='director';
                             const isEst = msg.role==='estimator';
+                            const align = isDir?'flex-end':'flex-start';
+                            const bg = isDir?'rgba(0,220,180,0.10)':isEst?'rgba(109,40,217,0.22)':'rgba(255,255,255,0.05)';
+                            const bd = isDir?'1px solid rgba(0,220,180,0.28)':isEst?'1px solid rgba(168,85,247,0.28)':'1px solid rgba(255,255,255,0.08)';
+                            const br = isDir?'11px 11px 3px 11px':'11px 11px 11px 3px';
+                            const nameC = isDir?'rgba(0,220,180,0.70)':isEst?'rgba(196,181,253,0.60)':'rgba(100,200,255,0.55)';
                             return (
-                              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:isEst?'flex-end':'flex-start'}}>
-                                <div style={{maxWidth:'88%',background:isEst?'rgba(109,40,217,0.22)':'rgba(255,255,255,0.05)',border:isEst?'1px solid rgba(168,85,247,0.28)':'1px solid rgba(255,255,255,0.08)',borderRadius:isEst?'11px 11px 3px 11px':'11px 11px 11px 3px',padding:'6px 10px'}}>
-                                  <div style={{fontSize:'0.52rem',color:isEst?'rgba(196,181,253,0.60)':'rgba(100,200,255,0.55)',marginBottom:2,fontWeight:600}}>{msg.from} · {msg.ts}</div>
+                              <div key={i} style={{display:'flex',flexDirection:'column',alignItems:align}}>
+                                <div style={{maxWidth:'88%',background:bg,border:bd,borderRadius:br,padding:'6px 10px'}}>
+                                  <div style={{fontSize:'0.52rem',color:nameC,marginBottom:2,fontWeight:600}}>{msg.from} · {msg.ts}</div>
                                   <div style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.82)',lineHeight:1.4}}>{msg.text}</div>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                        <div style={{flexShrink:0,padding:'8px 14px',borderTop:'1px solid rgba(168,85,247,0.12)'}}>
-                          <div style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.20)',textAlign:'center',fontStyle:'italic'}}>Conversation between Sales &amp; Estimator</div>
+                        <div style={{flexShrink:0,padding:'8px 14px',borderTop:'1px solid rgba(168,85,247,0.18)',display:'flex',gap:6,alignItems:'flex-end'}}>
+                          <textarea
+                            value={dirConvoMsg}
+                            onChange={e=>setDirConvoMsg(e.target.value)}
+                            onKeyDown={e=>{
+                              if(e.key==='Enter'&&!e.shiftKey){
+                                e.preventDefault();
+                                const txt=dirConvoMsg.trim();
+                                if(!txt)return;
+                                const msg={role:'director',from:'APEX-CA',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+                                onUpdate(open,{conversation:[...(req.conversation||[]),msg]});
+                                setDirConvoMsg('');
+                              }
+                            }}
+                            placeholder="Message group… (Enter to send)"
+                            rows={2}
+                            style={{flex:1,background:'rgba(168,85,247,0.08)',border:'1px solid rgba(168,85,247,0.25)',borderRadius:8,color:'rgba(255,255,255,0.88)',fontFamily:F2,fontSize:'0.78rem',padding:'6px 10px',outline:'none',resize:'none',lineHeight:1.4,boxSizing:'border-box'}}
+                            onFocus={e=>e.target.style.borderColor='rgba(168,85,247,0.55)'}
+                            onBlur={e=>e.target.style.borderColor='rgba(168,85,247,0.25)'}
+                          />
+                          <button
+                            onClick={()=>{
+                              const txt=dirConvoMsg.trim();
+                              if(!txt)return;
+                              const msg={role:'director',from:'APEX-CA',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+                              onUpdate(open,{conversation:[...(req.conversation||[]),msg]});
+                              setDirConvoMsg('');
+                            }}
+                            style={{flexShrink:0,width:34,height:34,borderRadius:8,background:dirConvoMsg.trim()?'rgba(168,85,247,0.35)':'rgba(255,255,255,0.05)',border:`1px solid ${dirConvoMsg.trim()?'rgba(168,85,247,0.55)':'rgba(255,255,255,0.10)'}`,color:dirConvoMsg.trim()?'rgba(200,160,255,0.95)':'rgba(255,255,255,0.22)',cursor:dirConvoMsg.trim()?'pointer':'default',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                          </button>
                         </div>
                       </>
                     )}
@@ -6159,15 +6750,16 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           {/* ── Rows ── */}
           {filtered.map(r => {
             const realIdx = requests.indexOf(r);
+            const dashUnread = viewMode==='estimator' ? _unreadCount(r.conversation, r.id, 'sales') : 0;
             return (
               <div key={r.id} style={{position:'relative'}}>
-              <div style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
-                onClick={()=>setOpen(realIdx)}
+              <div style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:dashUnread>0?'rgba(168,85,247,0.05)':'rgba(255,255,255,0.04)',border:dashUnread>0?'1px solid rgba(168,85,247,0.30)':'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
+                onClick={()=>{ setOpen(realIdx); if(viewMode==='estimator') markDashSeen(r.id); }}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
-                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}>
+                onMouseLeave={e=>e.currentTarget.style.background=dashUnread>0?'rgba(168,85,247,0.05)':'rgba(255,255,255,0.04)'}>
 
                 {/* Req # */}
-                <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.id||'—'}</span>
+                <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:5}}>{r.id||'—'}{dashUnread>0&&<span style={{fontSize:'0.48rem',background:'rgba(168,85,247,0.80)',color:'#fff',borderRadius:100,padding:'1px 6px',fontFamily:"'Inter',sans-serif",fontWeight:700,flexShrink:0}}>{dashUnread}</span>}</span>
 
                 {/* Status */}
                 <div style={{display:'flex',flexDirection:'column',gap:3,overflow:'hidden',minWidth:0}}>
@@ -6512,16 +7104,96 @@ const Analyse = ({ requests }) => {
         )}
 
         {/* Per-request timeline strip */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'18px 20px',marginTop:16}}>
-          <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:12,fontWeight:600}}>Request Timelines</p>
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            {requests.slice(0,10).map(r=>(
-              <div key={r.id} style={{display:'flex',alignItems:'center',gap:14,borderBottom:'1px solid rgba(255,255,255,0.04)',paddingBottom:10}}>
-                <span style={{fontFamily:'monospace',fontSize:'0.72rem',fontWeight:700,color:'rgba(220,165,0,0.85)',flexShrink:0,minWidth:58}}>{r.id}</span>
-                <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.45)',flexShrink:0,minWidth:90,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.estimator||'Unassigned'}</span>
-                <div style={{flex:1,minWidth:0}}><TATTimeline r={r}/></div>
-              </div>
-            ))}
+        <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 22px',marginTop:16}}>
+          <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',marginBottom:16,fontWeight:600,fontFamily:"'Inter',sans-serif"}}>Request Timelines</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12}}>
+            {requests.slice(0,12).map(r => {
+              const { s1, s2, s3 } = calcTATStages(r);
+              const fmsTL = ms => {
+                if (!ms) return null;
+                const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+                return h > 23 ? `${Math.floor(h/24)}d ${h%24}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+              const fdtTL = ts => {
+                if (!ts) return null;
+                try { return new Date(isNaN(+ts)?ts:+ts).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}); } catch { return null; }
+              };
+              const rLabel = r.directorAction==='approved'?'Approved':r.directorAction==='rejected'?'Rejected':r.directorAction==='revise'?'Revised':'Pending Result';
+              const rColor = r.directorAction==='approved'?'rgba(50,220,100,0.92)':r.directorAction==='rejected'?'rgba(255,80,80,0.92)':r.directorAction==='revise'?'rgba(255,160,30,0.92)':'rgba(180,180,180,0.28)';
+              const totalMs = r.submittedAt && r.directorRespondedAt && r.directorAction==='approved'
+                ? new Date(r.directorRespondedAt).getTime() - new Date(r.submittedAt).getTime() : null;
+              const stgs = [
+                { label:'Submitted',  color:'rgba(100,180,255,0.90)', ts: r.submittedAt,          dur: s1 },
+                { label:'Assigned',   color:'rgba(255,200,50,0.90)',  ts: r.taggedAt,              dur: s2 },
+                { label:'Quoted',     color:'rgba(168,130,255,0.95)', ts: r.quotationSubmittedAt, dur: s3 },
+                { label: rLabel,      color: rColor,                   ts: r.directorRespondedAt,  dur: null },
+              ];
+              return (
+                <div key={r.id} style={{background:'rgba(255,255,255,0.025)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:12,padding:'14px 16px',fontFamily:"'Inter',sans-serif"}}>
+                  {/* Card header */}
+                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:14,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontFamily:'monospace',fontSize:'0.72rem',fontWeight:700,color:'rgba(220,165,0,0.90)',marginBottom:2}}>{r.id}</div>
+                      <div style={{fontSize:'0.75rem',color:'rgba(255,255,255,0.75)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.client||'—'}</div>
+                    </div>
+                    <div style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.28)',textAlign:'right',flexShrink:0,marginTop:2}}>{r.estimator||'Unassigned'}</div>
+                  </div>
+
+                  {/* Vertical timeline stages */}
+                  {stgs.map((st, i) => {
+                    const done = !!st.ts;
+                    const isLast = i === stgs.length - 1;
+                    return (
+                      <div key={i} style={{display:'flex',gap:10,minHeight: isLast ? 20 : 50}}>
+                        {/* Dot + connector */}
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:14,flexShrink:0,paddingTop:2}}>
+                          <div style={{
+                            width:11,height:11,borderRadius:'50%',flexShrink:0,
+                            background: done ? st.color : 'rgba(255,255,255,0.09)',
+                            boxShadow: done ? `0 0 10px ${st.color}, 0 0 4px ${st.color}80` : 'none',
+                            transition:'all 0.2s',
+                          }}/>
+                          {!isLast && (
+                            <div style={{flex:1,width:1.5,marginTop:4,borderRadius:2,
+                              background: done
+                                ? `linear-gradient(to bottom, ${st.color}80, rgba(255,255,255,0.05))`
+                                : 'rgba(255,255,255,0.05)'}}/>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div style={{flex:1,paddingBottom: isLast ? 0 : 6,minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+                            <span style={{fontSize:'0.70rem',fontWeight:done?700:500,
+                              color: done ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.22)',
+                              letterSpacing:'0.01em'}}>{st.label}</span>
+                            {!isLast && st.dur && (
+                              <span style={{fontSize:'0.64rem',fontFamily:'monospace',fontWeight:800,
+                                color:st.color,letterSpacing:'0.02em',
+                                textShadow:`0 0 10px ${st.color}70`,flexShrink:0}}>{fmsTL(st.dur)}</span>
+                            )}
+                          </div>
+                          {done && fdtTL(st.ts)
+                            ? <div style={{fontSize:'0.58rem',color:st.color,fontFamily:'monospace',fontWeight:600,opacity:0.78,marginTop:2,letterSpacing:'0.03em'}}>{fdtTL(st.ts)}</div>
+                            : !done && <div style={{fontSize:'0.56rem',color:'rgba(255,255,255,0.16)',marginTop:2,fontStyle:'italic'}}>pending…</div>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Total time — approved only */}
+                  {totalMs && (
+                    <div style={{marginTop:10,paddingTop:9,borderTop:'1px solid rgba(50,220,100,0.15)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                      <span style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700}}>Total Time</span>
+                      <span style={{fontSize:'0.76rem',fontFamily:'monospace',fontWeight:800,
+                        color:'rgba(50,220,100,0.92)',letterSpacing:'0.04em',
+                        textShadow:'0 0 12px rgba(50,220,100,0.45)'}}>{fmsTL(totalMs)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -6968,6 +7640,58 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     save();
   }, [requests, diaryEntries]);
 
+  // ── Notification toasts ──────────────────────────────────────────────────
+  const [toasts, setToasts] = useState([]);
+  const appStartMs = useRef(Date.now());
+  const dismissToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  // Auto-dismiss oldest toast after 6 s
+  useEffect(() => {
+    if (!toasts.length) return;
+    const tid = setTimeout(() => setToasts(prev => prev.slice(1)), 6000);
+    return () => clearTimeout(tid);
+  }, [toasts]);
+
+  // Poll for new messages every 30 s (sales sees estimator msgs; estimator sees sales msgs)
+  useEffect(() => {
+    if (!userRole || userRole === 'director') return;
+    const watchRole = userRole === 'sales' ? 'estimator' : 'sales';
+    const myName = (STAFF_NAMES[userCode] || userCode || '').toLowerCase();
+    const poll = async () => {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
+        const data = await res.json();
+        const remote = data.record.requests || [];
+        const seen = _getSeen();
+        const relevant = remote.filter(r =>
+          userRole === 'sales'
+            ? ((r.salesPerson||'').toLowerCase() === myName || (r.submittedBy||'').toLowerCase() === myName)
+            : (r.estimator||'').toLowerCase() === myName
+        );
+        const newMsgs = [];
+        relevant.forEach(r => {
+          const lastSeen = Math.max((seen[r.id]||{})[watchRole] || 0, appStartMs.current);
+          (r.conversation||[]).filter(m => m.role===watchRole && (m.tsMs||0) > lastSeen)
+            .forEach(m => newMsgs.push({ reqId:r.id, client:r.client, proj:r.proj, from:m.from, text:m.text }));
+        });
+        if (newMsgs.length > 0) {
+          const base = Date.now();
+          setToasts(prev => [...prev, ...newMsgs.map((m,i) => ({ id:base+i, ...m }))]);
+          // Merge new convo messages into local requests
+          setRequests(prev => prev.map(r => {
+            const rr = remote.find(x => x.id === r.id);
+            if (!rr) return r;
+            const localMax = Math.max(...(r.conversation||[]).map(m => m.tsMs||0), 0);
+            const fresh = (rr.conversation||[]).filter(m => (m.tsMs||0) > localMax);
+            return fresh.length ? { ...r, conversation: [...(r.conversation||[]), ...fresh] } : r;
+          }));
+        }
+      } catch(e) { /* silent */ }
+    };
+    const tid = setInterval(poll, 30000);
+    return () => clearInterval(tid);
+  }, [userRole, userCode]);
+
   const [foundReq,setFoundReq] = useState(null);
   const [revisedSource,setRevisedSource] = useState(null);       // original request being revised
   const [finalPriceSource,setFinalPriceSource] = useState(null); // original request for final price
@@ -7212,6 +7936,10 @@ const handleSubmit = async (formData) => {
           showAll={userRole==='director'}/>}
       {view==='salesPerformance' && <SalesPerformance
           spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
+          showAll={userRole==='director'}
+          requests={requests}/>}
+      {view==='myActivities' && <MyDailyActivities
+          spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
           showAll={userRole==='director'}/>}
       {view==='salesDiary' && <SalesDiary
           diaryEntries={diaryEntries}
@@ -7223,6 +7951,7 @@ const handleSubmit = async (formData) => {
         />}
       {view==='loading'   && <Loading id={id} q={q} setQ={setQ} go={handleSearch}/>}
       {view==='results'   && <Results id={id} req={foundReq} q={q} setQ={setQ} go={handleSearch}/>}
+      <NotifToast toasts={toasts} onDismiss={dismissToast}/>
     </div>
   );
 }
