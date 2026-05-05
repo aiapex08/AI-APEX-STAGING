@@ -1259,6 +1259,39 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
   const [errMsg, setErrMsg]     = useState('');
   const inputRef = useRef(null);
 
+  // ── Shortcut code prompts (logo / AR / My Dashboard) ──
+  const [codePrompt, setCodePrompt] = useState(null); // 'costArtist'|'arViewer'|'myDash'
+  const [promptCode, setPromptCode] = useState('');
+  const [promptShow, setPromptShow] = useState(false);
+  const [promptShake, setPromptShake] = useState(false);
+  const [promptErr, setPromptErr]   = useState('');
+  const promptRef = useRef(null);
+
+  const PROMPT_CFG = {
+    costArtist: { label:'Cost Artist',   hint:'Enter cost-artist code', correct:'STAR',
+      onSuccess: () => onAccepted('estimation','director','STAR','Cost Artist',null) },
+    arViewer:   { label:'AR Viewer',     hint:'Enter AR viewer code',   correct:'ARV',
+      onSuccess: () => onDirect('arViewer', null) },
+  };
+
+  const openPrompt = (type) => {
+    setCodePrompt(type); setPromptCode(''); setPromptErr(''); setPromptShow(false);
+    setTimeout(() => promptRef.current?.focus(), 80);
+  };
+  const closePrompt = () => { setCodePrompt(null); setPromptCode(''); setPromptErr(''); };
+  const submitPrompt = (e) => {
+    e?.preventDefault();
+    const entered = promptCode.trim().toUpperCase();
+    if (!entered) return;
+    const cfg = PROMPT_CFG[codePrompt];
+    if (entered === cfg.correct) { closePrompt(); cfg.onSuccess(); }
+    else {
+      setPromptErr('Invalid code');
+      setPromptShake(true);
+      setTimeout(() => { setPromptShake(false); setPromptCode(''); setPromptErr(''); }, 620);
+    }
+  };
+
   const SALES_CODES = ['SX985','SX417','SE628','SE842','SE519','SM386'];
   const EST_CODES   = ['EX552','EX719','EX638','EX904','EX471','EX856','EX392','EX681','EX547','EX903','EX764'];
 
@@ -1331,12 +1364,13 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
     const entered = code.trim().toUpperCase();
     if (!entered) return;
     if (entered === '9993') { onAccepted('active', null, '9993', '', null); return; }
+    if (entered === 'ARV')  { onDirect('arViewer', null); return; }
     if (selDept.id === 'sales') {
-      if (SALES_CODES.includes(entered)) onAccepted('estimation', 'sales', entered, '', quickView);
+      if (SALES_CODES.includes(entered) || entered === 'MYD') onAccepted('estimation', 'sales', entered, '', quickView);
       else doShake('Invalid sales code');
     } else if (selDept.id === 'estimation') {
-      if (EST_CODES.includes(entered))                    onAccepted('estimation', 'estimator', entered, 'Estimator',  quickView);
-      else if (entered === 'COSTA' || entered === 'STAR') onAccepted('estimation', 'director',  entered,  'Cost Artist', quickView);
+      if (EST_CODES.includes(entered))   onAccepted('estimation', 'estimator', entered, 'Estimator',  quickView);
+      else if (entered === 'STAR')       onAccepted('estimation', 'director',  entered, 'Cost Artist', quickView);
       else doShake('Invalid code');
     }
   };
@@ -1599,13 +1633,48 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
       {/* Dark veil */}
       <div style={{position:'absolute',inset:0,background:'rgba(0,1,3,0.70)',pointerEvents:'none'}}/>
 
-      {/* ── BOTTOM-LEFT LOGO ── */}
-      <img src="/logo.png" alt="NAFFCO" style={{
-        position:'absolute', bottom:24, left:36, zIndex:30,
-        height:32, width:'auto', objectFit:'contain',
-        opacity:0.55, filter:'drop-shadow(0 1px 8px rgba(109,40,217,0.35))',
-        animation:'hs-fadeUp 0.6s ease both',
-      }}/>
+      {/* ── SHORTCUT CODE PROMPT MODAL ── */}
+      {codePrompt && (
+        <div style={{position:'fixed',inset:0,zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,8,0.72)',backdropFilter:'blur(12px)'}}>
+          <div className={promptShake ? 'hs-cform hs-shake' : 'hs-cform'}
+            style={{background:'rgba(6,4,22,0.98)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:20,padding:'36px 32px',display:'flex',flexDirection:'column',alignItems:'center',gap:18,boxShadow:'0 30px 80px rgba(0,0,0,0.7)',minWidth:300}}>
+            <p style={{fontSize:'0.50rem',letterSpacing:'0.24em',textTransform:'uppercase',color:'rgba(255,255,255,0.35)',margin:0,fontWeight:700,fontFamily:"'Inter',sans-serif"}}>{PROMPT_CFG[codePrompt]?.label}</p>
+            <p style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.45)',margin:0,fontFamily:"'Inter',sans-serif",letterSpacing:'0.06em'}}>{PROMPT_CFG[codePrompt]?.hint}</p>
+            <form onSubmit={submitPrompt} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0,width:'100%'}}>
+              <div style={{position:'relative',display:'inline-flex',alignItems:'center',width:'100%',justifyContent:'center'}}>
+                <input ref={promptRef} className={`hs-cinput${promptErr ? ' hs-err' : ''}`}
+                  type={promptShow ? 'text' : 'password'}
+                  value={promptCode} onChange={e=>{setPromptCode(e.target.value);setPromptErr('');}}
+                  placeholder="— — — —" maxLength={10} autoComplete="off" spellCheck={false}
+                  style={{paddingRight:36}}/>
+                <button type="button" onClick={()=>setPromptShow(v=>!v)}
+                  style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',padding:4,color:promptShow?'#cc0000':'#444',outline:'none',lineHeight:0,transition:'color 0.2s'}}>
+                  {promptShow
+                    ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  }
+                </button>
+              </div>
+              <div className={`hs-errmsg${promptErr ? ' vis' : ''}`}>{promptErr || ' '}</div>
+              <div className="hs-hint">Press Enter to confirm</div>
+            </form>
+            <button onClick={closePrompt} style={{marginTop:4,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.28)',fontFamily:"'Inter',sans-serif",fontSize:'0.72rem',letterSpacing:'0.14em',textTransform:'uppercase',padding:'4px 12px',transition:'color 0.2s'}}
+              onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.65)'}
+              onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.28)'}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── BOTTOM-LEFT LOGO — click to prompt for Cost-Artist code ── */}
+      <img src="/logo.png" alt="NAFFCO"
+        onClick={() => openPrompt('costArtist')}
+        style={{
+          position:'absolute', bottom:24, left:36, zIndex:30,
+          height:32, width:'auto', objectFit:'contain',
+          opacity:0.55, filter:'drop-shadow(0 1px 8px rgba(109,40,217,0.35))',
+          animation:'hs-fadeUp 0.6s ease both',
+          cursor:'pointer',
+        }}/>
 
       {/* ── TOP-LEFT BRANDING ── */}
       <div className="hs-topbrand">
@@ -1614,7 +1683,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
       </div>
 
       {/* ── BOTTOM-RIGHT: AR Viewer ── */}
-      <button className="hs-ar-btn" onClick={() => onDirect('arViewer', null)}>
+      <button className="hs-ar-btn" onClick={() => openPrompt('arViewer')}>
         <span className="hs-ar-dot"/>
         AR Viewer
       </button>
@@ -1793,7 +1862,7 @@ const AccessCodeScreen = ({ onAccepted }) => {
       onAccepted('estimation', 'estimator', entered, 'Estimator');
     } else if (SALES_CODES.includes(entered)) {
       onAccepted('estimation', 'sales', entered, '');
-    } else if (entered === 'COSTA' || entered === 'STAR') {
+    } else if (entered === 'STAR') {
       onAccepted('estimation', 'director', entered, 'Cost Artist');
     } else if (entered === '9993') {
       onAccepted('active', null, '9993', '');

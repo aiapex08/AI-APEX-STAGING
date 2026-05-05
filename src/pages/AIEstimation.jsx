@@ -24,6 +24,11 @@ const S = `
   @keyframes glowBtn  { 0%,100%{box-shadow:0 0 16px rgba(220,165,0,0.15)} 50%{box-shadow:0 0 36px rgba(220,165,0,0.38)} }
   @keyframes notifIn  { from{opacity:0;transform:translateX(32px)} to{opacity:1;transform:translateX(0)} }
   @keyframes notifOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(32px)} }
+  @keyframes dashFlyLeft  { 0%{opacity:0;transform:translateX(-140px) translateY(50px) scale(0.70) rotate(-10deg)} 70%{transform:translateX(8px) translateY(-4px) scale(1.02) rotate(0.5deg)} 100%{opacity:1;transform:translateX(0) translateY(0) scale(1) rotate(0deg)} }
+  @keyframes dashFlyRight { 0%{opacity:0;transform:translateX(140px) translateY(50px) scale(0.70) rotate(10deg)}  70%{transform:translateX(-8px) translateY(-4px) scale(1.02) rotate(-0.5deg)} 100%{opacity:1;transform:translateX(0) translateY(0) scale(1) rotate(0deg)} }
+  @keyframes dashFlyUp    { 0%{opacity:0;transform:translateY(-100px) scale(0.72) rotate(-6deg)} 70%{transform:translateY(6px) scale(1.02) rotate(0.3deg)} 100%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)} }
+  @keyframes dashFlyDown  { 0%{opacity:0;transform:translateY(110px) scale(0.72) rotate(5deg)}  70%{transform:translateY(-6px) scale(1.02) rotate(-0.3deg)} 100%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)} }
+  @keyframes dashHdrIn    { 0%{opacity:0;transform:translateY(-28px) scale(0.92)} 70%{transform:translateY(4px) scale(1.01)} 100%{opacity:1;transform:translateY(0) scale(1)} }
 
   .root {
     position:fixed; inset:0; width:100vw; height:100vh; z-index:100;
@@ -202,9 +207,10 @@ const S = `
     align-items: center;
     gap: 0;
     padding: 0 28px;
-    background: rgba(0,2,4,0.55);
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-    backdrop-filter: blur(16px);
+    background: rgba(0,2,6,0.42);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
     z-index: 500;
   }
   .nav-brand {
@@ -230,6 +236,17 @@ const S = `
     0%   { background-position: 0% 50%; }
     50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+  @keyframes cardAura {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes cardSweep {
+    0%   { transform: translateX(-120%) skewX(-20deg); opacity:0; }
+    12%  { opacity: 0.7; }
+    88%  { opacity: 0.7; }
+    100% { transform: translateX(320%) skewX(-20deg); opacity:0; }
   }
   @keyframes navSpark {
     0%   { transform: translateX(-100%) skewX(-18deg); opacity: 0; }
@@ -825,7 +842,7 @@ const S = `
     .or-team   { height:16vh;min-height:100px;padding:8px 16px 8px }
 
     /* Dashboard detail */
-    .dash-detail-wrap { padding:62px 14px 16px!important }
+    .dash-detail-wrap { inset:50px 0 0 0!important; padding:0!important }
     .dash-detail-wrap .g2,
     .dash-detail-wrap .g3 { grid-template-columns:1fr!important }
     .dash-2col { grid-template-columns:1fr!important }
@@ -1334,7 +1351,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
         }}>
           <div>
             <p style={{ fontSize: '0.58rem', letterSpacing: '0.26em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 8, fontWeight: 700 }}>NAFFCO · AI SYSTEM</p>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>My Dashboard</h2>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>Quoted Request</h2>
             <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Enter your name as registered in a request to view your assigned requests.</p>
           </div>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1788,7 +1805,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
       {/* Header */}
       <div className="ss-hdr">
         <div>
-          <span className="ss-title">{showAll ? 'Sales Overview' : 'My Dashboard'}</span>
+          <span className="ss-title">{showAll ? 'Sales Overview' : 'Quoted Request'}</span>
           <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
             {showAll
               ? <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>All Sales Requests</span>
@@ -1947,12 +1964,13 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
 const ROLE_CODES = {
   // Sales
   SX985:'sales', SX417:'sales', SE628:'sales', SE842:'sales', SE519:'sales', SM386:'sales',
+  MYD:'sales',
   // Estimators
   EX552:'estimator', EX719:'estimator', EX638:'estimator', EX904:'estimator',
   EX471:'estimator', EX856:'estimator', EX392:'estimator', EX681:'estimator',
   EX547:'estimator', EX903:'estimator', EX764:'estimator',
-  // Director
-  COSTA:'director', STAR:'director',
+  // Director / Cost Artist
+  STAR:'director',
 };
 
 const RoleLogin = ({ onLogin }) => {
@@ -2010,7 +2028,7 @@ const RoleLogin = ({ onLogin }) => {
           {[
             { label:'Sales',       hint:'SX985 · SX417 · SE628 · SE842 · SE519 · SM386', color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
             { label:'Estimator',   hint:'EX552 · EX719 · EX638 · EX904 · EX471 · EX856 · EX392 · EX681 · EX547 · EX903 · EX764', color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
-            { label:'Cost-Artist', hint:'COSTA · STAR',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
+            { label:'Cost-Artist', hint:'STAR',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
           ].map(({label,hint,color,bg,bd}) => (
             <div key={label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
               background:bg, border:`1px solid ${bd}`, borderRadius:10, padding:'9px 14px'}}>
@@ -2698,6 +2716,7 @@ const STAFF_NAMES = {
   'SX985':'Ammar Khaldoun','SX417':'Ashik Bin Shams',
   'SE628':'Mohammad Hindawi','SE842':'Ibrahim Odeh',
   'SE519':'Yazan Al Agha','SM386':'Ali Hussnain',
+  'MYD':'My Dashboard',
   // Estimators
   'EX552':'Sachin Poojary','EX719':'Mohammad Samee Hamid Khan',
   'EX638':'Moazzam Ali','EX904':'Benson Benjamine',
@@ -2705,8 +2724,8 @@ const STAFF_NAMES = {
   'EX392':'Jaffar Shaik','EX681':'Muzafar Khasab Abdul',
   'EX547':'Afridi Miyan Basheer','EX903':'Alfaj Muhammad',
   'EX764':'Vimal Vencent',
-  // Director
-  'COSTA':'APEX-CA','STAR':'APEX-CA',
+  // Director / Cost Artist
+  'STAR':'APEX-CA',
 };
 
 const EST_ROSTER = [
@@ -2742,7 +2761,7 @@ const PROFILE_PICS = {
   'EX471':'/K.jpg','EX856':'/L.jpg','EX392':'/M.jpg','EX681':'/N.jpg',
   'EX547':'/O.jpg','EX903':'/P.jpg','EX764':'/Q.jpg',
   // Cost Artist
-  'COSTA':'/r.jpg','STAR':'/S.jpg',
+  'STAR':'/S.jpg',
   // Lowercase name keys — Sales
   'ammar khaldoun':'/A.jpg','ashik bin shams':'/b.jpg',
   'mohammad hindawi':'/c.jpg','ibrahim odeh':'/d.jpg',
@@ -2783,6 +2802,7 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   const [nameErr, setNameErr] = useState(false);
   const [justClaimed, setJustClaimed] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // {idx, id}
+  const [deleteCode, setDeleteCode] = useState('');
 
   const openClaim = (idx, reqId) => {
     setClaiming({idx,reqId});
@@ -2899,82 +2919,140 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           <p style={{fontSize:'0.9rem',color:'rgba(255,255,255,0.4)',fontFamily:F,textAlign:'center'}}>All requests are assigned.<br/>No open requests right now.</p>
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:18}}>
-          {openReqs.map(({r,i})=>{
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:20}}>
+          {openReqs.map(({r,i},idx)=>{
             const isClaimed = justClaimed === r.id;
-            const pal = avatarPalette('unassigned');
-            return (
-              <div key={r.id}
-                style={{position:'relative',background:isClaimed?'rgba(16,185,129,0.08)':'rgba(6,4,20,0.90)',
-                  border:`1px solid ${isClaimed?'rgba(52,211,153,0.40)':'rgba(255,255,255,0.08)'}`,
-                  borderRadius:16,padding:'20px',display:'flex',flexDirection:'column',gap:12,
-                  transition:'all 0.4s',overflow:'hidden',
-                  boxShadow:isClaimed?'0 0 30px rgba(52,211,153,0.18)':'none'}}>
-                {/* Top stripe */}
-                <div style={{position:'absolute',top:0,left:0,right:0,height:2,
-                  background:isClaimed?'linear-gradient(90deg,transparent,rgba(52,211,153,0.8),transparent)':'linear-gradient(90deg,transparent,rgba(168,85,247,0.5),transparent)'}}/>
+            // Each card: two-color aurora pair
+            const PALS = [
+              {a:'99,102,241',  b:'168,85,247'},   // indigo–violet
+              {a:'6,182,212',   b:'99,102,241'},    // cyan–indigo
+              {a:'236,72,153',  b:'245,158,11'},    // rose–amber
+              {a:'245,158,11',  b:'16,185,129'},    // amber–emerald
+              {a:'16,185,129',  b:'6,182,212'},     // emerald–cyan
+              {a:'168,85,247',  b:'236,72,153'},    // violet–rose
+            ];
+            const pal = isClaimed ? {a:'52,211,153',b:'16,185,129'} : PALS[idx % PALS.length];
+            const delay = `${-(idx * 1.3).toFixed(1)}s`;
+            const rank  = idx + 1;
 
-                {/* ID + deal badge + delete */}
+            return (
+              <div key={r.id} style={{
+                position:'relative', overflow:'hidden',
+                borderRadius:22, padding:'22px 20px 18px',
+                display:'flex', flexDirection:'column', gap:16,
+                transition:'transform 0.22s, box-shadow 0.22s',
+                // animated gradient background
+                background:`linear-gradient(135deg,rgba(${pal.a},0.18) 0%,rgba(${pal.b},0.10) 50%,rgba(${pal.a},0.15) 100%)`,
+                backgroundSize:'250% 250%',
+                animation:`cardAura 7s ease infinite`,
+                animationDelay: delay,
+                backdropFilter:'blur(20px)',
+                WebkitBackdropFilter:'blur(20px)',
+                boxShadow:`0 0 0 1px rgba(${pal.a},0.22), 0 12px 40px rgba(${pal.a},0.18), 0 2px 8px rgba(0,0,0,0.55)`,
+              }}>
+                {/* Sweeping light streak */}
+                <div style={{position:'absolute',top:0,left:0,width:'30%',height:'100%',
+                  background:`linear-gradient(105deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%)`,
+                  animation:'cardSweep 5s ease-in-out infinite',
+                  animationDelay:`${-(idx*0.9).toFixed(1)}s`,
+                  pointerEvents:'none'}}/>
+
+                {/* Top edge glow */}
+                <div style={{position:'absolute',top:0,left:0,right:0,height:1.5,
+                  background:`linear-gradient(90deg,transparent,rgba(${pal.a},0.90),rgba(${pal.b},0.70),transparent)`,
+                  pointerEvents:'none'}}/>
+
+                {/* Rank + ID row */}
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <span style={{fontFamily:'monospace',fontSize:'0.80rem',fontWeight:800,color:'rgba(220,165,0,0.90)',letterSpacing:'0.08em'}}>{r.id}</span>
-                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                    {r.deal && <span style={{fontSize:'0.55rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:dealColor(r.deal),border:`1px solid ${dealColor(r.deal)}50`,borderRadius:4,padding:'2px 7px'}}>{r.deal}</span>}
-                    {r.requestType==='revised'    && <span style={{fontSize:'0.55rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.75)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:4,padding:'2px 7px'}}>REVISED</span>}
-                    {r.requestType==='finalPrice' && <span style={{fontSize:'0.55rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(52,211,153,0.80)',border:'1px solid rgba(52,211,153,0.25)',borderRadius:4,padding:'2px 7px'}}>FINAL</span>}
-                    {userRole === 'director' && (
-                      <button
-                        onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
-                        title="Delete request"
-                        style={{display:'flex',alignItems:'center',justifyContent:'center',width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.28)',color:'rgba(220,80,80,0.80)',cursor:'pointer',outline:'none',transition:'all 0.15s',flexShrink:0}}
-                        onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.24)';e.currentTarget.style.color='rgba(255,100,100,1)';e.currentTarget.style.borderColor='rgba(220,60,60,0.55)';}}
-                        onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';e.currentTarget.style.borderColor='rgba(220,50,50,0.28)';}}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                        </svg>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:'0.56rem',fontWeight:800,letterSpacing:'0.16em',
+                      color:`rgba(${pal.a},0.75)`,textTransform:'uppercase'}}>#{rank}</span>
+                    <span style={{fontSize:'0.62rem',fontFamily:'monospace',fontWeight:700,
+                      color:'rgba(255,255,255,0.28)',letterSpacing:'0.10em'}}>{r.id}</span>
+                  </div>
+                  <div style={{display:'flex',gap:5,alignItems:'center'}}>
+                    {r.deal && <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.10em',
+                      textTransform:'uppercase',color:dealColor(r.deal),
+                      background:dealColor(r.deal).replace(/[\d.]+\)$/,'0.12)'),
+                      borderRadius:20,padding:'2px 9px'}}>{r.deal}</span>}
+                    {r.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISED</span>}
+                    {r.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.85)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
+                    {userRole==='director' && (
+                      <button onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
+                        style={{display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'none',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',flexShrink:0}}
+                        onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,100,100,0.95)';e.currentTarget.style.background='rgba(220,50,50,0.20)';}}
+                        onMouseLeave={e=>{e.currentTarget.style.color='rgba(220,80,80,0.55)';e.currentTarget.style.background='rgba(220,50,50,0.08)';}}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Project + Client */}
-                <div>
-                  <p style={{fontSize:'0.92rem',fontWeight:700,color:'rgba(255,255,255,0.88)',margin:0,lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</p>
-                  <p style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.40)',margin:'3px 0 0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.client||'—'}</p>
+                {/* ── Main hierarchy ── */}
+                <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                  {/* Main Contractor — hero heading */}
+                  <div style={{fontSize:'1.08rem',fontWeight:900,lineHeight:1.15,
+                    color:'rgba(255,255,255,0.96)',
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                    textShadow:`0 0 28px rgba(${pal.a},0.55), 0 0 60px rgba(${pal.b},0.25)`}}>
+                    {r.mainContractor||'—'}
+                  </div>
+                  {/* Client — 2nd line */}
+                  <div style={{fontSize:'0.80rem',fontWeight:700,lineHeight:1.3,
+                    color:`rgba(${pal.a},0.88)`,
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {r.client||'—'}
+                  </div>
+                  {/* Project — 3rd line, small */}
+                  <div style={{fontSize:'0.62rem',fontWeight:400,
+                    color:'rgba(255,255,255,0.38)',
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {r.proj||'—'}
+                  </div>
                 </div>
 
-                {/* Meta row */}
-                <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
-                  {[
-                    {label:'Submitted By', val:r.submittedBy||'—'},
-                    {label:'Lead Time',    val:r.leadTime||'—'},
-                    {label:'Date',         val:r.date||'—'},
-                  ].map(({label,val})=>(
-                    <div key={label} style={{display:'flex',flexDirection:'column',gap:2}}>
-                      <span style={{fontSize:'0.48rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:600}}>{label}</span>
-                      <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.65)',fontWeight:500}}>{val}</span>
-                    </div>
-                  ))}
-                </div>
+                {/* Divider */}
+                <div style={{height:1,background:`linear-gradient(90deg,rgba(${pal.a},0.35),rgba(${pal.b},0.20),transparent)`}}/>
 
-                {/* Remarks snippet */}
-                {r.remarks && <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.35)',lineHeight:1.5,margin:0,borderLeft:'2px solid rgba(168,85,247,0.25)',paddingLeft:8,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{r.remarks}</p>}
+                {/* Single info row — no boxes */}
+                <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+                  <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.a},0.70)`} strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {r.submittedBy||r.salesPerson||'—'}
+                  </span>
+                  <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.b},0.70)`} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    {r.leadTime||'—'}
+                  </span>
+                  <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.35)'}}>{r.date||'—'}</span>
+                </div>
 
                 {/* CTA */}
                 {isClaimed ? (
-                  <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(52,211,153,0.08)',border:'1px solid rgba(52,211,153,0.25)',borderRadius:10,marginTop:4}}>
-                    <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(52,211,153,0.90)',boxShadow:'0 0 8px rgba(52,211,153,0.7)',flexShrink:0}}/>
-                    <span style={{fontSize:'0.80rem',color:'rgba(52,211,153,0.90)',fontWeight:600}}>Request Claimed!</span>
+                  <div style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',
+                    background:'rgba(52,211,153,0.10)',borderRadius:12}}>
+                    <span style={{width:7,height:7,borderRadius:'50%',flexShrink:0,
+                      background:'rgba(52,211,153,0.90)',boxShadow:'0 0 8px rgba(52,211,153,0.70)'}}/>
+                    <span style={{fontSize:'0.78rem',color:'rgba(52,211,153,0.90)',fontWeight:700}}>Request Claimed!</span>
                   </div>
                 ) : (
-                  <button onClick={()=>openClaim(i, r.id)}
-                    style={{width:'100%',marginTop:4,padding:'11px 0',borderRadius:10,
-                      background:'rgba(168,85,247,0.08)',border:'1px solid rgba(168,85,247,0.28)',
-                      color:'rgba(200,160,255,0.88)',fontFamily:F,fontSize:'0.82rem',fontWeight:700,
-                      cursor:'pointer',outline:'none',letterSpacing:'0.06em',
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all 0.2s'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(105deg,#4c1d95,#6d28d9,#a855f7)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 20px rgba(168,85,247,0.40)';e.currentTarget.style.borderColor='rgba(168,85,247,0.60)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(168,85,247,0.08)';e.currentTarget.style.color='rgba(200,160,255,0.88)';e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='rgba(168,85,247,0.28)';}}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <button onClick={()=>openClaim(i,r.id)} style={{
+                    width:'100%',padding:'11px 0',borderRadius:12,border:'none',
+                    background:`linear-gradient(120deg,rgba(${pal.a},0.30),rgba(${pal.b},0.22))`,
+                    color:'rgba(255,255,255,0.92)',fontFamily:F,fontSize:'0.82rem',fontWeight:700,
+                    cursor:'pointer',outline:'none',letterSpacing:'0.05em',
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all 0.20s'}}
+                    onMouseEnter={e=>{
+                      e.currentTarget.style.background=`linear-gradient(120deg,rgba(${pal.a},0.55),rgba(${pal.b},0.42))`;
+                      e.currentTarget.style.boxShadow=`0 6px 24px rgba(${pal.a},0.40)`;
+                      e.currentTarget.style.transform='translateY(-1px)';
+                    }}
+                    onMouseLeave={e=>{
+                      e.currentTarget.style.background=`linear-gradient(120deg,rgba(${pal.a},0.30),rgba(${pal.b},0.22))`;
+                      e.currentTarget.style.boxShadow='none';
+                      e.currentTarget.style.transform='translateY(0)';
+                    }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Take This Request
                   </button>
                 )}
@@ -3047,17 +3125,31 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
             <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.80)',lineHeight:1.6,margin:0,fontFamily:F}}>
               Permanently delete request <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{deleteConfirm.id}</strong>? This cannot be undone.
             </p>
+            <div>
+              <div style={{fontSize:'0.56rem',color:'rgba(255,100,100,0.60)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:6,fontFamily:F}}>
+                Type <strong style={{color:'rgba(255,150,150,0.90)',letterSpacing:'0.08em'}}>xepa</strong> to confirm
+              </div>
+              <input
+                autoFocus
+                value={deleteCode}
+                onChange={e=>setDeleteCode(e.target.value)}
+                placeholder="xepa"
+                style={{width:'100%',background:'rgba(0,0,0,0.40)',border:`1px solid ${deleteCode.toLowerCase()==='xepa'?'rgba(220,60,60,0.60)':'rgba(255,255,255,0.12)'}`,borderRadius:7,padding:'9px 13px',color:'rgba(255,180,180,0.95)',fontFamily:'monospace',fontSize:'0.95rem',letterSpacing:'0.18em',outline:'none',transition:'border-color 0.2s'}}
+              />
+            </div>
             <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
-              <button onClick={()=>setDeleteConfirm(null)}
+              <button onClick={()=>{setDeleteConfirm(null);setDeleteCode('');}}
                 style={{padding:'9px 22px',borderRadius:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.60)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:600,outline:'none',transition:'background 0.15s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
                 Cancel
               </button>
-              <button onClick={()=>{ onDelete(deleteConfirm.idx); setDeleteConfirm(null); }}
-                style={{padding:'9px 22px',borderRadius:8,background:'rgba(200,40,40,0.20)',border:'1px solid rgba(220,60,60,0.50)',color:'rgba(255,100,100,0.95)',cursor:'pointer',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'background 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(200,40,40,0.36)'}
-                onMouseLeave={e=>e.currentTarget.style.background='rgba(200,40,40,0.20)'}>
+              <button
+                disabled={deleteCode.toLowerCase()!=='xepa'}
+                onClick={()=>{ if(deleteCode.toLowerCase()==='xepa'){onDelete(deleteConfirm.idx);setDeleteConfirm(null);setDeleteCode('');} }}
+                style={{padding:'9px 22px',borderRadius:8,background:deleteCode.toLowerCase()==='xepa'?'rgba(200,40,40,0.25)':'rgba(255,255,255,0.03)',border:`1px solid ${deleteCode.toLowerCase()==='xepa'?'rgba(220,60,60,0.55)':'rgba(255,255,255,0.08)'}`,color:deleteCode.toLowerCase()==='xepa'?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',cursor:deleteCode.toLowerCase()==='xepa'?'pointer':'not-allowed',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'all 0.2s'}}
+                onMouseEnter={e=>{if(deleteCode.toLowerCase()==='xepa')e.currentTarget.style.background='rgba(200,40,40,0.38)';}}
+                onMouseLeave={e=>{if(deleteCode.toLowerCase()==='xepa')e.currentTarget.style.background='rgba(200,40,40,0.25)';}}>
                 Delete
               </button>
             </div>
@@ -3169,7 +3261,12 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   };
 
   const downloadDoc = d => {
-    if (!d?.data) return;
+    if (!d) return;
+    if (d.url && !d.data) {
+      const a = document.createElement('a'); a.href=d.url; a.download=d.name||'quotation'; a.target='_blank';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); return;
+    }
+    if (!d.data) return;
     const byteStr = atob(d.data.split(',')[1]||d.data);
     const ab = new ArrayBuffer(byteStr.length);
     const ia = new Uint8Array(ab);
@@ -3365,118 +3462,326 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
 
   /* ── LIST VIEW ── */
   return (
-    <div style={{position:'relative',width:'100%',minHeight:'100%',padding:'72px 36px 36px',fontFamily:F,color:'#e2e8f0',overflowY:'auto'}}>
-      <div style={{maxWidth:960,margin:'0 auto'}}>
-        {/* Header */}
-        <div style={{marginBottom:24}}>
-          <p style={{fontSize:'0.55rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',marginBottom:6,fontWeight:700}}>NAFFCO · AI SYSTEM</p>
-          <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.92)',margin:0,marginBottom:4}}>Track your Quotation</h2>
-          <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',margin:0}}>
-            {showAll ? 'All submitted quotation requests' : `Quotations submitted by ${spName || 'you'}`}
-          </p>
-        </div>
-        {/* Search */}
-        <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'8px 14px',marginBottom:24,maxWidth:360}}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by ID, project or client…"
-            style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.82rem'}}/>
+    <div style={{position:'relative',width:'100%',height:'100%',padding:'66px 20px 16px',fontFamily:F,color:'#e2e8f0',overflowY:'auto'}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:12,flexWrap:'wrap'}}>
+        <div>
+          <p style={{fontSize:'0.52rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',marginBottom:3,fontWeight:700}}>NAFFCO · AI SYSTEM</p>
+          <h2 style={{fontSize:'1.2rem',fontWeight:800,color:'rgba(255,255,255,0.92)',margin:0}}>Track your Quotation</h2>
         </div>
         {/* Summary chips */}
         {(()=>{
           const all=myReqs.length,approved=myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length,pending=myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length,rejected=myReqs.filter(r=>r.directorAction==='rejected').length;
           return (
-            <div style={{display:'flex',gap:10,marginBottom:24,flexWrap:'wrap'}}>
-              {[['Total',all,'rgba(100,160,255,0.80)','rgba(80,120,255,0.15)'],['Approved',approved,'rgba(0,220,130,0.90)','rgba(0,180,100,0.12)'],['In Progress',pending,'rgba(255,200,50,0.90)','rgba(220,160,0,0.12)'],['Rejected',rejected,'rgba(255,80,80,0.90)','rgba(200,40,40,0.12)']].map(([lbl,cnt,c,bg])=>(
-                <div key={lbl} style={{background:bg,border:`1px solid ${c}30`,borderRadius:8,padding:'8px 18px',display:'flex',flexDirection:'column',gap:2}}>
-                  <span style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:c,fontWeight:700}}>{lbl}</span>
-                  <span style={{fontSize:'1.4rem',fontWeight:800,color:c,lineHeight:1}}>{cnt}</span>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginLeft:'auto'}}>
+              {[['Total',all,'rgba(100,160,255,0.80)','rgba(80,120,255,0.12)'],['Approved',approved,'rgba(0,220,130,0.90)','rgba(0,180,100,0.10)'],['In Progress',pending,'rgba(255,200,50,0.90)','rgba(220,160,0,0.10)'],['Rejected',rejected,'rgba(255,80,80,0.90)','rgba(200,40,40,0.10)']].map(([lbl,cnt,c,bg])=>(
+                <div key={lbl} style={{background:bg,border:`1px solid ${c}30`,borderRadius:7,padding:'5px 14px',display:'flex',alignItems:'center',gap:7}}>
+                  <span style={{fontSize:'0.52rem',letterSpacing:'0.12em',textTransform:'uppercase',color:c,fontWeight:700}}>{lbl}</span>
+                  <span style={{fontSize:'1.0rem',fontWeight:800,color:c,lineHeight:1}}>{cnt}</span>
                 </div>
               ))}
             </div>
           );
         })()}
-        {/* Cards */}
-        {myReqs.length === 0 ? (
-          <div style={{textAlign:'center',padding:'48px 0',color:'rgba(255,255,255,0.22)'}}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginBottom:12,opacity:0.3}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <p style={{fontSize:'0.88rem',margin:0}}>No quotations found.</p>
-          </div>
-        ) : myReqs.map((r,i) => {
-          const stageIdx=getStageIdx(r),sc=statusColor(r),sl=statusLabel(r);
-          const unread = _unreadCount(r.conversation, r.id, 'estimator');
-          return (
-            <div key={r.id||i}
-              onClick={()=>{ setOpenIdx(i); markReqSeen(r.id); }}
-              style={{background: unread>0 ? 'rgba(100,210,255,0.04)' : 'rgba(255,255,255,0.03)', border: unread>0 ? '1px solid rgba(100,210,255,0.22)' : '1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'18px 20px',marginBottom:14,cursor:'pointer',transition:'all 0.2s'}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(168,85,247,0.40)';e.currentTarget.style.background='rgba(109,40,217,0.06)';}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=unread>0?'rgba(100,210,255,0.22)':'rgba(255,255,255,0.08)';e.currentTarget.style.background=unread>0?'rgba(100,210,255,0.04)':'rgba(255,255,255,0.03)';}}>
-              {/* Header row: ID + badge + message indicator + Open */}
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:10}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
-                  <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'2px 10px',borderRadius:50,background:`${sc}18`,border:`1px solid ${sc}40`}}>
-                    <span style={{width:5,height:5,borderRadius:'50%',background:sc,boxShadow:`0 0 5px ${sc}`,flexShrink:0}}/>
-                    <span style={{fontSize:'0.65rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
-                  </span>
-                  {unread > 0 && <span style={{fontSize:'0.60rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.14)',border:'1px solid rgba(100,210,255,0.35)',borderRadius:50,padding:'1px 9px'}}>💬 {unread} new</span>}
-                </div>
-                <span style={{fontSize:'0.65rem',color:'rgba(168,85,247,0.55)',fontWeight:600}}>Open →</span>
+      </div>
+      {/* Search */}
+      <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'7px 14px',marginBottom:14,maxWidth:340}}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by ID, project or client…"
+          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.80rem'}}/>
+      </div>
+      {/* Cards */}
+      {myReqs.length === 0 ? (
+        <div style={{textAlign:'center',padding:'48px 0',color:'rgba(255,255,255,0.22)'}}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginBottom:12,opacity:0.3}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <p style={{fontSize:'0.88rem',margin:0}}>No quotations found.</p>
+        </div>
+      ) : myReqs.map((r,i) => {
+        const stageIdx=getStageIdx(r),sc=statusColor(r),sl=statusLabel(r);
+        const unread = _unreadCount(r.conversation, r.id, 'estimator');
+        return (
+          <div key={r.id||i}
+            onClick={()=>{ setOpenIdx(i); markReqSeen(r.id); }}
+            style={{background: unread>0 ? 'rgba(100,210,255,0.04)' : 'rgba(255,255,255,0.03)', border: unread>0 ? '1px solid rgba(100,210,255,0.22)' : '1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'10px 16px',marginBottom:8,cursor:'pointer',transition:'all 0.2s'}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(168,85,247,0.40)';e.currentTarget.style.background='rgba(109,40,217,0.06)';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=unread>0?'rgba(100,210,255,0.22)':'rgba(255,255,255,0.08)';e.currentTarget.style.background=unread>0?'rgba(100,210,255,0.04)':'rgba(255,255,255,0.03)';}}>
+
+            {/* Row 1: ID · status · unread · Open → */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
+              <div style={{display:'flex',alignItems:'center',gap:7}}>
+                <span style={{fontFamily:'monospace',fontSize:'0.80rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
+                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'1px 8px',borderRadius:50,background:`${sc}15`,border:`1px solid ${sc}35`}}>
+                  <span style={{width:4,height:4,borderRadius:'50%',background:sc,flexShrink:0}}/>
+                  <span style={{fontSize:'0.58rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
+                </span>
+                {unread > 0 && <span style={{fontSize:'0.58rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.12)',borderRadius:50,padding:'1px 8px'}}>💬 {unread}</span>}
               </div>
-              {/* Client highlighted */}
-              <div style={{fontSize:'1.10rem',fontWeight:800,color:'rgba(100,210,255,0.95)',letterSpacing:'0.01em',marginBottom:2,lineHeight:1.2}}>{r.client||'—'}</div>
-              {/* Project name secondary */}
-              <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.48)',fontWeight:500,marginBottom:12}}>{r.proj||'—'}</div>
-              {/* Details grid */}
-              {(()=>{
-                const supplyLabel = r.supplyInstall ? 'Supply & Install' : r.supplyOnly ? 'Supply Only' : r.deal||'—';
-                const fields = [
-                  ['Main Contractor', r.mainContractor],
-                  ['Consultant',      r.consultant],
-                  ['Deal',            r.deal],
-                  ['Supply',          supplyLabel],
-                  ['Lead Time',       r.leadTime],
-                  ['Submitted',       r.date],
-                  ['Estimator',       r.estimator],
-                  ['Email',           r.email],
-                  ['Mobile',          r.mob],
-                  ['Tel',             r.tel],
-                  ['Address',         r.address],
-                  ['Remarks',         r.remarks],
-                ];
-                return (
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px 14px',marginBottom:14}}>
-                    {fields.map(([lbl,val])=>(
+              <span style={{fontSize:'0.60rem',color:'rgba(168,85,247,0.50)',fontWeight:600,flexShrink:0}}>Open →</span>
+            </div>
+
+            {/* Row 2: Main Contractor (big) · Project (small) — right: Estimator avatar + name (big) */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:6}}>
+              <div style={{display:'flex',alignItems:'baseline',gap:8,minWidth:0,overflow:'hidden'}}>
+                <span style={{fontSize:'1.05rem',fontWeight:800,color:'rgba(255,255,255,0.92)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'45vw'}}>{r.mainContractor||'—'}</span>
+                {r.proj && <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.35)',fontWeight:400,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{r.proj}</span>}
+              </div>
+              {r.estimator ? (
+                <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
+                  <EstAvatar name={r.estimator} size={28}/>
+                  <span style={{fontSize:'0.90rem',fontWeight:700,color:'rgba(255,255,255,0.85)',whiteSpace:'nowrap'}}>{r.estimator}</span>
+                </div>
+              ) : (
+                <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic',flexShrink:0}}>Unassigned</span>
+              )}
+            </div>
+
+            {/* Fields: Client, Consultant, Deal, Supply, Lead Time */}
+            {(()=>{
+              const supplyLabel = r.supplyInstall ? 'Supply & Install' : r.supplyOnly ? 'Supply Only' : r.deal||'—';
+              return (
+                <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:8,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                  {/* Client, Consultant, Deal, Supply, Lead Time */}
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'2px 12px'}}>
+                    {[['Client',r.client],['Consultant',r.consultant],['Deal',r.deal],['Supply',supplyLabel],['Lead Time',r.leadTime]].map(([lbl,val])=>(
                       <div key={lbl} style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
-                        <span style={{fontSize:'0.48rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700}}>{lbl}</span>
-                        <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.72)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
+                        <span style={{fontSize:'0.44rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',fontWeight:700}}>{lbl}</span>
+                        <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
                       </div>
                     ))}
                   </div>
-                );
-              })()}
+                </div>
+              );
+            })()}
+
+              {/* Stage timeline */}
               <div style={{display:'flex',alignItems:'center',gap:0}}>
                 {STAGES.map((st,si)=>{
                   const done=si<=stageIdx,active=si===stageIdx;
                   return (
                     <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
                       <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
-                        <div style={{width:'100%',height:3,background:done?st.color:'rgba(255,255,255,0.08)',borderRadius:2}}/>
-                        <div style={{width:8,height:8,borderRadius:'50%',marginTop:-5.5,background:done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 8px ${st.color}`:undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
-                        <div style={{fontSize:'0.50rem',color:done?st.color:'rgba(255,255,255,0.22)',marginTop:4,letterSpacing:'0.06em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
+                        <div style={{width:'100%',height:2.5,background:done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
+                        <div style={{width:7,height:7,borderRadius:'50%',marginTop:-5,background:done?st.color:'rgba(255,255,255,0.10)',boxShadow:active?`0 0 7px ${st.color}`:undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
+                        <div style={{fontSize:'0.48rem',color:done?st.color:'rgba(255,255,255,0.20)',marginTop:3,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
                       </div>
-                      {si<STAGES.length-1&&<div style={{width:8,flexShrink:0}}/>}
+                      {si<STAGES.length-1&&<div style={{width:6,flexShrink:0}}/>}
                     </div>
                   );
                 })}
               </div>
               {r.directorNote&&(
-                <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.06)',fontSize:'0.76rem',color:'rgba(255,200,140,0.75)',fontStyle:'italic'}}>
+                <div style={{marginTop:8,paddingTop:7,borderTop:'1px solid rgba(255,255,255,0.05)',fontSize:'0.72rem',color:'rgba(255,200,140,0.65)',fontStyle:'italic'}}>
                   Cost-Artist: "{r.directorNote}"
                 </div>
               )}
             </div>
           );
         })}
+    </div>
+  );
+};
+
+// ─── SALES DASHBOARD ─────────────────────────────────────────────────────────
+const SalesDashboard = ({ requests, spName, showAll, setView, diaryEntries=[] }) => {
+  const F = "'Inter',sans-serif";
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setReady(true), 40); return () => clearTimeout(t); }, []);
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  const myReqs = requests.filter(r =>
+    showAll ||
+    (r.salesPerson||'').toLowerCase()===(spName||'').toLowerCase() ||
+    (r.submittedBy||'').toLowerCase()===(spName||'').toLowerCase()
+  );
+  const totalQ    = myReqs.length;
+  const approvedQ = myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length;
+  const pendingQ  = myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length;
+  const rejectedQ = myReqs.filter(r=>r.directorAction==='rejected').length;
+  const quotedQ   = myReqs.filter(r=>r.estimationFile||r.estimationDocs?.length).length;
+  const wonQ      = myReqs.filter(r=>r.salesStatus==='Won').length;
+  const lostQ     = myReqs.filter(r=>r.salesStatus==='Lost').length;
+
+  const perfKey  = `sp_perf_${spName||'all'}`;
+  const perfRows = (()=>{ try{ return JSON.parse(localStorage.getItem(perfKey)||'[]'); }catch{ return []; } })();
+  const totalSO  = perfRows.reduce((s,r)=>s+(Number(r.soValue)||0),0);
+  const totalInv = perfRows.reduce((s,r)=>s+(Number(r.invoiceValue)||0),0);
+  const fmt = v => { const n=Number(v)||0; return n>=1000000?`${(n/1000000).toFixed(1)}M`:n>=1000?`${(n/1000).toFixed(0)}K`:String(n); };
+
+  const actKey    = `sp_acts_${spName||'all'}`;
+  const allActs   = (()=>{ try{ return JSON.parse(localStorage.getItem(actKey)||'[]'); }catch{ return []; } })();
+  const todayActs = allActs.filter(a=>(a.date||'')===todayISO);
+
+  const myDiary  = diaryEntries.filter(e=>showAll||(e.salesPerson||'')===(spName||''));
+  const lastDiary = myDiary[0];
+
+  /* ── animated card wrapper ── */
+  const GlowCard = ({ onClick, children, bg, border, glow, anim, animDelay, style={} }) => (
+    <div onClick={onClick} style={{
+      background:bg, border:`1px solid ${border}`, borderRadius:22, padding:'22px 22px',
+      cursor:'pointer', position:'relative', overflow:'hidden',
+      boxShadow:`0 8px 36px ${glow}`,
+      animation: ready ? `${anim} 0.72s cubic-bezier(0.34,1.56,0.64,1) ${animDelay}ms both` : 'none',
+      transition:'transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s',
+      ...style,
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-6px) scale(1.018)';e.currentTarget.style.boxShadow=`0 22px 60px ${glow}`;}}
+    onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0) scale(1)';e.currentTarget.style.boxShadow=`0 8px 36px ${glow}`;}}>
+      <div style={{position:'absolute',top:0,left:'-80%',width:'55%',height:'100%',
+        background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)',
+        animation:`glassSheen 4.5s ease-in-out ${animDelay}ms infinite`,pointerEvents:'none'}}/>
+      {children}
+    </div>
+  );
+
+  const Stat = ({label,value,color}) => (
+    <div style={{flex:1,background:'rgba(255,255,255,0.05)',borderRadius:10,padding:'9px 10px',textAlign:'center',minWidth:0}}>
+      <div style={{fontSize:'1.05rem',fontWeight:800,color,lineHeight:1}}>{value}</div>
+      <div style={{fontSize:'0.42rem',letterSpacing:'0.10em',textTransform:'uppercase',color,opacity:0.6,marginTop:3,fontWeight:700}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{position:'absolute',inset:0,padding:'8px 22px 18px',fontFamily:F,color:'#e2e8f0',overflowY:'auto',boxSizing:'border-box'}}>
+
+      {/* ── Header (flies in from top) ── */}
+      <div style={{
+        display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:12,flexWrap:'wrap',
+        paddingTop:62,
+        animation: ready ? 'dashHdrIn 0.55s cubic-bezier(0.34,1.56,0.64,1) 0ms both' : 'none',
+      }}>
+        <div>
+          <p style={{fontSize:'0.50rem',letterSpacing:'0.24em',textTransform:'uppercase',color:'rgba(168,85,247,0.70)',margin:'0 0 3px',fontWeight:700}}>NAFFCO · SALES</p>
+          <h2 style={{fontSize:'1.55rem',fontWeight:900,letterSpacing:'0.06em',textTransform:'uppercase',margin:'0 0 2px',
+            background:'linear-gradient(120deg,#fff 0%,rgba(200,170,255,0.95) 35%,rgba(255,190,80,0.95) 70%,#fff 100%)',
+            WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>My Dashboard</h2>
+          <p style={{fontSize:'0.66rem',color:'rgba(255,255,255,0.25)',margin:0,letterSpacing:'0.03em'}}>{dateStr}</p>
+        </div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {[['Total',totalQ,'rgba(100,170,255,0.90)'],['Approved',approvedQ,'rgba(0,220,130,0.90)'],['Pending',pendingQ,'rgba(255,200,50,0.90)'],['Rejected',rejectedQ,'rgba(255,80,80,0.90)']].map(([l,n,c])=>(
+            <div key={l} style={{background:`${c}12`,border:`1px solid ${c}30`,borderRadius:10,padding:'6px 14px',textAlign:'center'}}>
+              <div style={{fontSize:'1.15rem',fontWeight:800,color:c,lineHeight:1}}>{n}</div>
+              <div style={{fontSize:'0.44rem',letterSpacing:'0.12em',textTransform:'uppercase',color:c,opacity:0.7,fontWeight:700,marginTop:2}}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Card Grid ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1.35fr 1fr 1fr',gridTemplateRows:'auto auto',gap:14,alignItems:'stretch'}}>
+
+        {/* 1 — Track Quotation · flies from LEFT */}
+        <GlowCard onClick={()=>setView('trackQuotation')}
+          bg='linear-gradient(150deg,rgba(15,40,100,0.90) 0%,rgba(10,25,75,0.98) 100%)'
+          border='rgba(80,150,255,0.30)' glow='rgba(50,110,255,0.25)'
+          anim='dashFlyLeft' animDelay={80} style={{gridRow:'1/3'}}>
+          <div style={{fontSize:'2.2rem',marginBottom:12}}>📋</div>
+          <div style={{fontSize:'0.50rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'rgba(100,170,255,0.65)',fontWeight:700,marginBottom:5}}>Track Your Quotation</div>
+          <div style={{fontSize:'clamp(3rem,5vw,4.2rem)',fontWeight:900,color:'rgba(120,185,255,0.95)',lineHeight:1,marginBottom:2}}>{totalQ}</div>
+          <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.28)',marginBottom:20}}>total submissions</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+            {[['Approved',approvedQ,'rgba(0,220,130,0.90)','rgba(0,55,30,0.75)'],['In Progress',pendingQ,'rgba(255,200,50,0.90)','rgba(55,40,0,0.75)'],['Rejected',rejectedQ,'rgba(255,80,80,0.90)','rgba(55,14,14,0.75)']].map(([l,n,c,bg])=>(
+              <div key={l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:bg,borderRadius:11,padding:'10px 14px',backdropFilter:'blur(6px)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:c,boxShadow:`0 0 9px ${c}`,flexShrink:0}}/>
+                  <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.75)',fontWeight:500}}>{l}</span>
+                </div>
+                <span style={{fontSize:'1.2rem',fontWeight:900,color:c}}>{n}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:12,padding:'12px 14px',marginBottom:16}}>
+            <div style={{fontSize:'0.44rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:8,fontWeight:700}}>Recent activity</div>
+            {myReqs.length===0 && <p style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.20)',margin:0,fontStyle:'italic'}}>No submissions yet</p>}
+            {myReqs.slice(0,3).map((r,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:i<2&&i<myReqs.length-1?'1px solid rgba(255,255,255,0.05)':'none'}}>
+                <div style={{width:5,height:5,borderRadius:'50%',background:'rgba(100,170,255,0.65)',flexShrink:0}}/>
+                <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.55)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{r.mainContractor||r.proj||r.client||r.id}</span>
+                <span style={{fontSize:'0.58rem',color:'rgba(100,170,255,0.50)',fontWeight:600,flexShrink:0,whiteSpace:'nowrap'}}>{r.date||'—'}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5}}>
+            <span style={{fontSize:'0.74rem',color:'rgba(100,170,255,0.75)',fontWeight:700}}>View all quotations</span>
+            <span style={{color:'rgba(100,170,255,0.75)'}}>→</span>
+          </div>
+        </GlowCard>
+
+        {/* 2 — Quoted Request · flies from TOP */}
+        <GlowCard onClick={()=>setView('salesStatus')}
+          bg='linear-gradient(150deg,rgba(70,20,130,0.90) 0%,rgba(45,8,90,0.98) 100%)'
+          border='rgba(168,85,247,0.32)' glow='rgba(130,50,240,0.25)'
+          anim='dashFlyUp' animDelay={220}>
+          <div style={{fontSize:'1.8rem',marginBottom:10}}>📊</div>
+          <div style={{fontSize:'0.50rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(168,85,247,0.72)',fontWeight:700,marginBottom:4}}>Quoted Request</div>
+          <div style={{fontSize:'3rem',fontWeight:900,color:'rgba(210,170,255,0.95)',lineHeight:1,marginBottom:3}}>{quotedQ}</div>
+          <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.28)',marginBottom:16}}>quotations ready</div>
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
+            <Stat label='Won' value={wonQ} color='rgba(0,220,130,0.90)'/>
+            <Stat label='Lost' value={lostQ} color='rgba(255,80,80,0.90)'/>
+            <Stat label='Open' value={Math.max(0,quotedQ-wonQ-lostQ)} color='rgba(251,191,36,0.90)'/>
+          </div>
+          <div style={{fontSize:'0.68rem',color:'rgba(168,85,247,0.70)',fontWeight:700}}>View requests →</div>
+        </GlowCard>
+
+        {/* 3 — My Performance · flies from RIGHT */}
+        <GlowCard onClick={()=>setView('salesPerformance')}
+          bg='linear-gradient(150deg,rgba(100,50,0,0.90) 0%,rgba(65,28,0,0.98) 100%)'
+          border='rgba(251,191,36,0.30)' glow='rgba(200,130,0,0.22)'
+          anim='dashFlyRight' animDelay={350}>
+          <div style={{fontSize:'1.8rem',marginBottom:10}}>📈</div>
+          <div style={{fontSize:'0.50rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(251,191,36,0.68)',fontWeight:700,marginBottom:4}}>My Performance</div>
+          <div style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.28)',marginBottom:4}}>SO Value</div>
+          <div style={{fontSize:'2.2rem',fontWeight:900,color:'rgba(251,191,36,0.95)',lineHeight:1,marginBottom:14}}>AED {fmt(totalSO)}</div>
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
+            <Stat label='Invoice' value={`AED ${fmt(totalInv)}`} color='rgba(99,200,255,0.90)'/>
+            <Stat label='Records' value={perfRows.length} color='rgba(0,220,130,0.90)'/>
+          </div>
+          <div style={{fontSize:'0.68rem',color:'rgba(251,191,36,0.70)',fontWeight:700}}>View performance →</div>
+        </GlowCard>
+
+        {/* 4 — My Daily Activities · flies from BOTTOM-LEFT */}
+        <GlowCard onClick={()=>setView('myActivities')}
+          bg='linear-gradient(150deg,rgba(0,70,45,0.90) 0%,rgba(0,42,25,0.98) 100%)'
+          border='rgba(0,220,130,0.27)' glow='rgba(0,170,90,0.20)'
+          anim='dashFlyLeft' animDelay={480}>
+          <div style={{fontSize:'1.8rem',marginBottom:10}}>⚡</div>
+          <div style={{fontSize:'0.50rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(0,220,130,0.68)',fontWeight:700,marginBottom:4}}>My Daily Activities</div>
+          <div style={{display:'flex',alignItems:'baseline',gap:8,marginBottom:3}}>
+            <div style={{fontSize:'3rem',fontWeight:900,color:'rgba(52,211,153,0.95)',lineHeight:1}}>{todayActs.length}</div>
+            <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.30)'}}>today</span>
+          </div>
+          <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.28)',marginBottom:14}}>{allActs.length} total logged</div>
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
+            <Stat label='Calls' value={todayActs.filter(a=>a.type==='Call'||a.tag==='Call').length} color='rgba(99,200,255,0.90)'/>
+            <Stat label='Meetings' value={todayActs.filter(a=>a.type==='Meeting'||a.tag==='Meeting').length} color='rgba(168,85,247,0.90)'/>
+          </div>
+          <div style={{fontSize:'0.68rem',color:'rgba(0,220,130,0.70)',fontWeight:700}}>View activities →</div>
+        </GlowCard>
+
+        {/* 5 — My Diary · flies from BOTTOM-RIGHT */}
+        <GlowCard onClick={()=>setView('salesDiary')}
+          bg='linear-gradient(150deg,rgba(100,10,55,0.90) 0%,rgba(65,5,35,0.98) 100%)'
+          border='rgba(236,72,153,0.27)' glow='rgba(190,50,120,0.20)'
+          anim='dashFlyRight' animDelay={620}>
+          <div style={{fontSize:'1.8rem',marginBottom:10}}>📔</div>
+          <div style={{fontSize:'0.50rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(236,72,153,0.68)',fontWeight:700,marginBottom:4}}>My Diary</div>
+          <div style={{display:'flex',alignItems:'baseline',gap:8,marginBottom:3}}>
+            <div style={{fontSize:'3rem',fontWeight:900,color:'rgba(251,113,133,0.95)',lineHeight:1}}>{myDiary.length}</div>
+            <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.30)'}}>entries</span>
+          </div>
+          <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.28)',marginBottom:12}}>visit notes &amp; follow-ups</div>
+          {lastDiary && (
+            <div style={{background:'rgba(236,72,153,0.08)',border:'1px solid rgba(236,72,153,0.15)',borderRadius:10,padding:'9px 12px',marginBottom:14}}>
+              <div style={{fontSize:'0.44rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(236,72,153,0.55)',marginBottom:4,fontWeight:700}}>Latest entry</div>
+              <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500}}>{lastDiary.company||lastDiary.contactPerson||lastDiary.meetingType||'—'}</div>
+            </div>
+          )}
+          <div style={{fontSize:'0.68rem',color:'rgba(236,72,153,0.70)',fontWeight:700}}>View diary →</div>
+        </GlowCard>
+
       </div>
     </div>
   );
@@ -3492,6 +3797,7 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
   const actActive     = view === 'myActivities';
   const diaryActive   = view === 'salesDiary';
   const trackActive   = view === 'trackQuotation';
+  const myDashActive  = view === 'salesDashboard';
   const [showDirPrompt, setShowDirPrompt] = useState(false);
   const [dirCode, setDirCode] = useState('');
   const [dirErr, setDirErr] = useState(false);
@@ -3511,7 +3817,7 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
   const openDirPrompt = () => { setShowDirPrompt(true); setDirCode(''); setDirErr(false); setTimeout(()=>dirInputRef.current?.focus(),60); };
   const submitDirCode = () => {
     const dc = dirCode.trim().toUpperCase();
-    if (dc === 'STAR' || dc === 'COSTA') { setShowDirPrompt(false); onDirectorAccess?.(dc); }
+    if (dc === 'STAR') { setShowDirPrompt(false); onDirectorAccess?.(dc); }
     else { setDirErr(true); setTimeout(()=>setDirErr(false),1200); }
   };
 
@@ -3582,20 +3888,11 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
           <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
             Sales &amp; Marketing
           </button>
-          <button className={`nav-btn${trackActive?' active':''}`} onClick={()=>setView('trackQuotation')}>
-            Track your Quotation
-          </button>
-          <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
+          <button className={`nav-btn${myDashActive?' active':''}`} onClick={()=>setView('salesDashboard')}>
             My Dashboard
           </button>
-          <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
-            My Performance
-          </button>
-          <button className={`nav-btn${actActive?' active':''}`} onClick={()=>setView('myActivities')}>
-            My Daily Activities
-          </button>
-          <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
-            My Diary
+          <button className={`nav-btn${trackActive?' active':''}`} onClick={()=>setView('trackQuotation')}>
+            Track Quotation
           </button>
         </>}
 
@@ -3614,8 +3911,11 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
           <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
             New Request
           </button>
+          <button className={`nav-btn${view==='openRequests'?' active':''}`} onClick={()=>setView('openRequests')}>
+            Open Requests
+          </button>
           <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
-            Cost Artist Dashboard
+            Estimation Team Dashboard
           </button>
           <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
             Analysis
@@ -3624,13 +3924,13 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
             Sales View
           </button>
           <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
-            My Performance
+            Sales Performance
           </button>
           <button className={`nav-btn${actActive?' active':''}`} onClick={()=>setView('myActivities')}>
-            My Daily Activities
+            Sales Daily Activities
           </button>
           <button className={`nav-btn${diaryActive?' active':''}`} onClick={()=>setView('salesDiary')}>
-            My Diary
+            Sales Diary
           </button>
         </>}
       </div>
@@ -5417,7 +5717,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const tatPctDash = Math.min(100, (tatElapsedDash / TAT_MS) * 100);
     const tatBarColor = tatPctDash >= 100 ? '#ff4d4d' : tatPctDash >= 75 ? '#ff7a30' : tatPctDash >= 50 ? '#ffb347' : '#00e5ff';
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-    const canSendToDirector = (req.estimationFile || (req.estimationDocs && req.estimationDocs.length > 0)) && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
+    const canSendToDirector = (req.estimationDocs?.length >= 3) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -5429,7 +5729,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Supply',req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'—'],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
-      <div className="dash-detail-wrap" style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'0 36px 20px',overflowY:viewMode==='director'?'hidden':'auto',animation:'fadeUp 0.4s ease both',background:'rgba(255,255,255,0.025)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',borderRadius:16,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,0,0.40)'}}>
+      <div className="dash-detail-wrap" style={{position:'fixed',inset:'58px 0 0 0',display:'flex',flexDirection:'column',overflowY:'hidden',animation:'fadeUp 0.4s ease both',background:'rgba(6,3,18,0.96)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',zIndex:10}}>
 
         {/* ── Role watermark — top right ── */}
         {(viewMode === 'director' || viewMode === 'estimator') && (
@@ -5451,119 +5751,164 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           <DirectorReviewModal req={requests[reviewIdx]} idx={reviewIdx} now={now} onUpdate={onUpdate} onClose={()=>setReviewIdx(null)}/>
         )}
         {/* ── Sticky sub-nav header ── */}
-        <div style={{
-          position:'sticky', top:0, zIndex:50,
-          margin:'0 -36px 16px',
-          padding:'10px 36px',
-          background:'rgba(6,2,20,0.92)',
-          backdropFilter:'blur(18px)',
-          WebkitBackdropFilter:'blur(18px)',
-          borderBottom:`1px solid ${rss.bd}`,
-          display:'flex', alignItems:'center', gap:14,
-        }}>
-          {/* Back */}
-          <button onClick={()=>setOpen(null)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.45)',cursor:'pointer',fontSize:'0.78rem',fontFamily:F2,display:'flex',alignItems:'center',gap:6,flexShrink:0,padding:'4px 0'}}>
-            ← All Requests
-          </button>
-          <div style={{width:1,height:22,background:'rgba(255,255,255,0.10)',flexShrink:0}}/>
-          {/* Request ID + type badge */}
-          <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-            <div>
-              <div style={{fontSize:'0.48rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:1}}>Request ID</div>
-              <div style={{fontSize:'0.88rem',fontWeight:700,color:'rgba(220,165,0,0.90)',fontFamily:'monospace'}}>{req.id}</div>
-            </div>
-            {(req.requestType==='revised'||req.requestType==='finalPrice') && (
-              <div style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:50,
-                background:req.requestType==='finalPrice'?'rgba(16,185,129,0.12)':'rgba(0,150,255,0.12)',
-                border:req.requestType==='finalPrice'?'1px solid rgba(52,211,153,0.32)':'1px solid rgba(0,180,255,0.32)'}}>
-                <span style={{width:5,height:5,borderRadius:'50%',background:req.requestType==='finalPrice'?'rgba(52,211,153,0.9)':'rgba(0,200,255,0.9)',flexShrink:0}}/>
-                <span style={{fontSize:'0.54rem',fontWeight:700,letterSpacing:'0.10em',color:req.requestType==='finalPrice'?'rgba(52,211,153,0.95)':'rgba(0,200,255,0.90)',textTransform:'uppercase'}}>
-                  {req.requestType==='finalPrice'?'Final Price':'Revised'}
-                </span>
-                {req.originalId && <span style={{fontSize:'0.54rem',color:'rgba(255,255,255,0.28)'}}>ref: {req.originalId}</span>}
-              </div>
-            )}
-          </div>
-          {/* Customer rank + Director action */}
-          {req.customerRank > 0 && (() => {
-            const rc=['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
-            return <div style={{display:'flex',gap:2,alignItems:'center',flexShrink:0}}>{[1,2,3,4,5].map(n=>(<span key={n} style={{fontSize:'0.70rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.10)',filter:req.customerRank>=n?`drop-shadow(0 0 4px ${rc})`:'none'}}>★</span>))}</div>;
-          })()}
-          {req.directorAction && (
-            <span style={{fontSize:'0.72rem',fontWeight:700,flexShrink:0,color:req.directorAction==='approved'?'#00cc77':req.directorAction==='rejected'?'#dd3535':'rgba(120,180,255,0.90)'}}>
-              {req.directorAction.charAt(0).toUpperCase()+req.directorAction.slice(1)}
-            </span>
-          )}
-          {/* Estimator + Sales avatars */}
-          {(req.estimator || req.salesPerson) && (
-            <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0,paddingRight:14,borderRight:'1px solid rgba(255,255,255,0.08)'}}>
-              {req.estimator && (
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <EstAvatar name={req.estimator} size={26}/>
-                  <div>
-                    <div style={{fontSize:'0.46rem',color:'rgba(99,200,255,0.50)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700}}>Estimator</div>
-                    <div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.76)'}}>{req.estimator}</div>
-                  </div>
-                </div>
-              )}
-              {req.salesPerson && (
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <EstAvatar name={req.salesPerson} size={26}/>
-                  <div>
-                    <div style={{fontSize:'0.46rem',color:'rgba(160,130,255,0.50)',letterSpacing:'0.10em',textTransform:'uppercase',fontWeight:700}}>Sales</div>
-                    <div style={{fontSize:'0.70rem',fontWeight:600,color:'rgba(255,255,255,0.76)'}}>{req.salesPerson}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          {/* Timeline — fills space between Sales and Status */}
-          {(viewMode === 'estimator' || viewMode === 'director') ? (
-            <div style={{flex:1,minWidth:0,paddingLeft:10,paddingRight:10}}>
-              <div style={{fontSize:'0.46rem',letterSpacing:'0.16em',textTransform:'uppercase',
-                background:'linear-gradient(90deg,rgba(255,255,255,0.90) 0%,rgba(100,200,255,0.80) 100%)',
-                WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
-                marginBottom:3,fontWeight:700}}>Request Timeline</div>
-              <TATTimeline r={req} compact={viewMode !== 'director'}/>
-            </div>
-          ) : (
-            <div style={{flex:1}}/>
-          )}
-          {/* Right: Delete (director only) + Status badge */}
-          <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-            {viewMode === 'director' && (
-              <button onClick={()=>setDeleteConfirm(open)} title="Delete this request"
-                style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 12px',borderRadius:50,background:'rgba(220,50,50,0.10)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(220,80,80,0.80)',fontFamily:F2,fontSize:'0.70rem',fontWeight:700,cursor:'pointer',outline:'none'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,1)';e.currentTarget.style.borderColor='rgba(220,60,60,0.55)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.10)';e.currentTarget.style.color='rgba(220,80,80,0.80)';e.currentTarget.style.borderColor='rgba(220,50,50,0.30)';}}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-                Delete
+        {(() => {
+          // inline helpers for header timeline
+          const fmsH = ms => { if(!ms)return null; const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000); return h>23?`${Math.floor(h/24)}d ${h%24}h`:h>0?`${h}h ${m}m`:`${m}m`; };
+          const fdtH = ts => { if(!ts)return null; try{return new Date(isNaN(+ts)?ts:+ts).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false});}catch{return null;} };
+          const {s1,s2,s3} = calcTATStages(req);
+          const elapsed = req.submittedAt ? now - new Date(req.submittedAt).getTime() : 0;
+          // big elapsed number: time since submission (live)
+          const bigDur = req.directorRespondedAt
+            ? fmsH(new Date(req.directorRespondedAt).getTime()-new Date(req.submittedAt).getTime())
+            : fmsH(elapsed);
+          const HSTAGES = [
+            {label:'Submitted',   color:'rgba(100,180,255,0.95)', done:!!req.submittedAt,  ts:req.submittedAt, dur:s1},
+            {label:'Assigned',    color:'rgba(255,200,50,0.90)',  done:!!req.taggedAt,      ts:req.taggedAt,    dur:s2},
+            {label:'Quoted',      color:'rgba(168,130,255,0.95)', done:!!req.quotationSubmittedAt, ts:req.quotationSubmittedAt, dur:s3},
+            {label:'Cost-Artist', color:'rgba(0,220,180,0.90)',   done:!!req.quotationSubmittedAt, ts:null,     dur:null},
+            {label: req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Rejected':req.directorAction==='revise'?'Revised':'Result',
+             color: req.directorAction==='approved'?'rgba(50,220,100,0.95)':req.directorAction==='rejected'?'rgba(255,80,80,0.95)':req.directorAction==='revise'?'rgba(255,160,30,0.95)':'rgba(255,255,255,0.22)',
+             done:!!req.directorRespondedAt, ts:req.directorRespondedAt, dur:null},
+          ];
+          const SEP = () => <div style={{width:1,height:34,background:'rgba(255,255,255,0.09)',flexShrink:0,margin:'0 18px'}}/>;
+          const LBL = ({children,color='rgba(255,255,255,0.30)'}) => <div style={{fontSize:'0.44rem',letterSpacing:'0.16em',textTransform:'uppercase',color,fontWeight:700,marginBottom:3}}>{children}</div>;
+          return (
+            <div style={{
+              position:'sticky',top:0,zIndex:50,flexShrink:0,
+              padding:'0 28px',height:62,
+              background:'rgba(5,2,18,0.98)',
+              backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',
+              borderBottom:`1px solid ${rss.bd}`,
+              display:'flex',alignItems:'center',
+            }}>
+              {/* ← Back */}
+              <button onClick={()=>setOpen(null)}
+                style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.40)',cursor:'pointer',
+                  fontSize:'0.74rem',fontFamily:F2,display:'flex',alignItems:'center',gap:5,flexShrink:0,padding:0,
+                  letterSpacing:'0.02em',transition:'color 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.85)'}
+                onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.40)'}>
+                ← All Requests
               </button>
-            )}
-            <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.04)',border:`1px solid ${rss.bd}`,borderRadius:50,padding:'5px 14px 5px 10px'}}>
-              <span style={{width:7,height:7,borderRadius:'50%',background:rss.c,flexShrink:0,boxShadow:`0 0 7px ${rss.c}`}}/>
-              <div>
-                <div style={{fontSize:'0.46rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',marginBottom:1}}>Request Status</div>
-                <div style={{fontSize:'0.82rem',fontWeight:700,color:rss.c,lineHeight:1}}>{rss.label}</div>
+
+              <SEP/>
+
+              {/* REQUEST ID */}
+              <div style={{flexShrink:0}}>
+                <LBL>Request ID</LBL>
+                <div style={{display:'flex',alignItems:'center',gap:7}}>
+                  <span style={{fontSize:'0.90rem',fontWeight:800,color:'rgba(220,165,0,0.95)',fontFamily:'monospace',letterSpacing:'0.06em'}}>{req.id}</span>
+                  {req.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISED</span>}
+                  {req.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.90)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
+                </div>
+              </div>
+
+              <SEP/>
+
+              {/* REQUEST TIMELINE */}
+              <div style={{flex:1,minWidth:0}}>
+                <LBL color='rgba(100,180,255,0.45)'>Request Timeline</LBL>
+                <div style={{display:'flex',alignItems:'center',gap:0,flexWrap:'nowrap',minWidth:0}}>
+                  {/* First stage: Submitted — prominent */}
+                  <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
+                    <div style={{width:9,height:9,borderRadius:'50%',
+                      background:HSTAGES[0].done?HSTAGES[0].color:'rgba(255,255,255,0.15)',
+                      boxShadow:HSTAGES[0].done?`0 0 8px ${HSTAGES[0].color}`:'none',flexShrink:0}}/>
+                    <div>
+                      <div style={{fontSize:'0.72rem',fontWeight:700,color:HSTAGES[0].done?'rgba(255,255,255,0.90)':'rgba(255,255,255,0.28)',lineHeight:1.1}}>Submitted</div>
+                      {fdtH(HSTAGES[0].ts) && <div style={{fontSize:'0.56rem',color:HSTAGES[0].color,fontFamily:'monospace',opacity:0.80,letterSpacing:'0.02em',marginTop:1}}>{fdtH(HSTAGES[0].ts)}</div>}
+                    </div>
+                  </div>
+                  {/* Big elapsed duration */}
+                  {bigDur && (
+                    <div style={{margin:'0 12px',display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                      <span style={{fontSize:'1.10rem',fontWeight:900,fontFamily:'monospace',letterSpacing:'-0.02em',
+                        color:'rgba(255,200,50,0.95)',textShadow:'0 0 14px rgba(255,200,50,0.50)',lineHeight:1}}>{bigDur}</span>
+                    </div>
+                  )}
+                  {/* Remaining stages: Assigned → Quoted → Cost-Artist → Result */}
+                  {HSTAGES.slice(1).map((st,si) => (
+                    <div key={si} style={{display:'flex',alignItems:'center',flexShrink:0}}>
+                      <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.20)',margin:'0 4px'}}>›</span>
+                      <div style={{display:'flex',alignItems:'center',gap:4}}>
+                        <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
+                          background:st.done?st.color:'rgba(255,255,255,0.12)',
+                          boxShadow:st.done?`0 0 5px ${st.color}`:'none'}}/>
+                        <span style={{fontSize:'0.64rem',fontWeight:st.done?700:400,
+                          color:st.done?'rgba(255,255,255,0.75)':'rgba(255,255,255,0.28)',
+                          whiteSpace:'nowrap'}}>{st.label}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <SEP/>
+
+              {/* PERSON: Estimator or Sales */}
+              <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:8}}>
+                {req.estimator && (viewMode==='estimator' || viewMode==='director') && (
+                  <>
+                    <EstAvatar name={req.estimator} size={30}/>
+                    <div>
+                      <LBL color='rgba(99,200,255,0.50)'>Estimator</LBL>
+                      <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.estimator}</div>
+                    </div>
+                  </>
+                )}
+                {req.salesPerson && (
+                  <>
+                    {req.estimator && (viewMode==='estimator' || viewMode==='director') && <div style={{width:1,height:28,background:'rgba(255,255,255,0.08)',margin:'0 10px'}}/>}
+                    <EstAvatar name={req.salesPerson} size={30}/>
+                    <div>
+                      <LBL color='rgba(168,85,247,0.55)'>Sales</LBL>
+                      <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.salesPerson}</div>
+                    </div>
+                  </>
+                )}
+                {req.customerRank > 0 && (() => {
+                  const rc=['','rgba(205,127,50,0.95)','rgba(180,180,200,0.95)','rgba(255,200,0,0.95)','rgba(100,220,255,0.95)','rgba(200,130,255,0.95)'][req.customerRank];
+                  return <div style={{display:'flex',gap:1,alignItems:'center',marginLeft:6}}>{[1,2,3,4,5].map(n=><span key={n} style={{fontSize:'0.64rem',color:req.customerRank>=n?rc:'rgba(255,255,255,0.10)'}}>★</span>)}</div>;
+                })()}
+              </div>
+
+              <SEP/>
+
+              {/* REQUEST STATUS */}
+              <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:10}}>
+                <div style={{background:`${rss.c}14`,border:`1px solid ${rss.bd}`,borderRadius:8,padding:'5px 12px'}}>
+                  <LBL color={`${rss.c}80`}>Request Status</LBL>
+                  <div style={{display:'flex',alignItems:'center',gap:5}}>
+                    <span style={{width:6,height:6,borderRadius:'50%',background:rss.c,boxShadow:`0 0 6px ${rss.c}`,flexShrink:0}}/>
+                    <span style={{fontSize:'0.78rem',fontWeight:700,color:rss.c,lineHeight:1,whiteSpace:'nowrap'}}>{rss.label}</span>
+                  </div>
+                </div>
+                {viewMode === 'director' && (
+                  <button onClick={()=>setDeleteConfirm(open)} title="Delete"
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:7,background:'rgba(220,50,50,0.09)',border:'none',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none'}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,110,110,0.95)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.09)';e.currentTarget.style.color='rgba(220,80,80,0.55)';}}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                  </button>
+                )}
               </div>
             </div>
-          </div>
-        </div>
+          );
+        })()}
 
-        {/* ══════════════════════════════════════════════════════════════════════ */}
-        {/* REQUESTER & ESTIMATOR: 2-col layout                                   */}
-        {/* DIRECTOR: full-width single layout                                     */}
-        {/* ══════════════════════════════════════════════════════════════════════ */}
+        {/* ── Scrollable content area (everything below sticky header) ── */}
+        <div style={{flex:1,overflowY:'auto',minHeight:0,padding:'20px 40px 48px',
+          scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.12) transparent'}}>
 
         {viewMode !== 'director' && (
           <div className="dash-2col" style={{display:'grid',gridTemplateColumns:viewMode==='estimator'?(convoCollapsed?'380px 1fr 44px':'380px 1fr 420px'):'1fr 1fr',gap:20,maxWidth:'100%',width:'100%'}}>
             {/* LEFT — request info */}
             <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'18px 20px'}}>
-              <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:12}}>Request Info</p>
+              <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.40)',marginBottom:12,fontWeight:700}}>Request Info</p>
               {infoRows.map(([k,v])=>(
-                <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'6px 0',gap:12}}>
-                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.32)',flexShrink:0}}>{k}</span>
-                  <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.78)',textAlign:'right'}}>{v}</span>
+                <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.06)',padding:'7px 0',gap:12}}>
+                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.52)',flexShrink:0,fontWeight:500}}>{k}</span>
+                  <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.88)',textAlign:'right',fontWeight:600}}>{v}</span>
                 </div>
               ))}
               {req.docs?.length > 0 && (
@@ -5940,9 +6285,17 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   ) : (
                     <button onClick={()=>{if(canSendToDirector){const ts=new Date().toISOString();onUpdate(open,{status:'Pending Approval',reqStatus:'pending-director',directorAction:null,directorNote:'',quotationSubmittedAt:ts,timeline:[...(req.timeline||[]),{event:'quoted',ts,label:'Quotation Submitted',by:req.estimator||''}]});}}}
                       disabled={!canSendToDirector}
+                      title={!canSendToDirector ? `Requires: ${(req.estimationDocs?.length||0) < 3 ? `${3-(req.estimationDocs?.length||0)} more quoted file(s)` : ''}${(req.estimationDocs?.length||0) < 3 && !req.projValue ? ' & ' : ''}${!req.projValue ? 'quoted value' : ''}` : ''}
                       style={{width:'100%',padding:'11px 0',borderRadius:100,background:canSendToDirector?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:canSendToDirector?'auroraShift 5s ease-in-out infinite':'none',border:canSendToDirector?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.07)',color:canSendToDirector?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.88rem',fontWeight:700,cursor:canSendToDirector?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:canSendToDirector?'0 4px 22px rgba(0,140,255,0.28)':'none',outline:'none'}}>
                       ✦ Submit to Cost-Artist for Approval
                     </button>
+                    {!canSendToDirector && req.reqStatus !== 'completed' && (
+                      <div style={{fontSize:'0.58rem',color:'rgba(255,180,80,0.65)',textAlign:'center',marginTop:4,letterSpacing:'0.04em'}}>
+                        {(req.estimationDocs?.length||0) < 3 && <span>Attach {3-(req.estimationDocs?.length||0)} more quoted file{3-(req.estimationDocs?.length||0)!==1?'s':''}</span>}
+                        {(req.estimationDocs?.length||0) < 3 && !req.projValue && <span> · </span>}
+                        {!req.projValue && <span>Enter quoted value</span>}
+                      </div>
+                    )}
                   )}
 
                   {/* ── A: Out of Scope / Reject  |  B: Justification ── */}
@@ -6208,7 +6561,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       })()}
 
                       {/* Info rows — editable for Cost-Artist */}
-                      {[['Request ID','id',req.id,false],['Sales Person','salesPerson',req.salesPerson,true],['Submitted By','submittedBy',req.submittedBy,true],['Client / Grantor','client',req.client,true],['Main Contractor','mainContractor',req.mainContractor,true],['Consultant','consultant',req.consultant,true],['Lead Time','leadTime',req.leadTime,true],['Address','address',req.address,true],['Submitted','date',req.date,false]].map(([k,field,v,editable])=>(
+                      {[['Request ID','id',req.id,true],['Sales Person','salesPerson',req.salesPerson,true],['Submitted By','submittedBy',req.submittedBy,true],['Client / Grantor','client',req.client,true],['Main Contractor','mainContractor',req.mainContractor,true],['Consultant','consultant',req.consultant,true],['Lead Time','leadTime',req.leadTime,true],['Address','address',req.address,true],['Submitted','date',req.date,true]].map(([k,field,v,editable])=>(
                         <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8,alignItems:'center'}}>
                           <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
                           {dirEditMode && editable ? (
@@ -6633,6 +6986,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             </div>
           );
         })()}
+
+        </div>{/* end scrollable content area */}
       </div>
     );
   }
@@ -6664,7 +7019,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const F = "'Inter',sans-serif";
 
   return (
-    <div style={{position:'relative',width:'100%',height:'100%',padding:'70px 40px 30px',overflowY:'auto',animation:'fadeUp 0.4s ease both'}}>
+    <div style={{position:'fixed',inset:'58px 0 0 0',padding:'24px 40px 30px',overflowY:'auto',overflowX:'hidden',animation:'fadeUp 0.4s ease both'}}>
 
       {/* ── PIN prompt modal ── */}
       {pinPrompt && (
@@ -7748,9 +8103,16 @@ const uploadToAzure = async (file, requestId) => {
   }
 };
 
+const nextRequestId = () => {
+    const max = requests.reduce((m, r) => {
+      const n = parseInt((r.id || '').replace(/^AX0*/,''), 10);
+      return isNaN(n) ? m : Math.max(m, n);
+    }, 0);
+    return 'AX' + String(max + 1).padStart(4, '0');
+  };
+
 const handleSubmit = async (formData) => {
-  const count = requests.length + 1;
-  const newId = 'AX' + String(count).padStart(4, '0');
+  const newId = nextRequestId();
   const uniqueId = `${newId}-00`;
 
   // Upload files to Azure and get download URLs
@@ -7791,8 +8153,7 @@ const handleSubmit = async (formData) => {
 };
 
   const handleFinalPriceSubmit = async (formData) => {
-    const count = requests.length + 1;
-    const newId = 'AX' + String(count).padStart(4, '0');
+    const newId = nextRequestId();
     // Persist new docs + original reference docs to IndexedDB
     await Promise.all((formData.docs || []).map(saveDocToIDB));
     await Promise.all((formData.originalDocs || []).map(saveDocToIDB));
@@ -7815,8 +8176,7 @@ const handleSubmit = async (formData) => {
   };
 
   const handleRevisedSubmit = async (formData) => {
-    const count = requests.length + 1;
-    const newId = 'AX' + String(count).padStart(4, '0');
+    const newId = nextRequestId();
     // Persist new docs + original reference docs to IndexedDB
     await Promise.all((formData.docs || []).map(saveDocToIDB));
     await Promise.all((formData.originalDocs || []).map(saveDocToIDB));
@@ -7927,6 +8287,12 @@ const handleSubmit = async (formData) => {
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
           initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>setDirectOpen(true)}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
+      {view==='salesDashboard' && <SalesDashboard
+          requests={requests}
+          spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
+          showAll={userRole==='director'}
+          setView={setView}
+          diaryEntries={diaryEntries}/>}
       {view==='trackQuotation' && <TrackQuotation requests={requests}
           spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
           showAll={userRole==='director'}
