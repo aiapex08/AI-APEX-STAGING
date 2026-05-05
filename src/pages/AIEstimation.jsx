@@ -6285,7 +6285,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   ) : (
                     <button onClick={()=>{if(canSendToDirector){const ts=new Date().toISOString();onUpdate(open,{status:'Pending Approval',reqStatus:'pending-director',directorAction:null,directorNote:'',quotationSubmittedAt:ts,timeline:[...(req.timeline||[]),{event:'quoted',ts,label:'Quotation Submitted',by:req.estimator||''}]});}}}
                       disabled={!canSendToDirector}
-                      title={!canSendToDirector ? `Requires: ${(req.estimationDocs?.length||0) < 3 ? `${3-(req.estimationDocs?.length||0)} more quoted file(s)` : ''}${(req.estimationDocs?.length||0) < 3 && !req.projValue ? ' & ' : ''}${!req.projValue ? 'quoted value' : ''}` : ''}
+                      title={!canSendToDirector ? ('Requires: ' + ((req.estimationDocs?.length||0) < 3 ? (3-(req.estimationDocs?.length||0)) + ' more quoted file(s)' : '') + ((req.estimationDocs?.length||0) < 3 && !req.projValue ? ' & ' : '') + (!req.projValue ? 'quoted value' : '')) : ''}
                       style={{width:'100%',padding:'11px 0',borderRadius:100,background:canSendToDirector?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:canSendToDirector?'auroraShift 5s ease-in-out infinite':'none',border:canSendToDirector?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.07)',color:canSendToDirector?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.88rem',fontWeight:700,cursor:canSendToDirector?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:canSendToDirector?'0 4px 22px rgba(0,140,255,0.28)':'none',outline:'none'}}>
                       ✦ Submit to Cost-Artist for Approval
                     </button>
@@ -7716,7 +7716,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://estai8-4-338841056432.us-west1.run.app"
+        src="https://aiest8-5-253545847030.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -7743,8 +7743,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://estai8-4-338841056432.us-west1.run.app/?code=${encodeURIComponent(userCode)}`
-    : 'https://estai8-4-338841056432.us-west1.run.app/';
+    ? `https://aiest8-5-253545847030.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://aiest8-5-253545847030.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
