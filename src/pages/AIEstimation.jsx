@@ -6271,33 +6271,162 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(open,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3}
                       style={{background:'transparent',border:'none',outline:'none',color:'rgba(255,230,140,0.88)',fontFamily:F2,fontSize:'0.84rem',fontWeight:400,width:'100%',resize:'vertical',lineHeight:1.55}}/>
                   </div>
-                  {/* ── Submit to Director — inside card, below comments ── */}
-                  {req.reqStatus === 'pending-director' ? (
-                    <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(180,130,255,0.25)',borderRadius:8}}>
-                      <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(180,130,255,0.95)',boxShadow:'0 0 8px rgba(180,130,255,0.7)',flexShrink:0}}/>
-                      <span style={{fontSize:'0.80rem',color:'rgba(180,130,255,0.90)',fontWeight:600}}>Submitted — Awaiting Cost-Artist Review</span>
-                    </div>
-                  ) : req.outOfScopeSubmitted ? (
-                    <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(220,60,60,0.08)',border:'1px solid rgba(220,60,60,0.28)',borderRadius:8}}>
-                      <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,90,90,0.95)',boxShadow:'0 0 8px rgba(255,80,80,0.7)',flexShrink:0}}/>
-                      <span style={{fontSize:'0.80rem',color:'rgba(255,110,110,0.90)',fontWeight:600}}>Out of Scope — Notified to Sales</span>
-                    </div>
-                  ) : (
-                    <button onClick={()=>{if(canSendToDirector){const ts=new Date().toISOString();onUpdate(open,{status:'Pending Approval',reqStatus:'pending-director',directorAction:null,directorNote:'',quotationSubmittedAt:ts,timeline:[...(req.timeline||[]),{event:'quoted',ts,label:'Quotation Submitted',by:req.estimator||''}]});}}}
-                      disabled={!canSendToDirector}
-                      title={!canSendToDirector ? ('Requires: ' + ((req.estimationDocs?.length||0) < 3 ? (3-(req.estimationDocs?.length||0)) + ' more quoted file(s)' : '') + ((req.estimationDocs?.length||0) < 3 && !req.projValue ? ' & ' : '') + (!req.projValue ? 'quoted value' : '')) : ''}
-                      style={{width:'100%',padding:'11px 0',borderRadius:100,background:canSendToDirector?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:canSendToDirector?'auroraShift 5s ease-in-out infinite':'none',border:canSendToDirector?'1px solid rgba(0,220,255,0.25)':'1px solid rgba(255,255,255,0.07)',color:canSendToDirector?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.88rem',fontWeight:700,cursor:canSendToDirector?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:canSendToDirector?'0 4px 22px rgba(0,140,255,0.28)':'none',outline:'none'}}>
-                      ✦ Submit to Cost-Artist for Approval
-                    </button>
-                    {!canSendToDirector && req.reqStatus !== 'completed' && (
-                      <div style={{fontSize:'0.58rem',color:'rgba(255,180,80,0.65)',textAlign:'center',marginTop:4,letterSpacing:'0.04em'}}>
-                        {(req.estimationDocs?.length||0) < 3 && <span>Attach {3-(req.estimationDocs?.length||0)} more quoted file{3-(req.estimationDocs?.length||0)!==1?'s':''}</span>}
-                        {(req.estimationDocs?.length||0) < 3 && !req.projValue && <span> · </span>}
-                        {!req.projValue && <span>Enter quoted value</span>}
-                      </div>
-                    )}
-                  )}
+{/* ── Submit to Director — inside card, below comments ── */}
+{req.reqStatus === 'pending-director' ? (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 14px',
+      background: 'rgba(140,80,255,0.08)',
+      border: '1px solid rgba(180,130,255,0.25)',
+      borderRadius: 8
+    }}
+  >
+    <span
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: 'rgba(180,130,255,0.95)',
+        boxShadow: '0 0 8px rgba(180,130,255,0.7)',
+        flexShrink: 0
+      }}
+    />
+    <span
+      style={{
+        fontSize: '0.80rem',
+        color: 'rgba(180,130,255,0.90)',
+        fontWeight: 600
+      }}
+    >
+      Submitted — Awaiting Cost-Artist Review
+    </span>
+  </div>
+) : req.outOfScopeSubmitted ? (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 14px',
+      background: 'rgba(220,60,60,0.08)',
+      border: '1px solid rgba(220,60,60,0.28)',
+      borderRadius: 8
+    }}
+  >
+    <span
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: 'rgba(255,90,90,0.95)',
+        boxShadow: '0 0 8px rgba(255,80,80,0.7)',
+        flexShrink: 0
+      }}
+    />
+    <span
+      style={{
+        fontSize: '0.80rem',
+        color: 'rgba(255,110,110,0.90)',
+        fontWeight: 600
+      }}
+    >
+      Out of Scope — Notified to Sales
+    </span>
+  </div>
+) : (
+  <>
+    <button
+      onClick={() => {
+        if (canSendToDirector) {
+          const ts = new Date().toISOString();
 
+          onUpdate(req.id, {
+            status: 'Pending Approval',
+            reqStatus: 'pending-director',
+            directorAction: null,
+            directorNote: '',
+            quotationSubmittedAt: ts,
+            timeline: [
+              ...(req.timeline || []),
+              {
+                event: 'quoted',
+                ts: ts,
+                label: 'Quotation Submitted',
+                by: req.estimator || ''
+              }
+            ]
+          });
+        }
+      }}
+      disabled={!canSendToDirector}
+      title={
+        !canSendToDirector
+          ? 'Requires: ' +
+            ((req.estimationDocs?.length || 0) < 3
+              ? `${3 - (req.estimationDocs?.length || 0)} more quoted file(s)`
+              : '') +
+            ((req.estimationDocs?.length || 0) < 3 && !req.projValue ? ' & ' : '') +
+            (!req.projValue ? 'quoted value' : '')
+          : ''
+      }
+      style={{
+        width: '100%',
+        padding: '11px 0',
+        borderRadius: 100,
+        background: canSendToDirector
+          ? 'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)'
+          : 'rgba(255,255,255,0.04)',
+        backgroundSize: '220% 220%',
+        animation: canSendToDirector
+          ? 'auroraShift 5s ease-in-out infinite'
+          : 'none',
+        border: canSendToDirector
+          ? '1px solid rgba(0,220,255,0.25)'
+          : '1px solid rgba(255,255,255,0.07)',
+        color: canSendToDirector ? '#fff' : 'rgba(255,255,255,0.22)',
+        fontFamily: F2,
+        fontSize: '0.88rem',
+        fontWeight: 700,
+        cursor: canSendToDirector ? 'pointer' : 'not-allowed',
+        letterSpacing: '0.06em',
+        boxShadow: canSendToDirector
+          ? '0 4px 22px rgba(0,140,255,0.28)'
+          : 'none',
+        outline: 'none'
+      }}
+    >
+      ✦ Submit to Cost-Artist for Approval
+    </button>
+
+    {!canSendToDirector && req.reqStatus !== 'completed' && (
+      <div
+        style={{
+          fontSize: '0.58rem',
+          color: 'rgba(255,180,80,0.65)',
+          textAlign: 'center',
+          marginTop: 4,
+          letterSpacing: '0.04em'
+        }}
+      >
+        {(req.estimationDocs?.length || 0) < 3 && (
+          <span>
+            Attach {3 - (req.estimationDocs?.length || 0)} more quoted file
+            {3 - (req.estimationDocs?.length || 0) !== 1 ? 's' : ''}
+          </span>
+        )}
+
+        {(req.estimationDocs?.length || 0) < 3 && !req.projValue && (
+          <span> · </span>
+        )}
+
+        {!req.projValue && <span>Enter quoted value</span>}
+      </div>
+    )}
+  </>
+)}
                   {/* ── A: Out of Scope / Reject  |  B: Justification ── */}
                   {!req.outOfScopeSubmitted && req.reqStatus !== 'pending-director' && (
                     <div style={{display:'flex',gap:8,marginTop:2}}>
