@@ -2721,11 +2721,9 @@ const STAFF_NAMES = {
   'EX552':'Sachin Poojary','EX719':'Mohammad Samee Hamid Khan',
   'EX638':'Moazzam Ali','EX904':'Benson Benjamine',
   'EX471':'Pranav Manjalam Kandiyil','EX856':'Saeem Sajid Gadkari',
-  'EX392':'Jaffar Shaik','EX681':'Muzafar Khasab Abdul',
-  'EX547':'Afridi Miyan Basheer','EX903':'Alfaj Muhammad',
-  'EX764':'Vimal Vencent',
+  'EX392':'Jaffar Shaik',
   // Director / Cost Artist
-  'STAR':'APEX-CA',
+  'STAR':'Emelaine Jane',
 };
 
 const EST_ROSTER = [
@@ -2736,10 +2734,6 @@ const EST_ROSTER = [
   {code:'EX471',name:'Pranav Manjalam Kandiyil'},
   {code:'EX856',name:'Saeem Sajid Gadkari'},
   {code:'EX392',name:'Jaffar Shaik'},
-  {code:'EX681',name:'Muzafar Khasab Abdul'},
-  {code:'EX547',name:'Afridi Miyan Basheer'},
-  {code:'EX903',name:'Alfaj Muhammad'},
-  {code:'EX764',name:'Vimal Vencent'},
 ];
 
 const FULL_STAFF = [
@@ -2770,11 +2764,9 @@ const PROFILE_PICS = {
   'sachin poojary':'/g.jpg','mohammad samee hamid khan':'/h.jpg',
   'moazzam ali':'/i.jpg','benson benjamine':'/j.jpg',
   'pranav manjalam kandiyil':'/K.jpg','saeem sajid gadkari':'/L.jpg',
-  'jaffar shaik':'/M.jpg','muzafar khasab abdul':'/N.jpg',
-  'afridi miyan basheer':'/O.jpg','alfaj muhammad':'/R.jpg',
-  'vimal vencent':'/Q.jpg',
+  'jaffar shaik':'/M.jpg',
   // Cost Artist name key
-  'apex-ca':'/R.jpg',
+  'Emelaine Jane':'/R.jpg',
 };
 
 const EstAvatar = ({ name, size=40, code='' }) => {
@@ -4422,19 +4414,48 @@ const Form = ({onSubmit, onBack}) => {
 };
 
 // ─── REVISED REQUEST — SEARCH SCREEN ─────────────────────────────────────────
-const RevisedSearch = ({requests, onSelect, onBack}) => {
+const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) => {
   const [q, setQ] = useState('');
   const F2 = "'Inter',sans-serif";
+  const isSales = userRole === 'sales';
+  const salesName = isSales ? (USER_NAME_MAP[userCode?.toUpperCase()] || '') : '';
+
+  // Sales: pre-filter to own requests; others: empty until search
+  const baseList = isSales
+    ? requests.filter(r =>
+        salesName && (
+          (r.salesPerson||'').toLowerCase() === salesName.toLowerCase() ||
+          (r.submittedBy||'').toLowerCase() === salesName.toLowerCase()
+        )
+      )
+    : [];
 
   const filtered = q.trim()
-    ? requests.filter(r => {
+    ? (isSales ? baseList : requests).filter(r => {
         const lo = q.trim().toLowerCase();
         return r.id.toLowerCase().includes(lo) ||
           (r.proj||'').toLowerCase().includes(lo) ||
           (r.client||'').toLowerCase().includes(lo) ||
           (r.submittedBy||'').toLowerCase().includes(lo);
       })
-    : requests;
+    : baseList;
+
+  const showList = isSales ? true : q.trim().length > 0;
+
+  const ReqRow = ({r, accent='rgba(0,180,255,0.07)', bd='rgba(0,180,255,0.25)'}) => (
+    <button key={r.id} onClick={()=>onSelect(r)}
+      style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 20px',cursor:'pointer',textAlign:'left',fontFamily:F2,display:'flex',alignItems:'center',gap:20,transition:'background 0.2s,border-color 0.2s',width:'100%'}}
+      onMouseEnter={e=>{e.currentTarget.style.background=accent;e.currentTarget.style.borderColor=bd;}}
+      onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';}}>
+      <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',flexShrink:0,minWidth:72}}>{r.id}</span>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:'0.86rem',fontWeight:600,color:'rgba(255,255,255,0.82)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
+        <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginTop:3}}>{r.client||''}{r.client&&r.submittedBy?' · ':''}{r.submittedBy||''}</div>
+      </div>
+      <span style={{fontSize:'0.68rem',padding:'4px 10px',borderRadius:50,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.42)',flexShrink:0}}>{r.status}</span>
+      <span style={{fontSize:'0.82rem',color:'rgba(0,200,255,0.55)',flexShrink:0}}>→</span>
+    </button>
+  );
 
   return (
     <div style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'80px 60px 40px',overflowY:'auto',fontFamily:F2}}>
@@ -4451,38 +4472,37 @@ const RevisedSearch = ({requests, onSelect, onBack}) => {
           Revised Request
         </h2>
         <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.45)',lineHeight:1.6,maxWidth:480}}>
-          Select the existing request you want to revise. The system will pull all project details and documents for reference.
+          {isSales
+            ? `Showing your submissions${salesName ? ` for ${salesName}` : ''}. Search to narrow down.`
+            : 'Enter the Request ID to find the original request you want to revise.'}
         </p>
       </div>
 
       {/* Search bar */}
       <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,marginBottom:24,maxWidth:520,overflow:'hidden'}}>
         <span style={{padding:'12px 14px',display:'flex',alignItems:'center'}}><Search size={15} color="rgba(255,255,255,0.4)"/></span>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by ID, project, client or requestor..."
+        <input autoFocus value={q} onChange={e=>setQ(e.target.value)}
+          placeholder={isSales ? 'Search by ID, project or client…' : 'Enter Request ID (e.g. QT-2026-1234)…'}
           style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.85)',fontSize:'0.86rem',fontFamily:F2,padding:'12px 0'}}/>
+        {q && <button onClick={()=>setQ('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.45}}><X size={13} color="#fff"/></button>}
       </div>
 
-      {/* Request list */}
-      {requests.length === 0 ? (
-        <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>No existing requests found.</div>
+      {/* Results */}
+      {!showList ? (
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,marginTop:40,opacity:0.40}}>
+          <Search size={32} color="rgba(0,200,255,0.6)"/>
+          <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.50)',margin:0,textAlign:'center',lineHeight:1.6}}>Type a Request ID above to find the original request.</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>No requests match your search.</div>
+        <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>
+          {isSales && !q.trim() ? 'No submissions found for your account.' : 'No requests match your search.'}
+        </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:720}}>
-          {filtered.map((r,i) => (
-            <button key={r.id} onClick={()=>onSelect(r)}
-              style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 20px',cursor:'pointer',textAlign:'left',fontFamily:F2,display:'flex',alignItems:'center',gap:20,transition:'background 0.2s, border-color 0.2s'}}
-              onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,180,255,0.07)';e.currentTarget.style.borderColor='rgba(0,180,255,0.25)';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';}}>
-              <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',flexShrink:0,minWidth:72}}>{r.id}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'0.86rem',fontWeight:600,color:'rgba(255,255,255,0.82)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
-                <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginTop:3}}>{r.client||''}{r.client&&r.submittedBy?' · ':''}{r.submittedBy||''}</div>
-              </div>
-              <span style={{fontSize:'0.68rem',padding:'4px 10px',borderRadius:50,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.42)',flexShrink:0}}>{r.status}</span>
-              <span style={{fontSize:'0.82rem',color:'rgba(0,200,255,0.55)',flexShrink:0}}>→</span>
-            </button>
-          ))}
+          {isSales && !q.trim() && (
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:4}}>Your Submissions — {filtered.length}</p>
+          )}
+          {filtered.map(r => <ReqRow key={r.id} r={r}/>)}
         </div>
       )}
     </div>
@@ -4669,19 +4689,47 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
 };
 
 // ─── FINAL PRICE REQUEST — SEARCH SCREEN ─────────────────────────────────────
-const FinalPriceSearch = ({requests, onSelect, onBack}) => {
+const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) => {
   const [q, setQ] = useState('');
   const F2 = "'Inter',sans-serif";
+  const isSales = userRole === 'sales';
+  const salesName = isSales ? (USER_NAME_MAP[userCode?.toUpperCase()] || '') : '';
+
+  const baseList = isSales
+    ? requests.filter(r =>
+        salesName && (
+          (r.salesPerson||'').toLowerCase() === salesName.toLowerCase() ||
+          (r.submittedBy||'').toLowerCase() === salesName.toLowerCase()
+        )
+      )
+    : [];
 
   const filtered = q.trim()
-    ? requests.filter(r => {
+    ? (isSales ? baseList : requests).filter(r => {
         const lo = q.trim().toLowerCase();
         return r.id.toLowerCase().includes(lo) ||
           (r.proj||'').toLowerCase().includes(lo) ||
           (r.client||'').toLowerCase().includes(lo) ||
           (r.submittedBy||'').toLowerCase().includes(lo);
       })
-    : requests;
+    : baseList;
+
+  const showList = isSales ? true : q.trim().length > 0;
+
+  const ReqRow = ({r}) => (
+    <button key={r.id} onClick={()=>onSelect(r)}
+      style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 20px',cursor:'pointer',textAlign:'left',fontFamily:F2,display:'flex',alignItems:'center',gap:20,transition:'background 0.2s,border-color 0.2s',width:'100%'}}
+      onMouseEnter={e=>{e.currentTarget.style.background='rgba(16,185,129,0.07)';e.currentTarget.style.borderColor='rgba(52,211,153,0.28)';}}
+      onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';}}>
+      <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',flexShrink:0,minWidth:72}}>{r.id}</span>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:'0.86rem',fontWeight:600,color:'rgba(255,255,255,0.82)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
+        <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginTop:3}}>{r.client||''}{r.client&&r.submittedBy?' · ':''}{r.submittedBy||''}</div>
+      </div>
+      <span style={{fontSize:'0.68rem',padding:'4px 10px',borderRadius:50,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.42)',flexShrink:0}}>{r.status}</span>
+      <span style={{fontSize:'0.82rem',color:'rgba(52,211,153,0.65)',flexShrink:0}}>→</span>
+    </button>
+  );
 
   return (
     <div style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'80px 60px 40px',overflowY:'auto',fontFamily:F2}}>
@@ -4698,38 +4746,37 @@ const FinalPriceSearch = ({requests, onSelect, onBack}) => {
           Final Price Request
         </h2>
         <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.45)',lineHeight:1.6,maxWidth:480}}>
-          Select the existing request you want to finalise. The system will pull all project details and documents for reference.
+          {isSales
+            ? `Showing your submissions${salesName ? ` for ${salesName}` : ''}. Search to narrow down.`
+            : 'Enter the Request ID to find the original request you want to finalise.'}
         </p>
       </div>
 
       {/* Search bar */}
       <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(52,211,153,0.20)',borderRadius:10,marginBottom:24,maxWidth:520,overflow:'hidden'}}>
         <span style={{padding:'12px 14px',display:'flex',alignItems:'center'}}><Search size={15} color="rgba(52,211,153,0.50)"/></span>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by ID, project, client or requestor..."
+        <input autoFocus value={q} onChange={e=>setQ(e.target.value)}
+          placeholder={isSales ? 'Search by ID, project or client…' : 'Enter Request ID (e.g. QT-2026-1234)…'}
           style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.85)',fontSize:'0.86rem',fontFamily:F2,padding:'12px 0'}}/>
+        {q && <button onClick={()=>setQ('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.45}}><X size={13} color="#fff"/></button>}
       </div>
 
-      {/* Request list */}
-      {requests.length === 0 ? (
-        <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>No existing requests found.</div>
+      {/* Results */}
+      {!showList ? (
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,marginTop:40,opacity:0.40}}>
+          <Search size={32} color="rgba(52,211,153,0.6)"/>
+          <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.50)',margin:0,textAlign:'center',lineHeight:1.6}}>Type a Request ID above to find the original request.</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>No requests match your search.</div>
+        <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>
+          {isSales && !q.trim() ? 'No submissions found for your account.' : 'No requests match your search.'}
+        </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:720}}>
-          {filtered.map((r) => (
-            <button key={r.id} onClick={()=>onSelect(r)}
-              style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 20px',cursor:'pointer',textAlign:'left',fontFamily:F2,display:'flex',alignItems:'center',gap:20,transition:'background 0.2s, border-color 0.2s'}}
-              onMouseEnter={e=>{e.currentTarget.style.background='rgba(16,185,129,0.07)';e.currentTarget.style.borderColor='rgba(52,211,153,0.28)';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';}}>
-              <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',flexShrink:0,minWidth:72}}>{r.id}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'0.86rem',fontWeight:600,color:'rgba(255,255,255,0.82)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
-                <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginTop:3}}>{r.client||''}{r.client&&r.submittedBy?' · ':''}{r.submittedBy||''}</div>
-              </div>
-              <span style={{fontSize:'0.68rem',padding:'4px 10px',borderRadius:50,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.42)',flexShrink:0}}>{r.status}</span>
-              <span style={{fontSize:'0.82rem',color:'rgba(52,211,153,0.65)',flexShrink:0}}>→</span>
-            </button>
-          ))}
+          {isSales && !q.trim() && (
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:4}}>Your Submissions — {filtered.length}</p>
+          )}
+          {filtered.map(r => <ReqRow key={r.id} r={r}/>)}
         </div>
       )}
     </div>
@@ -5666,6 +5713,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [dirAiOpen, setDirAiOpen] = useState(true);         // AI Suggestions panel expanded
   const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
   const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
+  const [resubmitToast, setResubmitToast] = useState(false);
 
   const PIN = { estimator: 'EST', director: 'star' };
   const requestViewSwitch = (mode) => {
@@ -5721,9 +5769,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const tatPctDash = Math.min(100, (tatElapsedDash / TAT_MS) * 100);
     const tatBarColor = tatPctDash >= 100 ? '#ff4d4d' : tatPctDash >= 75 ? '#ff7a30' : tatPctDash >= 50 ? '#ffb347' : '#00e5ff';
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-    const isResubmission = req.directorAction === 'rejected' || req.directorAction === 'revise';
+    const isRejected = req.directorAction === 'rejected';
+    const isResubmission = req.directorAction === 'revised';
     const minFiles = isResubmission ? 1 : 3;
-    const canSendToDirector = (req.estimationDocs?.length >= minFiles) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
+    const canSendToDirector = (req.estimationDocs?.length >= minFiles) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected;
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -5771,8 +5820,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             {label:'Submitted',  color:'rgba(100,180,255,0.95)', done:!!req.submittedAt,           ts:req.submittedAt,           dur:s1},
             {label:'Assigned',   color:'rgba(255,200,50,0.90)',  done:!!req.taggedAt,                      ts:req.taggedAt,              dur:s2},
             {label:'Quoted',     color:'rgba(168,130,255,0.95)', done:!!req.quotationSubmittedAt,  ts:req.quotationSubmittedAt,  dur:s3},
-            {label: req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Rejected':req.directorAction==='revise'?'Revised':'Pending Decision',
-             color: req.directorAction==='approved'?'rgba(50,220,100,0.95)':req.directorAction==='rejected'?'rgba(255,80,80,0.95)':req.directorAction==='revise'?'rgba(255,160,30,0.95)':'rgba(255,255,255,0.22)',
+            {label: req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Rejected':req.directorAction==='revised'?'Revised':'Pending Decision',
+             color: req.directorAction==='approved'?'rgba(50,220,100,0.95)':req.directorAction==='rejected'?'rgba(255,80,80,0.95)':req.directorAction==='revised'?'rgba(255,160,30,0.95)':'rgba(255,255,255,0.22)',
              done:!!req.directorRespondedAt, ts:req.directorRespondedAt, dur:null},
           ];
           const SEP = () => <div style={{width:1,height:34,background:'rgba(255,255,255,0.09)',flexShrink:0,margin:'0 18px'}}/>;
@@ -5907,6 +5956,44 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         {/* ── Scrollable content area (everything below sticky header) ── */}
         <div style={{flex:1,overflowY:'auto',minHeight:0,padding:'20px 40px 48px',
           scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.12) transparent'}}>
+
+        {/* ── Cost-Artist response notification banner ── */}
+        {viewMode === 'estimator' && (isRejected || isResubmission) && (
+          <div style={{
+            display:'flex',alignItems:'flex-start',gap:14,
+            padding:'14px 20px',marginBottom:16,borderRadius:10,
+            background: isRejected ? 'rgba(200,40,40,0.10)' : 'rgba(200,120,0,0.10)',
+            border: `1px solid ${isRejected ? 'rgba(220,60,60,0.50)' : 'rgba(255,160,30,0.50)'}`,
+            boxShadow: isRejected ? '0 0 18px rgba(200,40,40,0.12)' : '0 0 18px rgba(200,120,0,0.12)',
+          }}>
+            <div style={{
+              width:36,height:36,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+              background: isRejected ? 'rgba(220,50,50,0.20)' : 'rgba(220,130,0,0.20)',
+              border: `1px solid ${isRejected ? 'rgba(220,60,60,0.45)' : 'rgba(255,160,30,0.45)'}`,
+              fontSize:'1.1rem',
+            }}>
+              {isRejected ? '⊘' : '↺'}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'0.72rem',fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',
+                color: isRejected ? 'rgba(255,100,100,0.95)' : 'rgba(255,190,50,0.95)',
+                marginBottom:4,
+              }}>
+                {isRejected ? 'Rejected by Cost-Artist — Final Decision' : 'Revision Required by Cost-Artist'}
+              </div>
+              <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>
+                {isRejected
+                  ? 'This request has been permanently rejected. No further action is required.'
+                  : 'Cost-Artist has requested changes. Please update your quotation and resubmit.'}
+              </div>
+              {req.directorNote && (
+                <div style={{marginTop:8,paddingLeft:12,borderLeft:`2px solid ${isRejected?'rgba(255,80,80,0.40)':'rgba(255,160,30,0.40)'}`,fontSize:'0.74rem',color:'rgba(255,220,160,0.80)',fontStyle:'italic',lineHeight:1.5}}>
+                  "{req.directorNote}"
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {viewMode !== 'director' && (
           <div className="dash-2col" style={{display:'grid',gridTemplateColumns:viewMode==='estimator'?(convoCollapsed?'380px 1fr 44px':'380px 1fr 420px'):'1fr 1fr',gap:20,maxWidth:'100%',width:'100%'}}>
@@ -6211,7 +6298,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name||`file-${i+1}`}</span>
                               </button>
-                              {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && (
+                              {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && (
                                 <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
                                   style={{flexShrink:0,width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
                                   onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
@@ -6225,7 +6312,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       );
                     })()}
                     <button onClick={()=>uploadRef.current.click()}
-                      disabled={req.reqStatus==='pending-director'||req.reqStatus==='completed'}
+                      disabled={req.reqStatus==='pending-director'||req.reqStatus==='completed'||isRejected}
                       style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(255,210,60,0.95)',border:'1px solid rgba(255,200,40,0.40)',background:'rgba(255,180,0,0.10)',fontWeight:700}}>
                       ↑ {(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}
                     </button>
@@ -6241,8 +6328,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingRight:10}}>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Overhead %</p>
                         <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                          <input className="no-spin" type="number" value={req.overhead||''} onChange={e=>{const oh=e.target.value;onUpdate(open,{overhead:oh,margin:(parseFloat(oh||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%'}}/>
+                          <input className="no-spin" type="number" value={req.overhead||''} onChange={e=>{const oh=e.target.value;onUpdate(open,{overhead:oh,margin:(parseFloat(oh||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
                       </div>
@@ -6250,8 +6337,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Profit %</p>
                         <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                          <input className="no-spin" type="number" value={req.profit||''} onChange={e=>{const pr=e.target.value;onUpdate(open,{profit:pr,margin:(parseFloat(req.overhead||0)+parseFloat(pr||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%'}}/>
+                          <input className="no-spin" type="number" value={req.profit||''} onChange={e=>{const pr=e.target.value;onUpdate(open,{profit:pr,margin:(parseFloat(req.overhead||0)+parseFloat(pr||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
                       </div>
@@ -6259,12 +6346,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Warranty</p>
                         <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                          <input className="no-spin" type="number" value={req.warrantyYr||''} onChange={e=>onUpdate(open,{warrantyYr:e.target.value})} placeholder="0" min="0" max="20" step="1"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px'}}/>
+                          <input className="no-spin" type="number" value={req.warrantyYr||''} onChange={e=>onUpdate(open,{warrantyYr:e.target.value})} placeholder="0" min="0" max="20" step="1" disabled={isRejected}
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.35)',fontFamily:'monospace'}}>yr</span>
                           <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.20)',fontFamily:'monospace'}}>|</span>
-                          <input className="no-spin" type="number" value={req.warrantyPct||''} onChange={e=>{const wp=e.target.value;onUpdate(open,{warrantyPct:wp,margin:(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(wp||0)).toFixed(1)});}} placeholder="0" min="0" max="50" step="0.5"
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px'}}/>
+                          <input className="no-spin" type="number" value={req.warrantyPct||''} onChange={e=>{const wp=e.target.value;onUpdate(open,{warrantyPct:wp,margin:(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(wp||0)).toFixed(1)});}} placeholder="0" min="0" max="50" step="0.5" disabled={isRejected}
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
                       </div>
@@ -6280,17 +6367,25 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   {/* Project Value */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
                     <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
-                    <input type="number" value={req.projValue||''} onChange={e=>onUpdate(open,{projValue:e.target.value})} placeholder="0.00" min="0"
-                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%'}}/>
+                    <input type="number" value={req.projValue||''} onChange={e=>onUpdate(open,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
+                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                   </div>
                   {/* Estimator Comments */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(255,200,80,0.22)',borderRadius:8,padding:'10px 12px'}}>
                     <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,200,80,0.45)',marginBottom:6}}>Estimator Comments</p>
-                    <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(open,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3}
-                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(255,230,140,0.88)',fontFamily:F2,fontSize:'0.84rem',fontWeight:400,width:'100%',resize:'vertical',lineHeight:1.55}}/>
+                    <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(open,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3} disabled={isRejected}
+                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(255,230,140,0.88)',fontFamily:F2,fontSize:'0.84rem',fontWeight:400,width:'100%',resize:'vertical',lineHeight:1.55,opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                   </div>
 {/* ── Submit to Director — inside card, below comments ── */}
-{req.reqStatus === 'pending-director' ? (
+{isRejected ? (
+  <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',background:'rgba(200,40,40,0.10)',border:'1px solid rgba(220,60,60,0.40)',borderRadius:8}}>
+    <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,80,80,0.95)',boxShadow:'0 0 8px rgba(255,60,60,0.70)',flexShrink:0}}/>
+    <div style={{display:'flex',flexDirection:'column',gap:2}}>
+      <span style={{fontSize:'0.80rem',fontWeight:700,color:'rgba(255,100,100,0.95)',letterSpacing:'0.04em'}}>Rejected — Final Decision</span>
+      <span style={{fontSize:'0.68rem',color:'rgba(255,160,160,0.55)'}}>This request has been rejected by Cost-Artist and cannot be resubmitted.</span>
+    </div>
+  </div>
+) : req.reqStatus === 'pending-director' ? (
   <div style={{display:'flex',flexDirection:'column',gap:6}}>
     {/* Status pill */}
     <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(180,130,255,0.25)',borderRadius:8}}>
@@ -6366,8 +6461,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       onClick={() => {
         if (canSendToDirector) {
           const ts = new Date().toISOString();
-
-          onUpdate(req.id, {
+          onUpdate(open, {
             status: 'Pending Approval',
             reqStatus: 'pending-director',
             directorAction: null,
@@ -6379,11 +6473,13 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               {
                 event: 'quoted',
                 ts: ts,
-                label: 'Quotation Submitted',
+                label: isResubmission ? 'Quotation Resubmitted' : 'Quotation Submitted',
                 by: req.estimator || ''
               }
             ]
           });
+          setResubmitToast(true);
+          setTimeout(() => setResubmitToast(false), 3000);
         }
       }}
       disabled={!canSendToDirector}
@@ -6426,6 +6522,15 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       {isResubmission ? '↺ Re-submit to Cost-Artist' : '✦ Submit to Cost-Artist for Approval'}
     </button>
 
+    {resubmitToast && (
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',background:'rgba(0,200,120,0.12)',border:'1px solid rgba(0,220,130,0.40)',borderRadius:8,animation:'fadeUp 0.2s ease both'}}>
+        <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 8px rgba(0,200,110,0.70)',flexShrink:0}}/>
+        <span style={{fontSize:'0.80rem',fontWeight:600,color:'rgba(0,230,140,0.95)'}}>
+          {isResubmission ? 'Resubmitted — request is now under Cost-Artist review.' : 'Submitted — request is now under Cost-Artist review.'}
+        </span>
+      </div>
+    )}
+
     {!canSendToDirector && req.reqStatus !== 'completed' && (
       <div
         style={{
@@ -6453,7 +6558,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   </>
 )}
                   {/* ── A: Out of Scope / Reject  |  B: Justification ── */}
-                  {!req.outOfScopeSubmitted && req.reqStatus !== 'pending-director' && (
+                  {!req.outOfScopeSubmitted && req.reqStatus !== 'pending-director' && !isRejected && (
                     <div style={{display:'flex',gap:8,marginTop:2}}>
                       {/* A — Out of Scope button */}
                       <div style={{flexShrink:0,display:'flex',flexDirection:'column',gap:6,minWidth:160}}>
@@ -6761,7 +6866,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         </div>
                       )}
 
-                      {/* Out of Scope notice — shown to APEX-CA when estimator flagged it */}
+                      {/* Out of Scope notice — shown to Emelaine Jane when estimator flagged it */}
                       {req.outOfScopeSubmitted && (
                         <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(220,60,60,0.20)',background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.30)',borderRadius:8,padding:'9px 12px'}}>
                           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:req.outOfScopeReason?6:0}}>
@@ -6819,7 +6924,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         </div>
                       </div>
                       <div>
-                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>APEX-CA Remarks</div>
+                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Emelaine Jane Remarks</div>
                         <textarea value={req.directorNote||''} onChange={e=>onUpdate(open,{directorNote:e.target.value})} placeholder="Notes…" rows={2}
                           style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:7,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.78rem',padding:'5px 9px',outline:'none',resize:'none',boxSizing:'border-box',lineHeight:1.4}}
                           onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
@@ -7106,7 +7211,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 e.preventDefault();
                                 const txt=dirConvoMsg.trim();
                                 if(!txt)return;
-                                const msg={role:'director',from:'APEX-CA',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+                                const msg={role:'director',from:'Emelaine Jane',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
                                 onUpdate(open,{conversation:[...(req.conversation||[]),msg]});
                                 setDirConvoMsg('');
                               }
@@ -7121,7 +7226,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                             onClick={()=>{
                               const txt=dirConvoMsg.trim();
                               if(!txt)return;
-                              const msg={role:'director',from:'APEX-CA',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+                              const msg={role:'director',from:'Emelaine Jane',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
                               onUpdate(open,{conversation:[...(req.conversation||[]),msg]});
                               setDirConvoMsg('');
                             }}
@@ -7260,12 +7365,18 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           {filtered.map(r => {
             const realIdx = requests.indexOf(r);
             const dashUnread = viewMode==='estimator' ? _unreadCount(r.conversation, r.id, 'sales') : 0;
+            const caRejected = r.directorAction === 'rejected';
+            const caRevised  = r.directorAction === 'revised';
+            const needsAction = (caRevised) && viewMode === 'estimator';
+            const rowBg    = caRejected ? 'rgba(200,40,40,0.06)'  : caRevised ? 'rgba(255,160,30,0.06)'  : dashUnread>0 ? 'rgba(168,85,247,0.05)' : 'rgba(255,255,255,0.04)';
+            const rowBd    = caRejected ? 'rgba(220,60,60,0.40)'  : caRevised ? 'rgba(255,160,30,0.40)'  : dashUnread>0 ? 'rgba(168,85,247,0.30)' : 'rgba(255,255,255,0.07)';
+            const rowBdHov = caRejected ? 'rgba(255,90,90,0.60)'  : caRevised ? 'rgba(255,190,50,0.60)'  : 'rgba(255,255,255,0.14)';
             return (
               <div key={r.id} style={{position:'relative'}}>
-              <div style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:dashUnread>0?'rgba(168,85,247,0.05)':'rgba(255,255,255,0.04)',border:dashUnread>0?'1px solid rgba(168,85,247,0.30)':'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s',cursor:'pointer',minWidth:'fit-content'}}
+              <div style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:rowBg,border:`1px solid ${rowBd}`,borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s,border-color 0.2s',cursor:'pointer',minWidth:'fit-content'}}
                 onClick={()=>{ setOpen(realIdx); if(viewMode==='estimator') markDashSeen(r.id); }}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
-                onMouseLeave={e=>e.currentTarget.style.background=dashUnread>0?'rgba(168,85,247,0.05)':'rgba(255,255,255,0.04)'}>
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.borderColor=rowBdHov;}}
+                onMouseLeave={e=>{e.currentTarget.style.background=rowBg;e.currentTarget.style.borderColor=rowBd;}}>
 
                 {/* Req # */}
                 <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:5}}>{r.id||'—'}{dashUnread>0&&<span style={{fontSize:'0.48rem',background:'rgba(168,85,247,0.80)',color:'#fff',borderRadius:100,padding:'1px 6px',fontFamily:"'Inter',sans-serif",fontWeight:700,flexShrink:0}}>{dashUnread}</span>}</span>
@@ -7274,16 +7385,33 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 <div style={{display:'flex',flexDirection:'column',gap:3,overflow:'hidden',minWidth:0}}>
                   <Badge s={r.status}/>
                   {(() => {
+                    if (caRejected) return (
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:'0.52rem',color:'rgba(255,90,90,0.95)',fontWeight:700,letterSpacing:'0.05em',background:'rgba(220,50,50,0.14)',border:'1px solid rgba(220,60,60,0.35)',borderRadius:4,padding:'1px 6px',width:'fit-content'}}>
+                        <span style={{width:4,height:4,borderRadius:'50%',background:'rgba(255,90,90,0.95)',flexShrink:0}}/>
+                        Rejected by Cost-Artist
+                      </span>
+                    );
+                    if (caRevised) return (
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:'0.52rem',color:'rgba(255,190,50,0.95)',fontWeight:700,letterSpacing:'0.05em',background:'rgba(220,140,0,0.14)',border:'1px solid rgba(255,160,30,0.40)',borderRadius:4,padding:'1px 6px',width:'fit-content'}}>
+                        <span style={{width:4,height:4,borderRadius:'50%',background:'rgba(255,190,50,0.95)',boxShadow:needsAction?'0 0 5px rgba(255,190,50,0.80)':'none',animation:needsAction?'pulse 1.6s ease-in-out infinite':'none',flexShrink:0}}/>
+                        Revision Required
+                      </span>
+                    );
                     const subMap = {
-                      'not-started':   {label:'Pending Assignment', c:'rgba(255,200,50,0.60)'},
-                      'inprogress':    {label:'Estimator Review',   c:'rgba(100,200,255,0.70)'},
-                      'pending-director':{label:'Cost-Artist Review',  c:'rgba(180,130,255,0.80)'},
-                      'completed':     {label:'Completed',          c:'rgba(52,211,153,0.80)'},
-                      'onhold':        {label:'On Hold',            c:'rgba(255,120,60,0.70)'},
+                      'not-started':      {label:'Pending Assignment',  c:'rgba(255,200,50,0.60)'},
+                      'inprogress':       {label:'Estimator Review',    c:'rgba(100,200,255,0.70)'},
+                      'pending-director': {label:'Cost-Artist Review',  c:'rgba(180,130,255,0.80)'},
+                      'completed':        {label:'Completed',           c:'rgba(52,211,153,0.80)'},
+                      'onhold':           {label:'On Hold',             c:'rgba(255,120,60,0.70)'},
                     };
                     const sub = subMap[r.reqStatus];
                     return sub ? <span style={{fontSize:'0.52rem',color:sub.c,fontWeight:600,letterSpacing:'0.05em'}}>{sub.label}</span> : null;
                   })()}
+                  {needsAction && (
+                    <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:'0.46rem',color:'rgba(255,190,50,0.80)',fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase'}}>
+                      ↺ Action Required
+                    </span>
+                  )}
                   {r.requestType==='revised' && (
                     <span style={{fontSize:'0.52rem',color:'rgba(0,200,255,0.70)',fontWeight:600,letterSpacing:'0.06em'}}>REVISED</span>
                   )}
@@ -7360,7 +7488,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           <div style={{background:'rgba(12,8,28,0.98)',border:'1px solid rgba(220,60,60,0.40)',borderRadius:14,padding:'28px 32px',maxWidth:380,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.80)',display:'flex',flexDirection:'column',gap:16}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <span style={{width:10,height:10,borderRadius:'50%',background:'rgba(220,60,60,0.90)',boxShadow:'0 0 10px rgba(220,60,60,0.60)',flexShrink:0}}/>
-              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.80)',fontWeight:700}}>APEX-CA · Delete Request</span>
+              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.80)',fontWeight:700}}>Emelaine Jane · Delete Request</span>
             </div>
             <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.80)',lineHeight:1.55,margin:0}}>
               Permanently delete <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{requests[deleteConfirm]?.id}</strong>? This cannot be undone.
@@ -8432,9 +8560,9 @@ const handleSubmit = async (formData) => {
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
       {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>setDirectOpen(true)} userRole={userRole}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
-      {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')}/>}
+      {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
-      {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')}/>}
+      {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
       {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
