@@ -3260,23 +3260,6 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
     setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:'smooth'}),60);
   };
 
-  const downloadDoc = d => {
-    if (!d) return;
-    if (d.url && !d.data) {
-      const a = document.createElement('a'); a.href=d.url; a.download=d.name||'quotation'; a.target='_blank';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); return;
-    }
-    if (!d.data) return;
-    const byteStr = atob(d.data.split(',')[1]||d.data);
-    const ab = new ArrayBuffer(byteStr.length);
-    const ia = new Uint8Array(ab);
-    for (let i=0;i<byteStr.length;i++) ia[i]=byteStr.charCodeAt(i);
-    const blob = new Blob([ab],{type:d.type||'application/octet-stream'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=d.name||'quotation';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  };
-
   /* ── DETAIL VIEW ── */
   if (openIdx !== null) {
     const r = myReqs[openIdx];
@@ -3350,7 +3333,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
               {quotReady ? (
                 <div style={{display:'flex',flexDirection:'column',gap:7}}>
                   {(r.estimationDocs||[r.estimationDoc]).filter(Boolean).map((d,i)=>(
-                    <button key={i} onClick={()=>d?.data?downloadDoc(d):null}
+                    <button key={i} onClick={()=>downloadDoc(d)}
                       style={{display:'flex',alignItems:'center',gap:8,padding:'9px 14px',borderRadius:8,background:'rgba(168,85,247,0.10)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(210,170,255,0.90)',fontFamily:F,fontSize:'0.80rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left'}}
                       onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.20)'}
                       onMouseLeave={e=>e.currentTarget.style.background='rgba(168,85,247,0.10)'}>
@@ -4170,14 +4153,26 @@ const downloadDoc = async (d) => {
     }
     return;
   }
-  // Legacy base64 download
+  // Base64 data URL — convert to Blob so browser saves correct binary
   if (d.data) {
-    const link = document.createElement('a');
-    link.href = d.data;
-    link.download = d.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const [header, b64] = d.data.split(',');
+      const mime = header.match(/:(.*?);/)?.[1] || 'application/octet-stream';
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = d.name || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
   }
 };
 
@@ -5364,8 +5359,8 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 
   const submit = () => {
     if (!action) return;
-    const newStatus = action === 'approved' ? 'Approved' : action === 'rejected' ? 'Estimation Uploaded' : 'Pending Approval';
-    const newReqStatus = action === 'approved' ? 'completed' : action === 'rejected' ? 'onhold' : 'inprogress';
+    const newStatus = action === 'approved' ? 'Approved' : 'Pending Estimation';
+    const newReqStatus = action === 'approved' ? 'completed' : 'inprogress';
     const dTs = new Date().toISOString();
     const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Cost Artist Approved':action==='rejected'?'Cost Artist Rejected':'Revision Requested', by: 'Cost Artist' };
     onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
@@ -5702,9 +5697,18 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       estimationFile: allDocs[allDocs.length - 1].name,
       estimationDoc: allDocs[allDocs.length - 1],
       estimationDocs: allDocs,
-      status: 'Pending Approval',
     });
     e.target.value = '';
+  };
+
+  const handleEstimatorDeleteDoc = (idx) => {
+    const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+    const updated = existing.filter((_, i) => i !== idx);
+    onUpdate(open, {
+      estimationDocs: updated,
+      estimationDoc: updated.length ? updated[updated.length - 1] : null,
+      estimationFile: updated.length ? updated[updated.length - 1].name : null,
+    });
   };
 
   // ── Detail view ──
@@ -5717,7 +5721,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const tatPctDash = Math.min(100, (tatElapsedDash / TAT_MS) * 100);
     const tatBarColor = tatPctDash >= 100 ? '#ff4d4d' : tatPctDash >= 75 ? '#ff7a30' : tatPctDash >= 50 ? '#ffb347' : '#00e5ff';
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
-    const canSendToDirector = (req.estimationDocs?.length >= 3) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
+    const isResubmission = req.directorAction === 'rejected' || req.directorAction === 'revise';
+    const minFiles = isResubmission ? 1 : 3;
+    const canSendToDirector = (req.estimationDocs?.length >= minFiles) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed';
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -5762,11 +5768,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             ? fmsH(new Date(req.directorRespondedAt).getTime()-new Date(req.submittedAt).getTime())
             : fmsH(elapsed);
           const HSTAGES = [
-            {label:'Submitted',   color:'rgba(100,180,255,0.95)', done:!!req.submittedAt,  ts:req.submittedAt, dur:s1},
-            {label:'Assigned',    color:'rgba(255,200,50,0.90)',  done:!!req.taggedAt,      ts:req.taggedAt,    dur:s2},
-            {label:'Quoted',      color:'rgba(168,130,255,0.95)', done:!!req.quotationSubmittedAt, ts:req.quotationSubmittedAt, dur:s3},
-            {label:'Cost-Artist', color:'rgba(0,220,180,0.90)',   done:!!req.quotationSubmittedAt, ts:null,     dur:null},
-            {label: req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Rejected':req.directorAction==='revise'?'Revised':'Result',
+            {label:'Submitted',  color:'rgba(100,180,255,0.95)', done:!!req.submittedAt,           ts:req.submittedAt,           dur:s1},
+            {label:'Assigned',   color:'rgba(255,200,50,0.90)',  done:!!req.taggedAt,                      ts:req.taggedAt,              dur:s2},
+            {label:'Quoted',     color:'rgba(168,130,255,0.95)', done:!!req.quotationSubmittedAt,  ts:req.quotationSubmittedAt,  dur:s3},
+            {label: req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Rejected':req.directorAction==='revise'?'Revised':'Pending Decision',
              color: req.directorAction==='approved'?'rgba(50,220,100,0.95)':req.directorAction==='rejected'?'rgba(255,80,80,0.95)':req.directorAction==='revise'?'rgba(255,160,30,0.95)':'rgba(255,255,255,0.22)',
              done:!!req.directorRespondedAt, ts:req.directorRespondedAt, dur:null},
           ];
@@ -5806,37 +5811,40 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               <SEP/>
 
               {/* REQUEST TIMELINE */}
-              <div style={{flex:1,minWidth:0}}>
+              <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
                 <LBL color='rgba(100,180,255,0.45)'>Request Timeline</LBL>
                 <div style={{display:'flex',alignItems:'center',gap:0,flexWrap:'nowrap',minWidth:0}}>
-                  {/* First stage: Submitted — prominent */}
-                  <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
-                    <div style={{width:9,height:9,borderRadius:'50%',
-                      background:HSTAGES[0].done?HSTAGES[0].color:'rgba(255,255,255,0.15)',
-                      boxShadow:HSTAGES[0].done?`0 0 8px ${HSTAGES[0].color}`:'none',flexShrink:0}}/>
-                    <div>
-                      <div style={{fontSize:'0.72rem',fontWeight:700,color:HSTAGES[0].done?'rgba(255,255,255,0.90)':'rgba(255,255,255,0.28)',lineHeight:1.1}}>Submitted</div>
-                      {fdtH(HSTAGES[0].ts) && <div style={{fontSize:'0.56rem',color:HSTAGES[0].color,fontFamily:'monospace',opacity:0.80,letterSpacing:'0.02em',marginTop:1}}>{fdtH(HSTAGES[0].ts)}</div>}
-                    </div>
-                  </div>
-                  {/* Big elapsed duration */}
+                  {/* TOTAL TIME — most prominent, shown first */}
                   {bigDur && (
-                    <div style={{margin:'0 12px',display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
-                      <span style={{fontSize:'1.10rem',fontWeight:900,fontFamily:'monospace',letterSpacing:'-0.02em',
-                        color:'rgba(255,200,50,0.95)',textShadow:'0 0 14px rgba(255,200,50,0.50)',lineHeight:1}}>{bigDur}</span>
+                    <div style={{marginRight:14,flexShrink:0,display:'flex',flexDirection:'column'}}>
+                      <span style={{fontSize:'0.40rem',color:'rgba(255,200,50,0.50)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,lineHeight:1.2}}>Total</span>
+                      <span style={{fontSize:'1.00rem',fontWeight:900,fontFamily:'monospace',color:'rgba(255,200,50,0.95)',textShadow:'0 0 14px rgba(255,200,50,0.50)',lineHeight:1,letterSpacing:'-0.02em'}}>{bigDur}</span>
                     </div>
                   )}
-                  {/* Remaining stages: Assigned → Quoted → Cost-Artist → Result */}
-                  {HSTAGES.slice(1).map((st,si) => (
+                  {/* All stages with interval durations between them */}
+                  {HSTAGES.map((st,si) => (
                     <div key={si} style={{display:'flex',alignItems:'center',flexShrink:0}}>
-                      <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.20)',margin:'0 4px'}}>›</span>
-                      <div style={{display:'flex',alignItems:'center',gap:4}}>
-                        <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
+                      {/* Interval connector before each stage (except first) */}
+                      {si > 0 && (
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',margin:'0 5px',gap:0}}>
+                          <span style={{fontSize:'0.44rem',color:'rgba(255,255,255,0.14)',lineHeight:1}}>—</span>
+                          {HSTAGES[si-1].dur && HSTAGES[si-1].done && st.done && (
+                            <span style={{fontSize:'0.68rem',fontFamily:'monospace',fontWeight:800,color:HSTAGES[si-1].color,opacity:0.92,lineHeight:1.1,letterSpacing:'0.01em',whiteSpace:'nowrap'}}>{fmsH(HSTAGES[si-1].dur)}</span>
+                          )}
+                          <span style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.18)',lineHeight:1}}>›</span>
+                        </div>
+                      )}
+                      {/* Stage dot + label */}
+                      <div style={{display:'flex',alignItems:'center',gap:si===0?7:4}}>
+                        <div style={{width:si===0?9:6,height:si===0?9:6,borderRadius:'50%',flexShrink:0,
                           background:st.done?st.color:'rgba(255,255,255,0.12)',
-                          boxShadow:st.done?`0 0 5px ${st.color}`:'none'}}/>
-                        <span style={{fontSize:'0.64rem',fontWeight:st.done?700:400,
-                          color:st.done?'rgba(255,255,255,0.75)':'rgba(255,255,255,0.28)',
-                          whiteSpace:'nowrap'}}>{st.label}</span>
+                          boxShadow:st.done?`0 0 ${si===0?8:5}px ${st.color}`:'none'}}/>
+                        <div>
+                          <div style={{fontSize:si===0?'0.72rem':'0.64rem',fontWeight:st.done?(si===0?700:600):400,
+                            color:st.done?(si===0?'rgba(255,255,255,0.90)':'rgba(255,255,255,0.75)'):'rgba(255,255,255,0.28)',
+                            lineHeight:1.1,whiteSpace:'nowrap'}}>{st.label}</div>
+                          {si===0 && fdtH(HSTAGES[0].ts) && <div style={{fontSize:'0.56rem',color:HSTAGES[0].color,fontFamily:'monospace',opacity:0.80,letterSpacing:'0.02em',marginTop:1}}>{fdtH(HSTAGES[0].ts)}</div>}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -6197,17 +6205,27 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                             Uploaded ({eDocs.length} file{eDocs.length>1?'s':''})
                           </div>
                           {eDocs.map((d,i)=>(
-                            <button key={i} onClick={()=>downloadDoc(d)}
-                              style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                              {d.name||`file-${i+1}`}
-                            </button>
+                            <div key={i} style={{display:'flex',alignItems:'center',gap:4}}>
+                              <button onClick={()=>downloadDoc(d)}
+                                style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name||`file-${i+1}`}</span>
+                              </button>
+                              {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && (
+                                <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
+                                  style={{flexShrink:0,width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+                                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
+                                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.08)';e.currentTarget.style.color='rgba(220,80,80,0.55)';}}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                                </button>
+                              )}
+                            </div>
                           ))}
                         </div>
                       );
                     })()}
                     <button onClick={()=>uploadRef.current.click()}
-                      disabled={req.status!=='Pending Estimation'&&req.status!=='Estimation Uploaded'&&req.reqStatus!=='inprogress'}
+                      disabled={req.reqStatus==='pending-director'||req.reqStatus==='completed'}
                       style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(255,210,60,0.95)',border:'1px solid rgba(255,200,40,0.40)',background:'rgba(255,180,0,0.10)',fontWeight:700}}>
                       ↑ {(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}
                     </button>
@@ -6273,36 +6291,31 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   </div>
 {/* ── Submit to Director — inside card, below comments ── */}
 {req.reqStatus === 'pending-director' ? (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '10px 14px',
-      background: 'rgba(140,80,255,0.08)',
-      border: '1px solid rgba(180,130,255,0.25)',
-      borderRadius: 8
-    }}
-  >
-    <span
-      style={{
-        width: 7,
-        height: 7,
-        borderRadius: '50%',
-        background: 'rgba(180,130,255,0.95)',
-        boxShadow: '0 0 8px rgba(180,130,255,0.7)',
-        flexShrink: 0
+  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+    {/* Status pill */}
+    <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(180,130,255,0.25)',borderRadius:8}}>
+      <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(180,130,255,0.95)',boxShadow:'0 0 8px rgba(180,130,255,0.7)',flexShrink:0,animation:'pulse 1.8s ease-in-out infinite'}}/>
+      <span style={{fontSize:'0.80rem',color:'rgba(180,130,255,0.90)',fontWeight:600,flex:1}}>Under Review by Cost-Artist</span>
+    </div>
+    {/* Recall button */}
+    <button
+      onClick={()=>{
+        const ts = new Date().toISOString();
+        onUpdate(open,{
+          status:'Pending Estimation',
+          reqStatus:'inprogress',
+          directorAction:null,
+          directorNote:'',
+          directorRespondedAt:null,
+          timeline:[...(req.timeline||[]),{event:'recalled',ts,label:'Recalled for Correction',by:req.estimator||''}]
+        });
       }}
-    />
-    <span
-      style={{
-        fontSize: '0.80rem',
-        color: 'rgba(180,130,255,0.90)',
-        fontWeight: 600
-      }}
+      style={{width:'100%',padding:'8px 0',borderRadius:8,background:'rgba(255,160,30,0.08)',border:'1px solid rgba(255,160,30,0.30)',color:'rgba(255,185,60,0.85)',fontFamily:F2,fontSize:'0.78rem',fontWeight:700,cursor:'pointer',outline:'none',letterSpacing:'0.05em',transition:'background 0.15s'}}
+      onMouseEnter={e=>e.currentTarget.style.background='rgba(255,160,30,0.18)'}
+      onMouseLeave={e=>e.currentTarget.style.background='rgba(255,160,30,0.08)'}
     >
-      Submitted — Awaiting Cost-Artist Review
-    </span>
+      ↩ Recall for Correction
+    </button>
   </div>
 ) : req.outOfScopeSubmitted ? (
   <div
@@ -6338,6 +6351,17 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   </div>
 ) : (
   <>
+    {(req.directorAction === 'rejected' || req.directorAction === 'revise') && (
+      <div style={{padding:'10px 14px',borderRadius:8,background:req.directorAction==='rejected'?'rgba(220,50,50,0.10)':'rgba(255,160,30,0.10)',border:`1px solid ${req.directorAction==='rejected'?'rgba(220,60,60,0.35)':'rgba(255,160,30,0.35)'}`,display:'flex',flexDirection:'column',gap:4}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{width:7,height:7,borderRadius:'50%',background:req.directorAction==='rejected'?'rgba(255,90,90,0.95)':'rgba(255,170,30,0.95)',flexShrink:0}}/>
+          <span style={{fontSize:'0.75rem',fontWeight:700,color:req.directorAction==='rejected'?'rgba(255,110,110,0.95)':'rgba(255,190,60,0.95)',letterSpacing:'0.04em'}}>
+            {req.directorAction==='rejected'?'Cost-Artist Rejected — Upload revised quotation and resubmit':'Cost-Artist Requested Revision — Update and resubmit'}
+          </span>
+        </div>
+        {req.directorNote && <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.55)',paddingLeft:15,lineHeight:1.5}}>{req.directorNote}</div>}
+      </div>
+    )}
     <button
       onClick={() => {
         if (canSendToDirector) {
@@ -6348,6 +6372,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             reqStatus: 'pending-director',
             directorAction: null,
             directorNote: '',
+            directorRespondedAt: null,
             quotationSubmittedAt: ts,
             timeline: [
               ...(req.timeline || []),
@@ -6365,10 +6390,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       title={
         !canSendToDirector
           ? 'Requires: ' +
-            ((req.estimationDocs?.length || 0) < 3
-              ? `${3 - (req.estimationDocs?.length || 0)} more quoted file(s)`
+            ((req.estimationDocs?.length || 0) < minFiles
+              ? `${minFiles - (req.estimationDocs?.length || 0)} more quoted file(s)`
               : '') +
-            ((req.estimationDocs?.length || 0) < 3 && !req.projValue ? ' & ' : '') +
+            ((req.estimationDocs?.length || 0) < minFiles && !req.projValue ? ' & ' : '') +
             (!req.projValue ? 'quoted value' : '')
           : ''
       }
@@ -6398,7 +6423,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         outline: 'none'
       }}
     >
-      ✦ Submit to Cost-Artist for Approval
+      {isResubmission ? '↺ Re-submit to Cost-Artist' : '✦ Submit to Cost-Artist for Approval'}
     </button>
 
     {!canSendToDirector && req.reqStatus !== 'completed' && (
@@ -6411,14 +6436,14 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           letterSpacing: '0.04em'
         }}
       >
-        {(req.estimationDocs?.length || 0) < 3 && (
+        {(req.estimationDocs?.length || 0) < minFiles && (
           <span>
-            Attach {3 - (req.estimationDocs?.length || 0)} more quoted file
-            {3 - (req.estimationDocs?.length || 0) !== 1 ? 's' : ''}
+            Attach {minFiles - (req.estimationDocs?.length || 0)} more quoted file
+            {minFiles - (req.estimationDocs?.length || 0) !== 1 ? 's' : ''}
           </span>
         )}
 
-        {(req.estimationDocs?.length || 0) < 3 && !req.projValue && (
+        {(req.estimationDocs?.length || 0) < minFiles && !req.projValue && (
           <span> · </span>
         )}
 
@@ -6822,7 +6847,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         Response Submitted
                       </div>
                     ) : (
-                      <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':req.directorAction==='rejected'?'Estimation Uploaded':'Pending Approval';const nr=req.directorAction==='approved'?'completed':req.directorAction==='rejected'?'onhold':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
+                      <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':'Pending Estimation';const nr=req.directorAction==='approved'?'completed':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
                         disabled={!req.directorAction}
                         style={{width:'100%',padding:'9px',borderRadius:9,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 4px 20px rgba(120,60,255,0.30)':'none',outline:'none'}}>
                         Submit Response
