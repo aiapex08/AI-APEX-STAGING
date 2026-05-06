@@ -5220,7 +5220,7 @@ const REQ_STATUS_STYLE = {
   onhold:             {c:'#ff9020',               bg:'rgba(255,135,0,0.08)',    bd:'rgba(255,135,0,0.35)',    label:'On Hold'},
   overdue:            {c:'#d05200',               bg:'rgba(210,82,0,0.09)',     bd:'rgba(210,82,0,0.38)',     label:'Overdue'},
   risky:              {c:'#dd3535',               bg:'rgba(215,45,45,0.09)',    bd:'rgba(215,55,55,0.38)',    label:'Risky'},
-  'pending-director': {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost-Artist Under Review'},
+  'pending-director':    {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost-Artist Under Review'},
   completed:          {c:'#00cc77',               bg:'rgba(0,180,90,0.09)',     bd:'rgba(0,210,100,0.35)',   label:'Approved ✓'},
 };
 
@@ -5268,11 +5268,11 @@ const TATTimeline = ({ r, compact }) => {
 
   const resultLabel = r.directorAction === 'approved' ? 'Approved'
     : r.directorAction === 'rejected' ? 'Rejected'
-    : r.directorAction === 'revise'   ? 'Revised'
+    : r.directorAction === 'revised'   ? 'Revised'
     : 'Result';
   const resultColor = r.directorAction === 'approved' ? 'rgba(50,220,100,0.92)'
     : r.directorAction === 'rejected' ? 'rgba(255,80,80,0.92)'
-    : r.directorAction === 'revise'   ? 'rgba(255,160,30,0.92)'
+    : r.directorAction === 'revised'   ? 'rgba(255,160,30,0.92)'
     : 'rgba(180,180,180,0.35)';
 
   const stages = [
@@ -5311,7 +5311,7 @@ const TATTimeline = ({ r, compact }) => {
             <div style={{display:'flex',alignItems:'center',gap:3,padding:'0 3px',flexShrink:0}}>
               {(() => {
                 const isLastSeg = i === stages.length - 2;
-                const reversed = isLastSeg && (r.directorAction === 'rejected' || r.directorAction === 'revise');
+                const reversed = isLastSeg && (r.directorAction === 'rejected' || r.directorAction === 'revised');
                 const segTat = stages[i+1].tat;
                 const segColor = stages[i+1].color;
                 const isLive = !segTat && (
@@ -5368,12 +5368,14 @@ function getReqStatus(r, now) {
 
 // ─── STATUS BADGE ─────────────────────────────────────────────────────────────
 const STATUS_COLORS = {
-  'Pending Estimation': 'rgba(220,165,0,0.85)',
-  'Estimation Uploaded': 'rgba(99,102,241,0.9)',
-  'Pending Approval': 'rgba(234,88,12,0.9)',
-  'Approved': 'rgba(22,163,74,0.9)',
-  'Completed': 'rgba(20,184,166,0.9)',
-  'Out of Scope': 'rgba(220,60,60,0.85)',
+  'Pending Estimation':   'rgba(220,165,0,0.85)',
+  'Estimation Uploaded':  'rgba(99,102,241,0.9)',
+  'Pending Approval':     'rgba(234,88,12,0.9)',
+  'Approved':             'rgba(22,163,74,0.9)',
+  'Completed':            'rgba(20,184,166,0.9)',
+  'Out of Scope':         'rgba(220,60,60,0.85)',
+  'Correction Required':  'rgba(255,160,30,0.90)',
+  'Rejected':             'rgba(220,50,50,0.88)',
 };
 const Badge = ({s}) => (
   <span style={{
@@ -5406,10 +5408,10 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 
   const submit = () => {
     if (!action) return;
-    const newStatus = action === 'approved' ? 'Approved' : 'Pending Estimation';
+    const newStatus = action === 'approved' ? 'Approved' : action === 'revised' ? 'Correction Required' : 'Rejected';
     const newReqStatus = action === 'approved' ? 'completed' : 'inprogress';
     const dTs = new Date().toISOString();
-    const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Cost Artist Approved':action==='rejected'?'Cost Artist Rejected':'Revision Requested', by: 'Cost Artist' };
+    const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Cost Artist Approved':action==='rejected'?'Cost Artist Rejected':'Correction Required', by: 'Cost Artist' };
     onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
       directorRespondedAt: dTs, timeline: [...(req.timeline||[]), tlEntry] });
     setSubmitted(true);
@@ -5771,7 +5773,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
     const isRejected = req.directorAction === 'rejected';
     const isResubmission = req.directorAction === 'revised';
-    const minFiles = isResubmission ? 1 : 3;
+    const minFiles = 1;
     const canSendToDirector = (req.estimationDocs?.length >= minFiles) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected;
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
@@ -5979,12 +5981,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 color: isRejected ? 'rgba(255,100,100,0.95)' : 'rgba(255,190,50,0.95)',
                 marginBottom:4,
               }}>
-                {isRejected ? 'Rejected by Cost-Artist — Final Decision' : 'Revision Required by Cost-Artist'}
+                {isRejected ? 'Rejected by Cost-Artist — Final Decision' : 'Correction Required by Cost-Artist'}
               </div>
               <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>
                 {isRejected
                   ? 'This request has been permanently rejected. No further action is required.'
-                  : 'Cost-Artist has requested changes. Please update your quotation and resubmit.'}
+                  : 'Cost-Artist has marked this as Correction Required. Update your quotation and re-submit.'}
               </div>
               {req.directorNote && (
                 <div style={{marginTop:8,paddingLeft:12,borderLeft:`2px solid ${isRejected?'rgba(255,80,80,0.40)':'rgba(255,160,30,0.40)'}`,fontSize:'0.74rem',color:'rgba(255,220,160,0.80)',fontStyle:'italic',lineHeight:1.5}}>
@@ -6446,12 +6448,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   </div>
 ) : (
   <>
-    {(req.directorAction === 'rejected' || req.directorAction === 'revise') && (
-      <div style={{padding:'10px 14px',borderRadius:8,background:req.directorAction==='rejected'?'rgba(220,50,50,0.10)':'rgba(255,160,30,0.10)',border:`1px solid ${req.directorAction==='rejected'?'rgba(220,60,60,0.35)':'rgba(255,160,30,0.35)'}`,display:'flex',flexDirection:'column',gap:4}}>
+    {req.directorAction === 'revised' && (
+      <div style={{padding:'10px 14px',borderRadius:8,background:'rgba(255,160,30,0.10)',border:'1px solid rgba(255,160,30,0.35)',display:'flex',flexDirection:'column',gap:4}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <span style={{width:7,height:7,borderRadius:'50%',background:req.directorAction==='rejected'?'rgba(255,90,90,0.95)':'rgba(255,170,30,0.95)',flexShrink:0}}/>
-          <span style={{fontSize:'0.75rem',fontWeight:700,color:req.directorAction==='rejected'?'rgba(255,110,110,0.95)':'rgba(255,190,60,0.95)',letterSpacing:'0.04em'}}>
-            {req.directorAction==='rejected'?'Cost-Artist Rejected — Upload revised quotation and resubmit':'Cost-Artist Requested Revision — Update and resubmit'}
+          <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,170,30,0.95)',flexShrink:0}}/>
+          <span style={{fontSize:'0.75rem',fontWeight:700,color:'rgba(255,190,60,0.95)',letterSpacing:'0.04em'}}>
+            Correction Required — Upload revised quotation and re-submit for Cost-Artist Approval
           </span>
         </div>
         {req.directorNote && <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.55)',paddingLeft:15,lineHeight:1.5}}>{req.directorNote}</div>}
@@ -6519,14 +6521,14 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         outline: 'none'
       }}
     >
-      {isResubmission ? '↺ Re-submit to Cost-Artist' : '✦ Submit to Cost-Artist for Approval'}
+      {isResubmission ? '↺ Re-submit with Revised Quote for Cost-Artist Approval' : '✦ Submit to Cost-Artist for Approval'}
     </button>
 
     {resubmitToast && (
       <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',background:'rgba(0,200,120,0.12)',border:'1px solid rgba(0,220,130,0.40)',borderRadius:8,animation:'fadeUp 0.2s ease both'}}>
         <span style={{width:7,height:7,borderRadius:'50%',background:'rgba(0,220,130,0.95)',boxShadow:'0 0 8px rgba(0,200,110,0.70)',flexShrink:0}}/>
         <span style={{fontSize:'0.80rem',fontWeight:600,color:'rgba(0,230,140,0.95)'}}>
-          {isResubmission ? 'Resubmitted — request is now under Cost-Artist review.' : 'Submitted — request is now under Cost-Artist review.'}
+          {isResubmission ? 'Revised quote submitted — now under Cost-Artist review.' : 'Submitted — request is now under Cost-Artist review.'}
         </span>
       </div>
     )}
@@ -6616,8 +6618,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     const cfg = isApproved
                       ? {bg:'rgba(0,200,100,0.06)',bd:'rgba(0,200,100,0.22)',dot:'rgba(0,220,120,0.90)',statusLabel:'Approved',statusSub:'Submitted to Sales / Requester & Estimator'}
                       : isRejected
-                      ? {bg:'rgba(220,60,60,0.06)',bd:'rgba(220,60,60,0.24)',dot:'rgba(255,90,90,0.95)',statusLabel:'Rejected',statusSub:'Please redo the estimation'}
-                      : {bg:'rgba(255,160,40,0.06)',bd:'rgba(255,160,40,0.24)',dot:'rgba(255,180,60,0.95)',statusLabel:'Revision Required',statusSub:'Please revise and resubmit'};
+                      ? {bg:'rgba(220,60,60,0.06)',bd:'rgba(220,60,60,0.24)',dot:'rgba(255,90,90,0.95)',statusLabel:'Rejected',statusSub:'Request is permanently rejected'}
+                      : {bg:'rgba(255,160,40,0.06)',bd:'rgba(255,160,40,0.24)',dot:'rgba(255,180,60,0.95)',statusLabel:'Correction Required',statusSub:'Upload revised quotation and re-submit'};
                     return (
                       <div style={{background:cfg.bg,border:`1px solid ${cfg.bd}`,borderRadius:10,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
                         <span style={{fontSize:'0.56rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:600}}>Cost-Artist's Remarks</span>
@@ -7394,13 +7396,13 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     if (caRevised) return (
                       <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:'0.52rem',color:'rgba(255,190,50,0.95)',fontWeight:700,letterSpacing:'0.05em',background:'rgba(220,140,0,0.14)',border:'1px solid rgba(255,160,30,0.40)',borderRadius:4,padding:'1px 6px',width:'fit-content'}}>
                         <span style={{width:4,height:4,borderRadius:'50%',background:'rgba(255,190,50,0.95)',boxShadow:needsAction?'0 0 5px rgba(255,190,50,0.80)':'none',animation:needsAction?'pulse 1.6s ease-in-out infinite':'none',flexShrink:0}}/>
-                        Revision Required
+                        Correction Required
                       </span>
                     );
                     const subMap = {
                       'not-started':      {label:'Pending Assignment',  c:'rgba(255,200,50,0.60)'},
                       'inprogress':       {label:'Estimator Review',    c:'rgba(100,200,255,0.70)'},
-                      'pending-director': {label:'Cost-Artist Review',  c:'rgba(180,130,255,0.80)'},
+                      'pending-director':    {label:'Cost-Artist Review',  c:'rgba(180,130,255,0.80)'},
                       'completed':        {label:'Completed',           c:'rgba(52,211,153,0.80)'},
                       'onhold':           {label:'On Hold',             c:'rgba(255,120,60,0.70)'},
                     };
@@ -7998,7 +8000,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://aiest8-5-253545847030.us-west1.run.app"
+        src="https://aiestv86-338841056432.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -8025,8 +8027,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://aiest8-5-253545847030.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://aiest8-5-253545847030.us-west1.run.app';
+    ? `https://aiestv86-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://aiestv86-338841056432.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
