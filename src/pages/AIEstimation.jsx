@@ -6403,7 +6403,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         border:`1px solid ${quotUploadState==='error'?'rgba(255,80,80,0.50)':'rgba(255,200,40,0.40)'}`,
                         background: quotUploadState==='error'?'rgba(255,50,50,0.12)':'rgba(255,180,0,0.10)',fontWeight:700}}>
                       {quotUploadState==='uploading'
-                        ? '⟳ Uploading to Azure…'
+                        ? '⟳ Uploading - Please Wait'
                         : quotUploadState==='error'
                         ? '✕ Upload Failed — Retry'
                         : `↑ ${(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}`}
