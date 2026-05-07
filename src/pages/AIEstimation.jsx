@@ -4123,6 +4123,14 @@ const restoreDocFromIDB = async (doc) => {
 const stripDocData = (doc) =>
   doc && typeof doc === 'object' ? { id: doc.id, name: doc.name, type: doc.type, url: doc.url || null } : doc;
 
+const _showDocToast = (msg, isWarn = false) => {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:${isWarn?'rgba(245,158,11,0.96)':'rgba(220,50,50,0.96)'};color:#fff;padding:12px 22px;border-radius:10px;font-size:0.82rem;font-weight:600;z-index:99999;box-shadow:0 4px 24px rgba(0,0,0,0.45);pointer-events:none;max-width:460px;text-align:center;transition:opacity 0.35s ease`;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 4500);
+};
+
 const downloadDoc = async (d) => {
   if (!d) return;
   // Azure URL — fetch as blob so browser triggers Save dialog instead of opening a new tab
@@ -4167,9 +4175,9 @@ const downloadDoc = async (d) => {
     }
     return;
   }
-  // File exists (has id/name) but data and url are both missing
+  // File exists but has no Azure URL and no cached data — uploaded before Azure was added
   if (d.id || d.name) {
-    alert(`"${d.name || 'File'}" cannot be downloaded — the file data is only stored on the uploader's device. Ask the estimator to re-upload or share the file directly.`);
+    _showDocToast(`"${d.name || 'File'}" needs re-upload — this file was saved before Azure storage was set up. The estimator should remove it and re-upload.`, true);
   }
 };
 
@@ -5747,12 +5755,16 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
 
   const handleEstimatorUpload = async e => {
     if (!e.target.files?.length) return;
+    if (!req?.id) { setQuotUploadState('error'); return; }
     const files = Array.from(e.target.files);
     setQuotUploadState('uploading');
     try {
       const newDocs = await Promise.all(
         files.map(async (file) => {
-          const azureUrl = await uploadToAzure(file, req.id + '/quotation');
+          // Store quotation files in same folder as request docs (same SAS/CORS path depth that works)
+          // Prefix with "quotation-" to distinguish from request docs in the same blob folder
+          const quotFile = new File([file], `quotation-${file.name}`, { type: file.type });
+          const azureUrl = await uploadToAzure(quotFile, req.id);
           if (!azureUrl) throw new Error(`Failed to upload "${file.name}" to Azure`);
           return { id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl };
         })
@@ -6329,7 +6341,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`file-${i+1}`}</span>
-                                {d.url && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.55)" strokeWidth="2" title="Stored on Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
+                                {d.url
+                                  ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.55)" strokeWidth="2" title="Stored on Azure — downloadable by everyone"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                  : <span title="Needs re-upload — stored on uploader's device only" style={{fontSize:'0.62rem',color:'rgba(245,158,11,0.85)',flexShrink:0}}>⚠</span>
+                                }
                               </button>
                               {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && (
                                 <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
@@ -8399,11 +8414,13 @@ const AZURE_ACCOUNT = "apexfilestorage2";
 const AZURE_CONTAINER = "estimation-docs";
 const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
 
-const uploadToAzure = async (file, requestId) => {
+const uploadToAzure = async (file, folder) => {
   try {
-    const blobName = `${requestId}/${file.name}`;
-    const url = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-    const res = await fetch(url, {
+    const safeName = file.name.replace(/[#?&=%]/g, '_');
+    const blobName = `${folder}/${safeName}`;
+    const putUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+    console.log('⬆️ Azure upload:', putUrl.split('?')[0]);
+    const res = await fetch(putUrl, {
       method: 'PUT',
       headers: {
         'x-ms-blob-type': 'BlockBlob',
@@ -8413,14 +8430,14 @@ const uploadToAzure = async (file, requestId) => {
     });
     if (res.ok) {
       const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
-      console.log('✅ Uploaded:', downloadUrl);
+      console.log('✅ Azure uploaded:', downloadUrl);
       return downloadUrl;
-    } else {
-      console.error('❌ Upload failed:', res.status);
-      return null;
     }
+    const errBody = await res.text().catch(() => '');
+    console.error(`❌ Azure upload HTTP ${res.status} for ${blobName}:`, errBody);
+    return null;
   } catch(err) {
-    console.error('❌ Azure upload error:', err);
+    console.error('❌ Azure upload network/CORS error:', err.name, err.message);
     return null;
   }
 };
@@ -8437,12 +8454,13 @@ const handleSubmit = async (formData) => {
   const newId = nextRequestId();
   const uniqueId = `${newId}-00`;
 
-  // Upload files to Azure and get download URLs
+  // Upload request docs to Azure
   const docFiles = formData.docFiles || [];
   const uploadedDocs = await Promise.all(
     docFiles.map(async (file) => {
       const url = await uploadToAzure(file, newId);
-      return { name: file.name, type: file.type, url };
+      if (!url) console.warn(`⚠️ Request doc upload failed for "${file.name}" — stored without URL`);
+      return { name: file.name, type: file.type, url: url || null };
     })
   );
 
