@@ -4165,6 +4165,11 @@ const downloadDoc = async (d) => {
     } catch (err) {
       console.error('Download failed:', err);
     }
+    return;
+  }
+  // File exists (has id/name) but data and url are both missing
+  if (d.id || d.name) {
+    alert(`"${d.name || 'File'}" cannot be downloaded — the file data is only stored on the uploader's device. Ask the estimator to re-upload or share the file directly.`);
   }
 };
 
@@ -5009,19 +5014,21 @@ const Results = ({id, req, q, setQ, go}) => {
                       ? 'Quotation is pending Cost-Artist approval.'
                       : req.status === 'Estimation Uploaded'
                         ? 'Estimation uploaded — awaiting Cost-Artist review.'
+                        : req.status === 'Correction Required'
+                        ? 'Quotation is under revision — awaiting updated submission.'
+                        : req.status === 'Rejected'
+                        ? 'This request has been rejected by Cost-Artist.'
                         : 'Request is in progress.'}
               </p>
               {canDownload && (
                 <div className="dl-row">
-                  <p className="dl-lbl">Click here to Download</p>
-                  <button className="dl-btn" onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.55}}>
-                    <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="5" fill="#C0392B"/><text x="16" y="22" textAnchor="middle" fill="white" fontSize="10" fontWeight="700" fontFamily="Arial">PDF</text></svg>
-                    <span style={{fontWeight:600}}>PDF</span>
-                  </button>
-                  <button className="dl-btn" onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.55}}>
-                    <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="5" fill="#1D6F42"/><text x="16" y="22" textAnchor="middle" fill="white" fontSize="8" fontWeight="700" fontFamily="Arial">XLS</text></svg>
-                    <span style={{fontWeight:600}}>Excel</span>
-                  </button>
+                  <p className="dl-lbl">Download Quotation</p>
+                  {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
+                    <button key={i} className="dl-btn" onClick={()=>downloadDoc(d)} style={{cursor:'pointer',opacity:1}}>
+                      <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="5" fill="#1D6F42"/><path d="M16 22V10M10 16l6 6 6-6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span style={{fontWeight:600,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name||`Quotation ${i+1}`}</span>
+                    </button>
+                  ))}
                   <div className="email-row">
                     <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="or send to email ID"/>
                     <button><Mail size={15} color="rgba(220,165,0,0.8)"/></button>
@@ -5716,6 +5723,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
   const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
   const [resubmitToast, setResubmitToast] = useState(false);
+  const [quotUploadState, setQuotUploadState] = useState(null); // null | 'uploading' | 'error'
 
   const PIN = { estimator: 'EST', director: 'star' };
   const requestViewSwitch = (mode) => {
@@ -5740,14 +5748,28 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const handleEstimatorUpload = async e => {
     if (!e.target.files?.length) return;
     const files = Array.from(e.target.files);
-    const newDocs = await readFilesToDocs(files);
-    const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
-    const allDocs = [...existing, ...newDocs];
-    onUpdate(open, {
-      estimationFile: allDocs[allDocs.length - 1].name,
-      estimationDoc: allDocs[allDocs.length - 1],
-      estimationDocs: allDocs,
-    });
+    setQuotUploadState('uploading');
+    try {
+      const newDocs = await Promise.all(
+        files.map(async (file) => {
+          const azureUrl = await uploadToAzure(file, req.id + '/quotation');
+          if (!azureUrl) throw new Error(`Failed to upload "${file.name}" to Azure`);
+          return { id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl };
+        })
+      );
+      const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+      const allDocs = [...existing, ...newDocs];
+      onUpdate(open, {
+        estimationFile: allDocs[allDocs.length - 1].name,
+        estimationDoc: allDocs[allDocs.length - 1],
+        estimationDocs: allDocs,
+      });
+      setQuotUploadState(null);
+    } catch (err) {
+      console.error('Quotation upload error:', err);
+      setQuotUploadState('error');
+      setTimeout(() => setQuotUploadState(null), 4000);
+    }
     e.target.value = '';
   };
 
@@ -5935,7 +5957,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
 
               {/* REQUEST STATUS */}
               <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:10}}>
-                <div style={{background:`${rss.c}14`,border:`1px solid ${rss.bd}`,borderRadius:8,padding:'5px 12px'}}>
+                <div style={{bfackground:`${rss.c}14`,border:`1px solid ${rss.bd}`,borderRadius:8,padding:'5px 12px'}}>
                   <LBL color={`${rss.c}80`}>Request Status</LBL>
                   <div style={{display:'flex',alignItems:'center',gap:5}}>
                     <span style={{width:6,height:6,borderRadius:'50%',background:rss.c,boxShadow:`0 0 6px ${rss.c}`,flexShrink:0}}/>
@@ -6084,12 +6106,20 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     );
                   })()
                 )}
-                {(req.status==='Approved'||req.status==='Completed') ? (
-                  <div style={{background:'rgba(0,40,20,0.50)',border:'1px solid rgba(0,200,100,0.28)',borderRadius:10,padding:'20px 22px'}}>
-                    <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(0,200,100,0.60)',marginBottom:12}}>Download Quotation</p>
-                    <div style={{display:'flex',gap:10}}>
-                      <button onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{...btnStyle,flex:1,color:'rgba(255,120,100,0.90)',border:'1px solid rgba(200,60,40,0.35)',background:'rgba(200,50,40,0.10)',cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.5}}>↓ PDF</button>
-                      <button onClick={()=>req.estimationDoc?.data && downloadDoc(req.estimationDoc)} style={{...btnStyle,flex:1,color:'rgba(60,220,130,0.90)',border:'1px solid rgba(0,180,80,0.35)',background:'rgba(0,160,70,0.10)',cursor:req.estimationDoc?.data?'pointer':'default',opacity:req.estimationDoc?.data?1:0.5}}>↓ Excel</button>
+                {(req.directorAction==='approved'||req.reqStatus==='completed'||req.status==='Approved'||req.status==='Completed') ? (
+                  <div style={{background:'rgba(0,40,20,0.50)',border:'1px solid rgba(0,200,100,0.28)',borderRadius:10,padding:'16px 18px'}}>
+                    <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(0,200,100,0.60)',marginBottom:10}}>Download Quotation</p>
+                    <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                      {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
+                        <button key={i} onClick={()=>downloadDoc(d)}
+                          style={{...btnStyle,color:'rgba(52,211,153,0.90)',border:'1px solid rgba(0,180,80,0.40)',background:'rgba(0,160,70,0.10)',justifyContent:'flex-start',gap:8,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>↓ {d.name||`quotation-${i+1}`}</span>
+                        </button>
+                      ))}
+                      {!(req.estimationDocs?.length > 0 || req.estimationDoc) && (
+                        <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.28)',margin:0}}>No quotation files attached yet.</p>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -6298,7 +6328,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                               <button onClick={()=>downloadDoc(d)}
                                 style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name||`file-${i+1}`}</span>
+                                <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`file-${i+1}`}</span>
+                                {d.url && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.55)" strokeWidth="2" title="Stored on Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
                               </button>
                               {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && (
                                 <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
@@ -6313,10 +6344,17 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         </div>
                       );
                     })()}
-                    <button onClick={()=>uploadRef.current.click()}
-                      disabled={req.reqStatus==='pending-director'||req.reqStatus==='completed'||isRejected}
-                      style={{...btnStyle,opacity:1,cursor:'pointer',color:'rgba(255,210,60,0.95)',border:'1px solid rgba(255,200,40,0.40)',background:'rgba(255,180,0,0.10)',fontWeight:700}}>
-                      ↑ {(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}
+                    <button onClick={()=>!quotUploadState && uploadRef.current.click()}
+                      disabled={req.reqStatus==='pending-director'||req.reqStatus==='completed'||isRejected||quotUploadState==='uploading'}
+                      style={{...btnStyle,opacity:1,cursor:quotUploadState==='uploading'?'wait':'pointer',
+                        color: quotUploadState==='error'?'rgba(255,100,100,0.95)':'rgba(255,210,60,0.95)',
+                        border:`1px solid ${quotUploadState==='error'?'rgba(255,80,80,0.50)':'rgba(255,200,40,0.40)'}`,
+                        background: quotUploadState==='error'?'rgba(255,50,50,0.12)':'rgba(255,180,0,0.10)',fontWeight:700}}>
+                      {quotUploadState==='uploading'
+                        ? '⟳ Uploading to Azure…'
+                        : quotUploadState==='error'
+                        ? '✕ Upload Failed — Retry'
+                        : `↑ ${(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}`}
                     </button>
                   </div>
                   {/* ── Margin breakdown ── */}
