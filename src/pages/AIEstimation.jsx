@@ -8090,7 +8090,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://aiestv86-338841056432.us-west1.run.app"
+        src="https://aiest87-253545847030.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -8117,8 +8117,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://aiestv86-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://aiestv86-338841056432.us-west1.run.app';
+    ? `https://aiest87-253545847030.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://aiest87-253545847030.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
