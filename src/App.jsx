@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, Suspense, useMemo, useCallback } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -19,6 +20,7 @@ import SalesForm from './pages/SalesForm.jsx';
 import VirtualShowroomDashboard from './pages/VirtualShowroomDashboard.jsx';
 import NewShowroom from './pages/NewShowroom.jsx';
 import AIContract from './pages/AIContract.jsx';
+import DummyHub from './pages/DummyHub.jsx';
 
 const ARScene = React.lazy(() => import('./ARScene.jsx'));
 
@@ -2127,65 +2129,101 @@ const IntroScreen = ({ onDone, welcomeName, welcomeRole }) => {
   );
 };
 
-export default function App() {
+// --- MAIN ROUTING AND STATE MANAGEMENT ---
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Show intro immediately on launch (splash)
   const [showIntro, setShowIntro]     = useState(true);
   const [welcomeName, setWelcomeName] = useState('');
-  const [appState, setAppState]       = useState('home');
+  
+  // Keep these states so data persists across route changes
   const [targetIndex, setTargetIndex] = useState(null);
   const [initialRole, setInitialRole] = useState(null);
   const [initialCode, setInitialCode] = useState('');
   const [initialView, setInitialView] = useState(null);
-  // null = after intro go to home; otherwise go to that dest
+  
   const pendingDestRef = useRef(null);
 
-  // Called by HomeScreen after code is validated → play intro then go to dept
+  // Called by HomeScreen after code is validated
   const handleAccessAccepted = useCallback((destination, role, code, welcome, iv = null) => {
     setWelcomeName(welcome);
     setInitialRole(role);
     setInitialCode(code);
     setInitialView(iv);
-    pendingDestRef.current = destination;
+    
+    // UPDATED: Check if the role is sales, send them to /sales instead of /estimation
+    let finalPath = '/';
+    if (role === 'sales') {
+        finalPath = '/sales';
+    } else {
+        const routes = { 
+            home: '/', 
+            active: '/dashboard', 
+            estimation: '/estimation' 
+        };
+        finalPath = routes[destination] || '/';
+    }
+    
+    pendingDestRef.current = finalPath;
     setShowIntro(true);
   }, []);
 
-  // Called by HomeScreen for quick-actions (no code, no intro)
+  // Called by HomeScreen for quick-actions
   const handleDirectNav = useCallback((dest, iv) => {
     setInitialRole(null);
     setInitialCode('');
     setInitialView(iv);
-    setAppState(dest);
-  }, []);
+    
+    const routes = { 
+        arViewer: '/ar', 
+        construction: '/construction', 
+        estimation: '/estimation' 
+    };
+    navigate(routes[dest] || '/');
+  }, [navigate]);
 
   const handleIntroDone = useCallback(() => {
     setShowIntro(false);
     if (pendingDestRef.current !== null) {
-      setAppState(pendingDestRef.current);
+      navigate(pendingDestRef.current);
       pendingDestRef.current = null;
     }
-    // else stay on home (initial splash)
-  }, []);
+  }, [navigate]);
 
   // Back from any dept view → return to home hub
   const backToHome = () => {
-    setAppState('home');
     setInitialRole(null);
     setInitialCode('');
     setInitialView(null);
     setTargetIndex(null);
+    navigate('/');
   };
 
   const handleNavigation = (index, destination) => {
     setTargetIndex(index);
     setTimeout(() => {
-      setAppState(destination);
+      const routes = { 
+        'estimation': '/estimation', 
+        'dataAnalysis': '/data-analysis', 
+        'VIRTUAL SHOWROOM': '/virtual-showroom',
+        'New SHOWROOM': '/new-showroom', 
+        'AI CONTRACTS': '/contracts' 
+      };
+      navigate(routes[destination] || '/');
       setTargetIndex(null);
     }, 2500);
   };
 
-  const startAnimations = ['active', 'estimation', 'dataAnalysis', 'VIRTUAL SHOWROOM','New SHOWROOM', 'AI CONTRACTS'].includes(appState);
+  // UPDATED: Added /sales and /salesView to the active animation routes
+  const activeRoutesForAnimation = ['/dashboard', '/estimation', '/sales', '/data-analysis', '/virtual-showroom', '/new-showroom', '/contracts'];
+  const startAnimations = activeRoutesForAnimation.includes(location.pathname);
+  
   const isZooming = targetIndex !== null;
-  const shouldMountCanvas = appState === 'active';
+  
+  // The 3D Canvas only stays mounted when on the dashboard or zooming away from it
+  const shouldMountCanvas = location.pathname === '/dashboard';
 
   return (
     <>
@@ -2193,73 +2231,77 @@ export default function App() {
       <div style={mainBackgroundStyle}/>
       <TouchFeedback />
 
-      {appState === 'home' && (
-        <HomeScreen onAccepted={handleAccessAccepted} onDirect={handleDirectNav} />
-      )}
+      {/* REACT ROUTER DEFINITIONS */}
+      <Routes>
+        <Route path="/" element={
+          <HomeScreen onAccepted={handleAccessAccepted} onDirect={handleDirectNav} />
+        } />
+        <Route path="/dummy" element={<DummyHub />} />
+        
+        <Route path="/construction" element={
+          <ConstructionScreen deptId={initialView} onBack={backToHome} />
+        } />
+        
+        {/* Route for Estimator role */}
+        <Route path="/estimation/*" element={
+          <AIEstimation
+            onBack={backToHome}
+            onNavigate={(state) => navigate(`/${state}`)}
+            initialRole={initialRole}
+            initialCode={initialCode}
+            initialView={initialView}
+          />
+        } />
 
-      {appState === 'construction' && (
-        <ConstructionScreen deptId={initialView} onBack={backToHome} />
-      )}
+        {/* UPDATED: Route for Sales role (Shares the AIEstimation dashboard component) */}
+        <Route path="/sales/*" element={
+          <AIEstimation
+            onBack={backToHome}
+            onNavigate={(state) => navigate(`/${state}`)}
+            initialRole={initialRole}
+            initialCode={initialCode}
+            initialView={initialView}
+          />
+        } />
+        
+        {/* UPDATED: The actual Sales Form is now on /salesView */}
+        <Route path="/salesView" element={<SalesForm onBack={backToHome} />} />
+        
+        <Route path="/data-analysis" element={<DataDashboard onBack={backToHome} />} />
+        <Route path="/virtual-showroom" element={<VirtualShowroomDashboard onBack={backToHome} />} />
+        <Route path="/new-showroom" element={<NewShowroom onBack={backToHome} />} />
+        <Route path="/contracts" element={<AIContract onBack={backToHome} />} />
+        
+        {/* Empty dashboard route because the Canvas is rendered conditionally outside of Routes below */}
+        <Route path="/dashboard" element={<div />} />
 
-      {appState === 'estimation' && (
-        <AIEstimation
-          onBack={backToHome}
-          onNavigate={(state) => setAppState(state)}
-          initialRole={initialRole}
-          initialCode={initialCode}
-          initialView={initialView}
-        />
-      )}
+        <Route path="/ar" element={
+          <Suspense fallback={<div style={{position:'fixed',inset:0,background:'#111',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:14,fontFamily:'Inter,sans-serif',zIndex:300}}>Loading AR Viewer…</div>}>
+            <div style={{position:'fixed',inset:0,zIndex:300}}>
+              <ARScene />
+              <button
+                onClick={backToHome}
+                style={{
+                  position:'absolute',top:16,left:16,zIndex:400,
+                  display:'flex',alignItems:'center',gap:6,
+                  background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',
+                  border:'1px solid rgba(255,255,255,0.25)',borderRadius:100,
+                  padding:'8px 16px',color:'#fff',
+                  fontSize:13,fontWeight:600,fontFamily:"'Inter',sans-serif",
+                  cursor:'pointer',letterSpacing:'0.06em',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                Back
+              </button>
+            </div>
+          </Suspense>
+        } />
+      </Routes>
 
-      {appState === 'salesView' && (
-        <SalesForm onBack={backToHome} />
-      )}
-
-      {appState === 'directorView' && (
-        <DataDashboard onBack={backToHome} />
-      )}
-
-      {appState === 'dataAnalysis' && (
-        <DataDashboard onBack={backToHome} />
-      )}
-
-      {appState === 'VIRTUAL SHOWROOM' && (
-        <VirtualShowroomDashboard onBack={backToHome} />
-      )}
-
-      {appState === 'New SHOWROOM' && (
-        <NewShowroom onBack={backToHome} />
-      )}
-
-      {appState === 'AI CONTRACTS' && (
-        <AIContract onBack={backToHome} />
-      )}
-
-      {appState === 'arViewer' && (
-        <Suspense fallback={<div style={{position:'fixed',inset:0,background:'#111',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:14,fontFamily:'Inter,sans-serif',zIndex:300}}>Loading AR Viewer…</div>}>
-          <div style={{position:'fixed',inset:0,zIndex:300}}>
-            <ARScene />
-            <button
-              onClick={backToHome}
-              style={{
-                position:'absolute',top:16,left:16,zIndex:400,
-                display:'flex',alignItems:'center',gap:6,
-                background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',
-                border:'1px solid rgba(255,255,255,0.25)',borderRadius:100,
-                padding:'8px 16px',color:'#fff',
-                fontSize:13,fontWeight:600,fontFamily:"'Inter',sans-serif",
-                cursor:'pointer',letterSpacing:'0.06em',
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6"/>
-              </svg>
-              Back
-            </button>
-          </div>
-        </Suspense>
-      )}
-
+      {/* 3D CANVAS REMAINS OUTSIDE ROUTES SO IT CAN UNMOUNT GRACEFULLY */}
       {shouldMountCanvas && (
         <div style={canvasContainerStyle}>
           <Canvas
@@ -2321,4 +2363,8 @@ export default function App() {
       )}
     </>
   );
+}
+// App wrapper (Router is already handled in main.jsx)
+export default function App() {
+  return <AppContent />;
 }

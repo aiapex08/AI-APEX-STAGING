@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Mail, X, FileText } from 'lucide-react';
 import Estimator from './Estimator';
 
@@ -4136,7 +4137,8 @@ const downloadDoc = async (d) => {
   // Azure URL — fetch as blob so browser triggers Save dialog instead of opening a new tab
   if (d.url) {
     try {
-      const res = await fetch(d.url);
+      const fetchUrl = d.url + (d.url.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+      const res = await fetch(fetchUrl, { cache: 'no-store' });
       if (!res.ok) throw new Error('Fetch failed');
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -4467,7 +4469,7 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
   const [q, setQ] = useState('');
   const F2 = "'Inter',sans-serif";
   const isSales = userRole === 'sales';
-  const salesName = isSales ? (USER_NAME_MAP[userCode?.toUpperCase()] || '') : '';
+  const salesName = isSales ? (STAFF_NAMES[userCode?.toUpperCase()] || '') : '';
 
   // Sales: pre-filter to own requests; others: empty until search
   const baseList = isSales
@@ -4742,7 +4744,7 @@ const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}
   const [q, setQ] = useState('');
   const F2 = "'Inter',sans-serif";
   const isSales = userRole === 'sales';
-  const salesName = isSales ? (USER_NAME_MAP[userCode?.toUpperCase()] || '') : '';
+  const salesName = isSales ? (STAFF_NAMES[userCode?.toUpperCase()] || '') : '';
 
   const baseList = isSales
     ? requests.filter(r =>
@@ -7026,11 +7028,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     <div style={{display:'flex',gap:5}}>
                       {DA.map(a=>(
                         <button key={a.v} onClick={()=>{
-                          const ns = a.v==='approved'?'Approved':a.v==='rejected'?'Estimation Uploaded':'Pending Approval';
-                          const nr = a.v==='approved'?'completed':a.v==='rejected'?'onhold':'inprogress';
-                          onUpdate(open,{directorAction:a.v,status:ns,reqStatus:nr,directorSubmitted:false});
+                          // FIXED: Correctly map the exact status names for all 3 actions
+                          const ns = a.v === 'approved' ? 'Approved' : a.v === 'rejected' ? 'Rejected' : 'Correction Required';
+                          const nr = a.v === 'approved' ? 'completed' : a.v === 'rejected' ? 'onhold' : 'inprogress';
+                          onUpdate(open,{directorAction:a.v, status:ns, reqStatus:nr, directorSubmitted:false});
                         }}
-                          style={{flex:1,padding:'7px 4px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.74rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',textAlign:'center',whiteSpace:'nowrap',boxShadow:req.directorAction===a.v?`0 0 14px ${a.c}22`:'none'}}
+                                      style={{flex:1,padding:'7px 4px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.74rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',textAlign:'center',whiteSpace:'nowrap',boxShadow:req.directorAction===a.v?`0 0 14px ${a.c}22`:'none'}}
                           onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
                           onMouseLeave={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.03)';}}>
                           {a.label}
@@ -7044,7 +7047,24 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         Response Submitted
                       </div>
                     ) : (
-                      <button onClick={()=>{if(req.directorAction){const ns=req.directorAction==='approved'?'Approved':'Pending Estimation';const nr=req.directorAction==='approved'?'completed':'inprogress';onUpdate(open,{status:ns,reqStatus:nr,directorSubmitted:true,directorRespondedAt:new Date().toISOString(),directorNote:req.directorNote||''});}}}
+                      <button onClick={()=>{
+                        if(req.directorAction){
+                          const ns = req.directorAction === 'approved' ? 'Approved' : req.directorAction === 'rejected' ? 'Rejected' : 'Correction Required';
+                          const nr = req.directorAction === 'approved' ? 'completed' : req.directorAction === 'rejected' ? 'onhold' : 'inprogress';
+                          const ts = new Date().toISOString();
+                          const actionLabel = req.directorAction === 'approved' ? 'Cost Artist Approved' : req.directorAction === 'rejected' ? 'Cost Artist Rejected' : 'Correction Required';
+                          const eventType = req.directorAction === 'approved' ? 'approved' : req.directorAction === 'rejected' ? 'rejected' : 'revision';
+                          
+                          onUpdate(open,{
+                            status: ns,
+                            reqStatus: nr,
+                            directorSubmitted: true,
+                            directorRespondedAt: ts,
+                            directorNote: req.directorNote || '',
+                            timeline: [...(req.timeline || []), { event: eventType, ts, label: actionLabel, by: 'Cost Artist' }]
+                          });
+                        }
+                      }}
                         disabled={!req.directorAction}
                         style={{width:'100%',padding:'9px',borderRadius:9,background:req.directorAction?'linear-gradient(105deg,#0f0c3a,#1e40af 30%,#6d28d9 55%,#a855f7 75%,#00e5ff 100%)':'rgba(255,255,255,0.04)',backgroundSize:'220% 220%',animation:req.directorAction?'auroraShift 5s ease-in-out infinite':'none',border:req.directorAction?'1px solid rgba(255,255,255,0.20)':'1px solid rgba(255,255,255,0.07)',color:req.directorAction?'#fff':'rgba(255,255,255,0.22)',fontFamily:F2,fontSize:'0.86rem',fontWeight:700,cursor:req.directorAction?'pointer':'not-allowed',letterSpacing:'0.06em',boxShadow:req.directorAction?'0 4px 20px rgba(120,60,255,0.30)':'none',outline:'none'}}>
                         Submit Response
@@ -8281,16 +8301,75 @@ const IntroSplash = ({ onDone }) => {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AIEstimation({ onBack, onNavigate, initialRole, initialCode, initialView }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [intro,setIntro] = useState(true);
   const [userRole, setUserRole] = useState(initialRole || null);
   const [userCode, setUserCode] = useState(initialCode || '');
-  const [view,setView] = useState(() => {
-    if (initialView) return initialView;
-    return (initialRole === 'estimator' || initialRole === 'director') ? 'dashboard' : 'landing';
-  });
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
   const [directOpen,  setDirectOpen]  = useState(initialView === 'directTool');
+
+  // 1. Read the current URL to figure out which view to show
+  const currentPath = location.pathname.split('/').pop();
+  let view = 'landing';
+  
+  if (currentPath === 'estimation-dashboard') view = 'dashboard';
+  else if (currentPath === 'new-request') view = 'form';
+  else if (currentPath === 'revised-request') view = 'revisedSearch';
+  else if (currentPath === 'revised-form') view = 'revisedForm';
+  else if (currentPath === 'final-price') view = 'finalPriceSearch';
+  else if (currentPath === 'final-price-form') view = 'finalPriceForm';
+  else if (currentPath === 'relax') view = 'relax';
+  else if (currentPath === 'open-requests') view = 'openRequests';
+  else if (currentPath === 'analyse') view = 'analyse';
+  else if (currentPath === 'sales-dashboard') view = 'salesDashboard';
+  else if (currentPath === 'track') view = 'trackQuotation';
+  else if (currentPath === 'sales-status') view = 'salesStatus';
+  else if (currentPath === 'performance') view = 'salesPerformance';
+  else if (currentPath === 'activities') view = 'myActivities';
+  else if (currentPath === 'diary') view = 'salesDiary';
+  else if (currentPath === 'loading') view = 'loading';
+  else if (currentPath === 'results') view = 'results';
+  // If they are just at /estimation or /sales, show the default screen based on role
+  else if (currentPath === 'estimation' || currentPath === 'sales') {
+     view = (userRole === 'estimator' || userRole === 'director') ? 'dashboard' : 'landing';
+  }
+
+  // 2. Intercept setView and change the URL instead!
+  const setView = (newView) => {
+    const viewMap = {
+      landing: '',
+      dashboard: 'estimation-dashboard',
+      form: 'new-request',
+      revisedSearch: 'revised-request',
+      revisedForm: 'revised-form',
+      finalPriceSearch: 'final-price',
+      finalPriceForm: 'final-price-form',
+      relax: 'relax',
+      openRequests: 'open-requests',
+      analyse: 'analyse',
+      salesDashboard: 'sales-dashboard',
+      trackQuotation: 'track',
+      salesStatus: 'sales-status',
+      salesPerformance: 'performance',
+      myActivities: 'activities',
+      salesDiary: 'diary',
+      loading: 'loading',
+      results: 'results'
+    };
+    
+    const targetPath = viewMap[newView] !== undefined ? viewMap[newView] : '';
+    // Maintain the base path depending on if they logged in as Sales or Estimator
+    const basePath = location.pathname.startsWith('/sales') ? '/sales' : '/estimation';
+    
+    if (targetPath === '') {
+        navigate(basePath);
+    } else {
+        navigate(`${basePath}/${targetPath}`);
+    }
+  };
 
   const handleRoleLogin = (role, code) => {
     setUserRole(role);
