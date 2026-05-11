@@ -13,8 +13,7 @@ export default function DummyHub() {
   const depts = [
     {
       id: 'sales', label: 'Sales & Marketing', hint: 'Enter sales code',
-      desc: 'Pipeline, CRM & marketing', color: '#f59e0b',
-      a: '245,158,11', b: '234,88,12',
+      desc: 'Pipeline, CRM & marketing', color: '#f59e0b', glow: 'rgba(245,158,11,0.35)',
       icon: (c) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
@@ -23,8 +22,7 @@ export default function DummyHub() {
     },
     {
       id: 'estimation', label: 'Estimation', hint: 'Enter estimation code',
-      desc: 'Cost analysis & quotations', color: '#a78bfa',
-      a: '167,139,250', b: '168,85,247',
+      desc: 'Cost analysis & quotations', color: '#a78bfa', glow: 'rgba(167,139,250,0.35)',
       icon: (c) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="8" y1="15" x2="11" y2="15"/>
@@ -33,7 +31,7 @@ export default function DummyHub() {
     },
     {
       id: 'contracts', label: 'Contracts', desc: 'Document & legal management',
-      color: '#60a5fa', a: '96,165,250', b: '59,130,246',
+      color: '#60a5fa', glow: 'rgba(96,165,250,0.25)',
       icon: (c) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -43,7 +41,7 @@ export default function DummyHub() {
     },
     {
       id: 'engineering', label: 'Engineering', desc: 'Design, systems & technical',
-      color: '#34d399', a: '52,211,153', b: '16,185,129',
+      color: '#34d399', glow: 'rgba(52,211,153,0.25)',
       icon: (c) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3"/>
@@ -91,8 +89,6 @@ export default function DummyHub() {
         @keyframes hs-fadeUp   { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         @keyframes hs-shake    { 0%{transform:translateX(0)} 15%{transform:translateX(-10px)} 30%{transform:translateX(10px)} 45%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 75%{transform:translateX(-4px)} 90%{transform:translateX(4px)} 100%{transform:translateX(0)} }
         @keyframes hs-errPulse { 0%{box-shadow:0 0 0 rgba(220,30,30,0)} 50%{box-shadow:0 0 22px rgba(220,30,30,0.7)} 100%{box-shadow:0 0 8px rgba(220,30,30,0.3)} }
-        @keyframes cardAura    { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-        @keyframes cardSweep   { 0%{left:-30%} 60%,100%{left:110%} }
 
         .hs-land  { position:relative;width:100%;height:100%;display:flex;padding-top:52px }
         .hs-left  { width:50%;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 3vw 0 10vw;position:relative;z-index:10 }
@@ -133,32 +129,33 @@ export default function DummyHub() {
         .hs-tile {
           position:relative; overflow:hidden;
           display:flex; flex-direction:column; align-items:flex-start; gap:14px;
-          border-radius:22px;
-          padding:22px 20px 18px;
+          background:rgba(6,4,22,0.92);
+          border:1.5px solid #ff6b9d;
+          border-radius:18px;
+          padding:22px 18px 18px;
           cursor:pointer; color:#e8eeff; text-align:left;
-          background-size:250% 250%;
-          animation:cardAura 7s ease infinite;
-          backdrop-filter:blur(20px);
-          -webkit-backdrop-filter:blur(20px);
-          transition:transform 0.22s, box-shadow 0.22s;
-          border:none;
+          transition:transform 0.3s;
+          animation:borderColorCycle 8s ease-in-out infinite;
         }
-        .hs-tile:hover { transform:translateY(-6px) scale(1.02); }
-
-        .hs-icon-wrap { position:relative; width:44px; height:44px; flex-shrink:0; }
-        .hs-icon-ring {
-          position:absolute; inset:-2px; border-radius:11px;
-          background:conic-gradient(from 0deg, var(--tc) 0deg, transparent 100deg, transparent 260deg, var(--tc) 360deg);
-          animation:hs-spin 3.5s linear infinite; opacity:0.65;
+        .hs-tile:nth-child(1) { animation-delay:0s; }
+        .hs-tile:nth-child(2) { animation-delay:-2s; }
+        .hs-tile:nth-child(3) { animation-delay:-4s; }
+        .hs-tile:nth-child(4) { animation-delay:-6s; }
+        .hs-tile:hover { transform:translateY(-7px) scale(1.018); }
+        @keyframes borderColorCycle {
+          0%,100% { border-color:#ff6b9d; box-shadow:0 0 20px rgba(255,107,157,0.7),0 0 55px rgba(255,107,157,0.22),0 28px 65px rgba(255,107,157,0.15); }
+          25%     { border-color:#a855f7; box-shadow:0 0 20px rgba(168,85,247,0.7),0 0 55px rgba(168,85,247,0.22),0 28px 65px rgba(168,85,247,0.15); }
+          50%     { border-color:#06b6d4; box-shadow:0 0 20px rgba(6,182,212,0.7),0 0 55px rgba(6,182,212,0.22),0 28px 65px rgba(6,182,212,0.15); }
+          75%     { border-color:#10b981; box-shadow:0 0 20px rgba(16,185,129,0.7),0 0 55px rgba(16,185,129,0.22),0 28px 65px rgba(16,185,129,0.15); }
         }
-        @keyframes hs-spin { to { transform:rotate(360deg); } }
-        .hs-tile:hover .hs-icon-ring { opacity:1; }
-        .hs-icon-bg {
-          position:absolute; inset:2px; border-radius:9px; background:rgba(6,4,22,0.88);
+        .hs-icon-wrap {
+          width:42px; height:42px; flex-shrink:0;
           display:flex; align-items:center; justify-content:center;
+          background:rgba(255,255,255,0.06); border-radius:11px;
+          border:1px solid rgba(255,255,255,0.10);
         }
-        .hs-tile-name { font-size:0.88rem; font-weight:700; line-height:1.25; color:rgba(255,255,255,0.96); }
-        .hs-tile-desc { font-size:0.70rem; color:rgba(255,255,255,0.38); line-height:1.4; }
+        .hs-tile-name { font-size:0.86rem; font-weight:700; line-height:1.25; color:#fff; }
+        .hs-tile-desc { font-size:0.70rem; color:rgba(255,255,255,0.38); line-height:1.45; margin-top:1px; }
 
         /* code entry */
         .hs-cinput { background:transparent;border:none;border-bottom:2px solid #333;outline:none;
@@ -221,28 +218,10 @@ export default function DummyHub() {
                   <button
                     key={dept.id}
                     className="hs-tile"
-                    style={{
-                      '--tc': dept.color,
-                      background: `linear-gradient(135deg,rgba(${dept.a},0.18) 0%,rgba(${dept.b},0.10) 50%,rgba(${dept.a},0.15) 100%)`,
-                      boxShadow: `0 0 0 1px rgba(${dept.a},0.22), 0 12px 40px rgba(${dept.a},0.18), 0 2px 8px rgba(0,0,0,0.55)`,
-                      animationDelay: `${-(idx * 1.3).toFixed(1)}s`,
-                    }}
                     onClick={() => pickDept(dept)}
                   >
-                    {/* Sweeping light streak */}
-                    <div style={{position:'absolute',top:0,width:'30%',height:'100%',
-                      background:'linear-gradient(105deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%)',
-                      animation:'cardSweep 5s ease-in-out infinite',
-                      animationDelay:`${-(idx*0.9).toFixed(1)}s`,
-                      pointerEvents:'none'}}/>
-                    {/* Top edge glow */}
-                    <div style={{position:'absolute',top:0,left:0,right:0,height:1.5,
-                      background:`linear-gradient(90deg,transparent,rgba(${dept.a},0.90),rgba(${dept.b},0.70),transparent)`,
-                      pointerEvents:'none'}}/>
-
                     <div className="hs-icon-wrap">
-                      <div className="hs-icon-ring"/>
-                      <div className="hs-icon-bg">{dept.icon(dept.color)}</div>
+                      {dept.icon(dept.color)}
                     </div>
                     <div>
                       <div className="hs-tile-name">{dept.label}</div>

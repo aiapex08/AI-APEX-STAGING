@@ -1538,7 +1538,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
             {infoRows.map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0', gap: 12 }}>
                 <span style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.32)', flexShrink: 0 }}>{k}</span>
-                <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.78)', textAlign: 'right' }}>{v}</span>
+                <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.78)', textAlign: 'left' }}>{v}</span>
               </div>
             ))}
             {r.remarks && (
@@ -2807,12 +2807,21 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   const confirmClaim = () => {
     const name = estName.trim();
     if (!name) { setNameErr(true); return; }
-    const ts = new Date().toISOString();
+    const nowMs = Date.now();
+    const ts    = new Date(nowMs).toISOString();
     onUpdate(claiming.idx, {
-      estimator: name,
-      taggedAt: Date.now(),
-      reqStatus: 'inprogress',
-      timeline: [...(requests[claiming.idx].timeline||[]), { event:'assigned', ts, label:`Assigned to ${name}`, by: name }],
+      estimator:   name,
+      taggedAt:    nowMs,
+      claimedAtMs: nowMs,   // millisecond-precision claim timestamp
+      reqStatus:   'inprogress',
+      timeline: [...(requests[claiming.idx].timeline||[]), {
+        event: 'assigned',
+        ts,
+        tsMs:  nowMs,        // ms for accurate ordering across users
+        label: `Assigned to ${name}`,
+        by:    name,
+      }],
+      _immediate: true,      // skip debounce — flush to Azure immediately
     });
     setJustClaimed(claiming.reqId);
     closeClaim();
@@ -3316,7 +3325,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
               {infoRows.map(([k,v])=>(
                 <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:10}}>
                   <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
-                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.75)',textAlign:'right'}}>{v}</span>
+                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.75)',textAlign:'left'}}>{v}</span>
                 </div>
               ))}
             </div>
@@ -6081,7 +6090,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               {infoRows.map(([k,v])=>(
                 <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.06)',padding:'7px 0',gap:12}}>
                   <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.52)',flexShrink:0,fontWeight:500}}>{k}</span>
-                  <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.88)',textAlign:'right',fontWeight:600}}>{v}</span>
+                  <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.88)',textAlign:'left',fontWeight:600}}>{v}</span>
                 </div>
               ))}
               {req.docs?.length > 0 && (
@@ -8393,59 +8402,123 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
   const [diaryEntries, setDiaryEntries] = useState([]);
-  const BIN_ID = "69dcdffeaaba882197f3c176";
-  const API_KEY = "$2a$10$kpIFmWCwfUxqOw.M.TfqcOyhGnnArBzDluhGquW2s/t.L3vQJtBqW";
+  // ─── Azure data blob (all request + diary JSON lives here) ──────────────────
+  const DATA_BLOB_URL = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/apex-data.json?${AZURE_SAS}`;
+  const currentEtag   = useRef(null);
+  const saveTimer     = useRef(null);
+  const isSaving      = useRef(false);
 
-  // Load on startup
+  const serializeRequests = (reqs) => reqs.map(r => ({
+    ...r,
+    docs:           (r.docs           || []).map(stripDocData),
+    originalDocs:   (r.originalDocs   || []).map(stripDocData),
+    estimationDoc:  r.estimationDoc   ? stripDocData(r.estimationDoc) : r.estimationDoc,
+    estimationDocs: (r.estimationDocs || []).map(stripDocData),
+  }));
+
+  // Per-request merge: remote wins when its updatedAt is newer; preserve local file refs
+  const mergeRequests = (local, remote) => {
+    const remoteMap = new Map(remote.map(r => [r.id, r]));
+    const updated = local.map(lr => {
+      const rr = remoteMap.get(lr.id);
+      if (!rr) return lr;
+      return (rr.updatedAt || 0) > (lr.updatedAt || 0)
+        ? { ...rr, docs: lr.docs, originalDocs: lr.originalDocs, estimationDoc: lr.estimationDoc, estimationDocs: lr.estimationDocs }
+        : lr;
+    });
+    const localIds = new Set(local.map(r => r.id));
+    const newFromRemote = remote.filter(r => !localIds.has(r.id));
+    return [...newFromRemote, ...updated];
+  };
+
+  const saveToAzure = async (reqs, diary, retryOnConflict = true) => {
+    if (isSaving.current) return;
+    isSaving.current = true;
+    try {
+      const body = JSON.stringify({ requests: serializeRequests(reqs), diaryEntries: diary });
+      const headers = { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': 'application/json' };
+      if (currentEtag.current) headers['If-Match'] = currentEtag.current;
+      const res = await fetch(DATA_BLOB_URL, { method: 'PUT', headers, body });
+      if (res.ok) {
+        currentEtag.current = res.headers.get('ETag') || null;
+        console.log('✅ Saved to Azure');
+      } else if (res.status === 412 && retryOnConflict) {
+        // Someone else saved between our load and save — fetch remote, merge, retry once
+        console.warn('⚠️ Conflict — merging with remote and retrying');
+        const getRes = await fetch(DATA_BLOB_URL, { cache: 'no-store' });
+        if (getRes.ok) {
+          const remoteData = await getRes.json();
+          currentEtag.current = getRes.headers.get('ETag') || null;
+          const merged = mergeRequests(reqs, remoteData.requests || []);
+          setRequests(prev => mergeRequests(prev, remoteData.requests || []));
+          isSaving.current = false;
+          await saveToAzure(merged, diary, false);
+          return;
+        }
+      } else {
+        console.error('Azure save failed:', res.status);
+      }
+    } catch(err) { console.error('Save error:', err); }
+    finally { isSaving.current = false; }
+  };
+
+  // Load on startup — Azure first, fall back to JSONBin once for migration
   useEffect(() => {
+    const LEGACY_BIN   = "69dcdffeaaba882197f3c176";
+    const LEGACY_KEY   = "$2a$10$kpIFmWCwfUxqOw.M.TfqcOyhGnnArBzDluhGquW2s/t.L3vQJtBqW";
+    const hydrateIDB = async (raw) => Promise.all(raw.map(async (req) => ({
+      ...req,
+      docs:           await Promise.all((req.docs            || []).map(restoreDocFromIDB)),
+      originalDocs:   await Promise.all((req.originalDocs    || []).map(restoreDocFromIDB)),
+      estimationDoc:  req.estimationDoc  ? await restoreDocFromIDB(req.estimationDoc) : req.estimationDoc,
+      estimationDocs: req.estimationDocs ? await Promise.all(req.estimationDocs.map(restoreDocFromIDB)) : req.estimationDocs,
+    })));
     const load = async () => {
       try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: { 'X-Master-Key': API_KEY }
-        });
-        const data = await res.json();
-        const raw = data.record.requests || [];
-        // Restore file data from IndexedDB (stripped before JSONBin save to stay within size limits)
-        const enriched = await Promise.all(raw.map(async (req) => ({
-          ...req,
-          docs: await Promise.all((req.docs || []).map(restoreDocFromIDB)),
-          originalDocs: await Promise.all((req.originalDocs || []).map(restoreDocFromIDB)),
-          estimationDoc: req.estimationDoc ? await restoreDocFromIDB(req.estimationDoc) : req.estimationDoc,
-          estimationDocs: req.estimationDocs ? await Promise.all(req.estimationDocs.map(restoreDocFromIDB)) : req.estimationDocs,
-        })));
-        setRequests(enriched);
-        setDiaryEntries(data.record.diaryEntries || []);
+        const res = await fetch(DATA_BLOB_URL, { cache: 'no-store' });
+        if (res.ok) {
+          currentEtag.current = res.headers.get('ETag') || null;
+          const data = await res.json();
+          setRequests(await hydrateIDB(data.requests || []));
+          setDiaryEntries(data.diaryEntries || []);
+          return;
+        }
+        if (res.status === 404) {
+          // First run — migrate existing data from JSONBin into Azure
+          console.log('apex-data.json not found — migrating from JSONBin…');
+          try {
+            const binRes = await fetch(`https://api.jsonbin.io/v3/b/${LEGACY_BIN}/latest`, {
+              headers: { 'X-Master-Key': LEGACY_KEY }
+            });
+            if (binRes.ok) {
+              const binData = await binRes.json();
+              const raw = binData.record?.requests || [];
+              const diary = binData.record?.diaryEntries || [];
+              const enriched = await hydrateIDB(raw);
+              setRequests(enriched);
+              setDiaryEntries(diary);
+              // Immediately write to Azure so future loads use it
+              await saveToAzure(enriched, diary);
+              console.log('✅ Migration complete — data now in Azure');
+              return;
+            }
+          } catch(migErr) { console.warn('JSONBin migration skipped:', migErr); }
+          setRequests([]);
+          setDiaryEntries([]);
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
       } catch(err) { console.error('Load failed:', err); }
     };
     load();
   }, []);
 
-  // Save whenever requests or diary changes
+  // Debounced save — 1.2 s after last change to batch rapid updates
   useEffect(() => {
     if (requests.length === 0 && diaryEntries.length === 0) return;
-    const save = async () => {
-      try {
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': API_KEY
-          },
-          body: JSON.stringify({
-            requests: requests.map(r => ({
-              ...r,
-              docs: (r.docs || []).map(stripDocData),
-              originalDocs: (r.originalDocs || []).map(stripDocData),
-              estimationDoc: r.estimationDoc ? stripDocData(r.estimationDoc) : r.estimationDoc,
-              estimationDocs: (r.estimationDocs || []).map(stripDocData),
-            })),
-            diaryEntries,
-          })
-        });
-        console.log('✅ Saved to cloud!');
-      } catch(err) { console.error('Save failed:', err); }
-    };
-    save();
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveToAzure(requests, diaryEntries), 1500);
+    return () => clearTimeout(saveTimer.current);
   }, [requests, diaryEntries]);
 
   // ── Notification toasts ──────────────────────────────────────────────────
@@ -8460,43 +8533,52 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     return () => clearTimeout(tid);
   }, [toasts]);
 
-  // Poll for new messages every 30 s (sales sees estimator msgs; estimator sees sales msgs)
+  // Full-state sync every 15 s — picks up changes from all other users
   useEffect(() => {
-    if (!userRole || userRole === 'director') return;
-    const watchRole = userRole === 'sales' ? 'estimator' : 'sales';
     const myName = (STAFF_NAMES[userCode] || userCode || '').toLowerCase();
+    const watchRole = userRole === 'sales' ? 'estimator' : userRole === 'estimator' ? 'sales' : null;
     const poll = async () => {
       try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
+        if (isSaving.current) return; // don't overwrite an in-flight save
+        const res = await fetch(DATA_BLOB_URL, { cache: 'no-store' });
+        if (!res.ok) return;
+        const newEtag = res.headers.get('ETag');
+        if (newEtag && newEtag === currentEtag.current) return; // nothing changed
+        currentEtag.current = newEtag;
         const data = await res.json();
-        const remote = data.record.requests || [];
-        const seen = _getSeen();
-        const relevant = remote.filter(r =>
-          userRole === 'sales'
-            ? ((r.salesPerson||'').toLowerCase() === myName || (r.submittedBy||'').toLowerCase() === myName)
-            : (r.estimator||'').toLowerCase() === myName
-        );
-        const newMsgs = [];
-        relevant.forEach(r => {
-          const lastSeen = Math.max((seen[r.id]||{})[watchRole] || 0, appStartMs.current);
-          (r.conversation||[]).filter(m => m.role===watchRole && (m.tsMs||0) > lastSeen)
-            .forEach(m => newMsgs.push({ reqId:r.id, client:r.client, proj:r.proj, from:m.from, text:m.text }));
+        const remote = data.requests || [];
+        const remoteDiary = data.diaryEntries || [];
+        // Merge full request state (status, assignments, comments, everything)
+        setRequests(prev => mergeRequests(prev, remote));
+        // Merge diary entries (append ones we don't have yet)
+        setDiaryEntries(prev => {
+          const existing = new Set(prev.map(d => d.id));
+          const fresh = remoteDiary.filter(d => !existing.has(d.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
         });
-        if (newMsgs.length > 0) {
-          const base = Date.now();
-          setToasts(prev => [...prev, ...newMsgs.map((m,i) => ({ id:base+i, ...m }))]);
-          // Merge new convo messages into local requests
-          setRequests(prev => prev.map(r => {
-            const rr = remote.find(x => x.id === r.id);
-            if (!rr) return r;
-            const localMax = Math.max(...(r.conversation||[]).map(m => m.tsMs||0), 0);
-            const fresh = (rr.conversation||[]).filter(m => (m.tsMs||0) > localMax);
-            return fresh.length ? { ...r, conversation: [...(r.conversation||[]), ...fresh] } : r;
-          }));
+        // Toast new conversation messages for this user
+        if (watchRole) {
+          const seen = _getSeen();
+          const relevant = remote.filter(r =>
+            userRole === 'sales'
+              ? ((r.salesPerson||'').toLowerCase() === myName || (r.submittedBy||'').toLowerCase() === myName)
+              : (r.estimator||'').toLowerCase() === myName
+          );
+          const newMsgs = [];
+          relevant.forEach(r => {
+            const lastSeen = Math.max((seen[r.id]||{})[watchRole] || 0, appStartMs.current);
+            (r.conversation||[])
+              .filter(m => m.role === watchRole && (m.tsMs||0) > lastSeen)
+              .forEach(m => newMsgs.push({ reqId:r.id, client:r.client, proj:r.proj, from:m.from, text:m.text }));
+          });
+          if (newMsgs.length) {
+            const base = Date.now();
+            setToasts(prev => [...prev, ...newMsgs.map((m,i) => ({ id:base+i, ...m }))]);
+          }
         }
       } catch(e) { /* silent */ }
     };
-    const tid = setInterval(poll, 30000);
+    const tid = setInterval(poll, 15000);
     return () => clearInterval(tid);
   }, [userRole, userCode]);
 
@@ -8623,12 +8705,23 @@ const handleSubmit = async (formData) => {
   };
 
   const updateRequest = async (idx, patch) => {
-    // Persist any doc data in patch to IndexedDB before it gets stripped on JSONBin save
-    if (patch.estimationDoc) await saveDocToIDB(patch.estimationDoc);
-    if (patch.estimationDocs) await Promise.all(patch.estimationDocs.map(saveDocToIDB));
-    if (patch.docs) await Promise.all(patch.docs.map(saveDocToIDB));
-    if (patch.originalDocs) await Promise.all(patch.originalDocs.map(saveDocToIDB));
-    setRequests(prev => prev.map((r,i) => i===idx ? {...r,...patch} : r));
+    const immediate = !!patch._immediate;
+    const { _immediate, ...cleanPatch } = patch;
+    if (cleanPatch.estimationDoc)  await saveDocToIDB(cleanPatch.estimationDoc);
+    if (cleanPatch.estimationDocs) await Promise.all(cleanPatch.estimationDocs.map(saveDocToIDB));
+    if (cleanPatch.docs)           await Promise.all(cleanPatch.docs.map(saveDocToIDB));
+    if (cleanPatch.originalDocs)   await Promise.all(cleanPatch.originalDocs.map(saveDocToIDB));
+    // updatedAt lets the merge function know which user's version is the most recent
+    const next = (prev) => prev.map((r,i) => i===idx ? {...r,...cleanPatch, updatedAt: Date.now()} : r);
+    setRequests(prev => {
+      const updated = next(prev);
+      if (immediate) {
+        // Flush to Azure without waiting for the 1.5s debounce
+        clearTimeout(saveTimer.current);
+        saveToAzure(updated, diaryEntries);
+      }
+      return updated;
+    });
   };
 
   const deleteRequest = (idx) => {

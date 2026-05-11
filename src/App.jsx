@@ -21,6 +21,7 @@ import VirtualShowroomDashboard from './pages/VirtualShowroomDashboard.jsx';
 import NewShowroom from './pages/NewShowroom.jsx';
 import AIContract from './pages/AIContract.jsx';
 import DummyHub from './pages/DummyHub.jsx';
+import AIHeroSection from './pages/AIHeroSection.jsx';
 
 const ARScene = React.lazy(() => import('./ARScene.jsx'));
 
@@ -2237,6 +2238,7 @@ function AppContent() {
           <HomeScreen onAccepted={handleAccessAccepted} onDirect={handleDirectNav} />
         } />
         <Route path="/dummy" element={<DummyHub />} />
+        <Route path="/hero" element={<AIHeroSection />} />
         
         <Route path="/construction" element={
           <ConstructionScreen deptId={initialView} onBack={backToHome} />
