@@ -5284,6 +5284,7 @@ const REQ_STATUS_STYLE = {
   risky:              {c:'#dd3535',               bg:'rgba(215,45,45,0.09)',    bd:'rgba(215,55,55,0.38)',    label:'Risky'},
   'pending-director':    {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost-Artist Under Review'},
   completed:          {c:'#00cc77',               bg:'rgba(0,180,90,0.09)',     bd:'rgba(0,210,100,0.35)',   label:'Approved ✓'},
+  'out-of-scope':     {c:'rgba(255,70,70,0.95)',  bg:'rgba(200,40,40,0.09)',    bd:'rgba(220,60,60,0.45)',   label:'Out of Scope ⊘'},
 };
 
 // ── TAT stage calculator ──────────────────────────────────────────────────────
@@ -5422,6 +5423,7 @@ const TATTimeline = ({ r, compact }) => {
 
 function getReqStatus(r, now) {
   if (!r.estimator) return 'not-started';
+  if (r.reqStatus === 'out-of-scope') return 'out-of-scope';
   if (r.reqStatus === 'completed' || r.reqStatus === 'onhold' || r.reqStatus === 'risky') return r.reqStatus;
   if (r.reqStatus === 'pending-director') return 'pending-director';
   if (r.taggedAt && (now - r.taggedAt) > TAT_MS) return 'overdue';
@@ -5745,6 +5747,80 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
   );
 };
 
+// ─── DOC UPLOAD OVERLAY ───────────────────────────────────────────────────────
+const DocUploadOverlay = ({ items, onRetry, onSkip }) => {
+  const F = "'Inter',sans-serif";
+  const allDone   = items.every(i => i.status === 'done');
+  const anyError  = items.some(i => i.status === 'error');
+  const anyActive = items.some(i => i.status === 'uploading');
+  const done      = items.filter(i => i.status === 'done').length;
+  const fmt = b => b < 1048576 ? `${(b/1024).toFixed(0)} KB` : `${(b/1024/1024).toFixed(1)} MB`;
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(2,1,12,0.97)',backdropFilter:'blur(24px)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:F}}>
+      <style>{`@keyframes dup-bar{0%{left:-45%;width:45%}100%{left:110%;width:45%}}@keyframes dup-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{width:'min(500px,92vw)',display:'flex',flexDirection:'column',gap:22}}>
+        {/* Header */}
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:'0.52rem',letterSpacing:'0.24em',textTransform:'uppercase',color:'rgba(0,200,255,0.50)',marginBottom:8,fontWeight:700}}>NAFFCO · AZURE DOCUMENT STORAGE</div>
+          <h2 style={{fontSize:'1.5rem',fontWeight:800,margin:0,letterSpacing:'0.03em',background:allDone?'linear-gradient(105deg,#00e5ff,#00cc77)':anyError?'linear-gradient(105deg,#ff4444,#ff8800)':'linear-gradient(105deg,#0099ff,#a855f7)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
+            {allDone ? 'All Documents Secured' : anyError && !anyActive ? 'Upload Issue — Action Required' : 'Uploading Documents to Azure'}
+          </h2>
+          {!allDone && !anyError && (
+            <p style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.32)',margin:'6px 0 0',lineHeight:1.6}}>Please keep this window open. Documents are being secured on Azure cloud storage.</p>
+          )}
+          {allDone && <p style={{fontSize:'0.76rem',color:'rgba(0,220,130,0.65)',margin:'6px 0 0'}}>✓ {done} file{done!==1?'s':''} verified on Azure — proceeding…</p>}
+        </div>
+        {/* Progress summary bar */}
+        {!allDone && (
+          <div style={{height:4,background:'rgba(255,255,255,0.06)',borderRadius:4,overflow:'hidden',position:'relative'}}>
+            <div style={{position:'absolute',height:'100%',background:'linear-gradient(90deg,rgba(0,150,255,0.80),rgba(100,80,255,0.80))',borderRadius:4,transition:'width 0.4s',width:`${Math.round((done/items.length)*100)}%`}}/>
+            {anyActive && <div style={{position:'absolute',height:'100%',width:'45%',background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.20),transparent)',animation:'dup-bar 1.4s ease-in-out infinite'}}/>}
+          </div>
+        )}
+        {/* File list */}
+        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,overflow:'hidden'}}>
+          {items.map((item, i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 18px',borderBottom:i<items.length-1?'1px solid rgba(255,255,255,0.05)':'none',background:item.status==='error'?'rgba(220,40,40,0.06)':item.status==='done'?'rgba(0,200,100,0.04)':'transparent',transition:'background 0.3s'}}>
+              <div style={{flexShrink:0,width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:item.status==='done'?'rgba(0,200,100,0.15)':item.status==='error'?'rgba(220,40,40,0.15)':item.status==='uploading'?'rgba(0,150,255,0.12)':'rgba(255,255,255,0.04)',border:`1px solid ${item.status==='done'?'rgba(0,200,100,0.40)':item.status==='error'?'rgba(220,40,40,0.40)':item.status==='uploading'?'rgba(0,150,255,0.35)':'rgba(255,255,255,0.08)'}`}}>
+                {item.status==='done'     && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,120,0.95)" strokeWidth="2.8" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                {item.status==='error'    && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,80,80,0.95)" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                {item.status==='uploading'&& <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(0,180,255,0.95)" strokeWidth="2.2" strokeLinecap="round" style={{animation:'dup-spin 1s linear infinite'}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>}
+                {item.status==='pending'  && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.18)'}}/>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'0.80rem',fontWeight:600,color:'rgba(255,255,255,0.88)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
+                <div style={{fontSize:'0.60rem',color:item.status==='done'?'rgba(0,200,130,0.65)':item.status==='error'?'rgba(255,120,120,0.70)':'rgba(255,255,255,0.28)',marginTop:2}}>
+                  {fmt(item.size)} · {item.status==='done'?'✓ Secured on Azure':item.status==='error'?'✕ Upload failed — retry required':item.status==='uploading'?'Uploading to Azure…':'Queued'}
+                </div>
+                {item.status==='uploading' && <div style={{height:2,background:'rgba(0,150,255,0.12)',borderRadius:2,marginTop:5,overflow:'hidden',position:'relative'}}><div style={{position:'absolute',height:'100%',background:'rgba(0,180,255,0.75)',borderRadius:2,animation:'dup-bar 1.4s ease-in-out infinite'}}/></div>}
+              </div>
+              {item.status==='done' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="1.8"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
+            </div>
+          ))}
+        </div>
+        {/* Actions */}
+        {anyError && !anyActive && (
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{fontSize:'0.73rem',color:'rgba(255,160,160,0.70)',textAlign:'center',lineHeight:1.5,padding:'0 8px'}}>
+              ⚠ Document upload failed. These documents are critical for estimation — please retry before proceeding.
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={onRetry} style={{flex:3,padding:'11px 0',borderRadius:10,background:'rgba(0,150,255,0.15)',border:'1px solid rgba(0,180,255,0.45)',color:'rgba(100,210,255,0.95)',fontFamily:F,fontSize:'0.82rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,150,255,0.28)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(0,150,255,0.15)'}>
+                ↺ Retry Failed Uploads
+              </button>
+              <button onClick={onSkip} style={{flex:1,padding:'11px 0',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',color:'rgba(255,255,255,0.28)',fontFamily:F,fontSize:'0.72rem',cursor:'pointer',outline:'none'}}>
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool }) => {
   const [open, setOpen] = useState(null);
@@ -5769,6 +5845,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [pinValue, setPinValue] = useState('');
   const [pinError, setPinError] = useState(false);
   const [dirTab, setDirTab] = useState('history'); // 'history' | 'analysis'
+  const [oosMode, setOosMode]     = useState(false);   // show OOS remark input
+  const [oosRemark, setOosRemark] = useState('');       // draft remark
+  const [dashFilter, setDashFilter] = useState('');    // '' | 'pending-estimation' | 'pending-approval' | 'unassigned' | 'out-of-scope'
   const [deleteConfirm, setDeleteConfirm] = useState(null); // realIdx to delete
   const [deleteCode, setDeleteCode] = useState('');          // must type 'xepa' to confirm
   const [convoInput, setConvoInput] = useState('');
@@ -5778,7 +5857,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
   const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
   const [resubmitToast, setResubmitToast] = useState(false);
-  const [quotUploadState, setQuotUploadState] = useState(null); // null | 'uploading' | 'error'
+  const [quotUploadState, setQuotUploadState] = useState(null);    // null | 'uploading' | 'error'
+  const [dirDocUploadState, setDirDocUploadState] = useState(null); // null | 'uploading' | 'error'
 
   const PIN = { estimator: 'EST', director: 'star' };
   const requestViewSwitch = (mode) => {
@@ -5801,25 +5881,26 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const req = open !== null ? requests[open] : null;
 
   const handleEstimatorUpload = async e => {
-    if (!e.target.files?.length) return;
-    if (!req?.id) { setQuotUploadState('error'); return; }
-    const files = Array.from(e.target.files);
-    setQuotUploadState('uploading');
-    try {
-      const newDocs = await Promise.all(
-        files.map(async (file) => {
-          const customName = `quotation-${file.name}`;
-          // Pass the ORIGINAL file object, but supply our custom name for Azure
-          const azureUrl = await uploadToAzure(file, req.id, customName);
-          if (!azureUrl) throw new Error(`Failed to upload "${file.name}" to Azure`);
-          return { 
-            id: Math.random().toString(36).slice(2) + Date.now().toString(36), 
-            name: customName, 
-            type: file.type, 
-            url: azureUrl 
-          };
-        })
-      );
+    if (!e.target.files?.length) return;
+    if (!req?.id) { setQuotUploadState('error'); return; }
+    const files = Array.from(e.target.files);
+    setQuotUploadState('uploading');
+    try {
+      const newDocs = [];
+      for (const file of files) {
+        const customName = `quotation-${file.name}`;
+        const azureUrl = await uploadToAzure(file, req.id, customName);
+        if (!azureUrl) throw new Error(`Failed to upload "${file.name}" to Azure`);
+        const verified = await verifyAzureBlob(azureUrl);
+        if (!verified) throw new Error(`Upload verification failed for "${file.name}" — please retry`);
+        newDocs.push({
+          id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+          name: customName,
+          type: file.type,
+          url: azureUrl,
+          verified: true,
+        });
+      }
       const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
       const allDocs = [...existing, ...newDocs];
       onUpdate(open, {
@@ -5829,9 +5910,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       });
       setQuotUploadState(null);
     } catch (err) {
-      console.error('Quotation upload error:', err);
+      console.error('Quotation upload/verify error:', err);
       setQuotUploadState('error');
-      setTimeout(() => setQuotUploadState(null), 4000);
+      setTimeout(() => setQuotUploadState(null), 5000);
     }
     e.target.value = '';
   };
@@ -5858,8 +5939,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const tagDate = req.taggedAt ? new Date(req.taggedAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
     const isRejected = req.directorAction === 'rejected';
     const isResubmission = req.directorAction === 'revised';
+    const isOutOfScope = req.reqStatus === 'out-of-scope';
     const minFiles = 1;
-    const canSendToDirector = (req.estimationDocs?.length >= minFiles) && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected;
+    const allDocsVerified = (req.estimationDocs || []).length >= minFiles && (req.estimationDocs || []).every(d => d.verified !== false);
+    const canSendToDirector = allDocsVerified && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && !isOutOfScope;
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -6043,6 +6126,55 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         {/* ── Scrollable content area (everything below sticky header) ── */}
         <div style={{flex:1,overflowY:'auto',minHeight:0,padding:'20px 40px 48px',
           scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.12) transparent'}}>
+
+        {/* ── Out of Scope banner — visible to ALL roles ── */}
+        {isOutOfScope && (
+          <div style={{display:'flex',alignItems:'flex-start',gap:14,padding:'14px 20px',marginBottom:16,borderRadius:10,background:'rgba(200,40,40,0.10)',border:'1px solid rgba(220,60,60,0.50)',boxShadow:'0 0 22px rgba(200,40,40,0.14)'}}>
+            <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(220,50,50,0.20)',border:'1px solid rgba(220,60,60,0.45)',fontSize:'1.1rem'}}>⊘</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'0.72rem',fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'rgba(255,90,90,0.95)',marginBottom:4}}>Out of Scope — Estimation Stopped</div>
+              <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>
+                This request has been marked as out of scope by the estimator. Timeline is frozen. Contact the estimator or recall to re-open.
+              </div>
+              {req.outScopeRemark && (
+                <div style={{marginTop:8,paddingLeft:12,borderLeft:'2px solid rgba(255,80,80,0.40)',fontSize:'0.74rem',color:'rgba(255,200,200,0.80)',fontStyle:'italic',lineHeight:1.5}}>
+                  "{req.outScopeRemark}"
+                </div>
+              )}
+              <div style={{marginTop:6,fontSize:'0.64rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.08em'}}>
+                Marked by {req.outScopeBy||'estimator'} · {req.outScopeAt ? new Date(req.outScopeAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : '—'}
+                {req.outScopeAt && <span style={{marginLeft:8,fontFamily:'monospace',color:'rgba(255,255,255,0.18)'}}>({req.outScopeAt}ms)</span>}
+              </div>
+            </div>
+            {/* Recall button — available to estimator and director */}
+            {(viewMode === 'estimator' || viewMode === 'director') && (
+              <button
+                onClick={() => {
+                  const nowMs = Date.now();
+                  onUpdate(open, {
+                    reqStatus: 'inprogress',
+                    outScopeRemark: null,
+                    outScopeAt: null,
+                    outScopeBy: null,
+                    _immediate: true,
+                    timeline: [...(req.timeline||[]), {
+                      event: 'recalled-oos',
+                      ts: new Date(nowMs).toISOString(),
+                      tsMs: nowMs,
+                      label: 'Out of Scope Recalled — Re-opened',
+                      by: req.estimator || viewMode,
+                    }],
+                  });
+                }}
+                style={{flexShrink:0,padding:'8px 18px',borderRadius:8,background:'rgba(255,160,30,0.12)',border:'1px solid rgba(255,160,30,0.40)',color:'rgba(255,190,60,0.95)',fontFamily:"'Inter',sans-serif",fontSize:'0.76rem',fontWeight:700,cursor:'pointer',outline:'none',whiteSpace:'nowrap',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,160,30,0.24)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,160,30,0.12)'}
+              >
+                ↩ Recall Out of Scope
+              </button>
+            )}
+          </div>
+        )}
 
         {/* ── Cost-Artist response notification banner ── */}
         {viewMode === 'estimator' && (isRejected || isResubmission) && (
@@ -6392,7 +6524,15 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`file-${i+1}`}</span>
-                                {d.url && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.55)" strokeWidth="2" title="Stored on Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
+                                {d.verified
+                                  ? <span title="Verified on Azure" style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
+                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.65)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                    </span>
+                                  : d.url
+                                  ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,180,0,0.55)" strokeWidth="2" title="Uploaded (not verified)"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                  : null
+                                }
                               </button>
                               {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && (
                                 <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
@@ -6515,37 +6655,13 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       ↩ Recall for Correction
     </button>
   </div>
-) : req.outOfScopeSubmitted ? (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '10px 14px',
-      background: 'rgba(220,60,60,0.08)',
-      border: '1px solid rgba(220,60,60,0.28)',
-      borderRadius: 8
-    }}
-  >
-    <span
-      style={{
-        width: 7,
-        height: 7,
-        borderRadius: '50%',
-        background: 'rgba(255,90,90,0.95)',
-        boxShadow: '0 0 8px rgba(255,80,80,0.7)',
-        flexShrink: 0
-      }}
-    />
-    <span
-      style={{
-        fontSize: '0.80rem',
-        color: 'rgba(255,110,110,0.90)',
-        fontWeight: 600
-      }}
-    >
-      Out of Scope — Notified to Sales
-    </span>
+) : isOutOfScope ? (
+  <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',background:'rgba(200,40,40,0.10)',border:'1px solid rgba(220,60,60,0.40)',borderRadius:8}}>
+    <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,80,80,0.95)',boxShadow:'0 0 8px rgba(255,60,60,0.70)',flexShrink:0}}/>
+    <div style={{flex:1}}>
+      <div style={{fontSize:'0.80rem',fontWeight:700,color:'rgba(255,100,100,0.95)'}}>Out of Scope — Timeline Frozen</div>
+      <div style={{fontSize:'0.68rem',color:'rgba(255,160,160,0.55)',marginTop:2}}>Use the recall button above to re-open this request.</div>
+    </div>
   </div>
 ) : (
   <>
@@ -6591,8 +6707,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           ? 'Requires: ' +
             ((req.estimationDocs?.length || 0) < minFiles
               ? `${minFiles - (req.estimationDocs?.length || 0)} more quoted file(s)`
+              : !allDocsVerified
+              ? 'all uploaded files must be verified on Azure'
               : '') +
-            ((req.estimationDocs?.length || 0) < minFiles && !req.projValue ? ' & ' : '') +
+            (((req.estimationDocs?.length || 0) < minFiles || !allDocsVerified) && !req.projValue ? ' & ' : '') +
             (!req.projValue ? 'quoted value' : '')
           : ''
       }
@@ -6660,53 +6778,63 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     )}
   </>
 )}
-                  {/* ── A: Out of Scope / Reject  |  B: Justification ── */}
-                  {!req.outOfScopeSubmitted && req.reqStatus !== 'pending-director' && !isRejected && (
-                    <div style={{display:'flex',gap:8,marginTop:2}}>
-                      {/* A — Out of Scope button */}
-                      <div style={{flexShrink:0,display:'flex',flexDirection:'column',gap:6,minWidth:160}}>
-                        <div style={{fontSize:'0.44rem',color:'rgba(255,100,100,0.40)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600}}>A · Out of Scope</div>
-                        {req.outOfScope ? (
-                          <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                            <div style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:8,background:'rgba(220,50,50,0.15)',border:'1px solid rgba(220,60,60,0.45)'}}>
-                              <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(255,90,90,0.95)',boxShadow:'0 0 6px rgba(255,80,80,0.7)',flexShrink:0}}/>
-                              <span style={{fontSize:'0.76rem',color:'rgba(255,110,110,0.90)',fontWeight:700}}>Out of Scope</span>
-                            </div>
-                            <button onClick={()=>onUpdate(open,{outOfScope:false,outOfScopeReason:''})}
-                              style={{padding:'4px 0',borderRadius:6,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.35)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none'}}>
-                              ✕ Cancel
+                  {/* ── Out of Scope button + inline form ── */}
+                  {!isOutOfScope && req.reqStatus !== 'pending-director' && !isRejected && (
+                    <div style={{marginTop:4}}>
+                      {oosMode ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.38)',borderRadius:10}}>
+                          <div style={{fontSize:'0.56rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,90,90,0.70)',fontWeight:700}}>⊘ Mark as Out of Scope</div>
+                          <textarea
+                            value={oosRemark}
+                            onChange={e=>setOosRemark(e.target.value)}
+                            placeholder="Mandatory: describe why this is out of scope…"
+                            rows={3}
+                            style={{width:'100%',background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.35)',borderRadius:8,color:'rgba(255,200,200,0.90)',fontFamily:F2,fontSize:'0.82rem',padding:'9px 12px',outline:'none',resize:'vertical',lineHeight:1.55,boxSizing:'border-box'}}
+                          />
+                          <div style={{display:'flex',gap:8}}>
+                            <button onClick={()=>{setOosMode(false);setOosRemark('');}}
+                              style={{flex:1,padding:'8px 0',borderRadius:8,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.40)',fontFamily:F2,fontSize:'0.76rem',cursor:'pointer',outline:'none'}}>
+                              Cancel
                             </button>
                             <button
-                              disabled={!(req.outOfScopeReason||'').trim()}
-                              onClick={()=>{if((req.outOfScopeReason||'').trim()){const ts=new Date().toISOString();onUpdate(open,{outOfScopeSubmitted:true,status:'Out of Scope',reqStatus:'onhold',timeline:[...(req.timeline||[]),{event:'outofscope',ts,label:'Marked Out of Scope',by:req.estimator||''}]});}}}
-                              style={{padding:'7px 0',borderRadius:8,background:(req.outOfScopeReason||'').trim()?'rgba(220,50,50,0.18)':'rgba(255,255,255,0.03)',border:`1px solid ${(req.outOfScopeReason||'').trim()?'rgba(220,60,60,0.50)':'rgba(255,255,255,0.08)'}`,color:(req.outOfScopeReason||'').trim()?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',fontFamily:F2,fontSize:'0.76rem',fontWeight:700,cursor:(req.outOfScopeReason||'').trim()?'pointer':'not-allowed',outline:'none',transition:'all 0.15s'}}>
-                              ⊘ Submit Out of Scope
+                              disabled={!oosRemark.trim()}
+                              onClick={()=>{
+                                if(!oosRemark.trim()) return;
+                                const nowMs = Date.now();
+                                onUpdate(open, {
+                                  reqStatus: 'out-of-scope',
+                                  status: 'Out of Scope',
+                                  outScopeRemark: oosRemark.trim(),
+                                  outScopeAt: nowMs,
+                                  outScopeBy: req.estimator || 'estimator',
+                                  outOfScopeSubmitted: true,
+                                  _immediate: true,
+                                  timeline: [...(req.timeline||[]), {
+                                    event: 'out-of-scope',
+                                    ts: new Date(nowMs).toISOString(),
+                                    tsMs: nowMs,
+                                    label: 'Marked Out of Scope',
+                                    by: req.estimator || 'estimator',
+                                    remark: oosRemark.trim(),
+                                  }],
+                                });
+                                setOosMode(false);
+                                setOosRemark('');
+                              }}
+                              style={{flex:2,padding:'8px 0',borderRadius:8,background:oosRemark.trim()?'rgba(220,50,50,0.22)':'rgba(255,255,255,0.03)',border:`1px solid ${oosRemark.trim()?'rgba(220,60,60,0.55)':'rgba(255,255,255,0.08)'}`,color:oosRemark.trim()?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',fontFamily:F2,fontSize:'0.80rem',fontWeight:700,cursor:oosRemark.trim()?'pointer':'not-allowed',outline:'none',transition:'all 0.15s'}}>
+                              ⊘ Confirm Out of Scope
                             </button>
                           </div>
-                        ) : (
-                          <button onClick={()=>onUpdate(open,{outOfScope:true})}
-                            style={{padding:'9px 14px',borderRadius:8,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.28)',color:'rgba(255,100,100,0.70)',fontFamily:F2,fontSize:'0.78rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'all 0.15s',textAlign:'left',display:'flex',alignItems:'center',gap:7}}
-                            onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.18)';e.currentTarget.style.borderColor='rgba(220,60,60,0.50)';e.currentTarget.style.color='rgba(255,110,110,0.95)';}}
-                            onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.08)';e.currentTarget.style.borderColor='rgba(220,60,60,0.28)';e.currentTarget.style.color='rgba(255,100,100,0.70)';}}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                            Out of Scope / Reject
-                          </button>
-                        )}
-                      </div>
-                      {/* B — Justification / Reason */}
-                      <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
-                        <div style={{fontSize:'0.44rem',color:req.outOfScope?'rgba(255,100,100,0.55)':'rgba(255,255,255,0.22)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,transition:'color 0.2s'}}>B · Justification / Reason</div>
-                        <textarea
-                          value={req.outOfScopeReason||''}
-                          onChange={e=>onUpdate(open,{outOfScopeReason:e.target.value})}
-                          disabled={!req.outOfScope}
-                          placeholder={req.outOfScope ? "Provide reason or justification for Out of Scope…" : "Select 'Out of Scope' to enter reason"}
-                          rows={4}
-                          style={{flex:1,width:'100%',background:req.outOfScope?'rgba(220,50,50,0.07)':'rgba(255,255,255,0.02)',border:`1px solid ${req.outOfScope?'rgba(220,60,60,0.35)':'rgba(255,255,255,0.07)'}`,borderRadius:8,color:req.outOfScope?'rgba(255,200,200,0.88)':'rgba(255,255,255,0.25)',fontFamily:F2,fontSize:'0.82rem',padding:'9px 12px',outline:'none',resize:'vertical',boxSizing:'border-box',lineHeight:1.55,cursor:req.outOfScope?'text':'not-allowed',transition:'all 0.2s'}}
-                          onFocus={e=>{if(req.outOfScope)e.target.style.borderColor='rgba(255,80,80,0.55)';}}
-                          onBlur={e=>{if(req.outOfScope)e.target.style.borderColor='rgba(220,60,60,0.35)';}}
-                        />
-                      </div>
+                        </div>
+                      ) : (
+                        <button onClick={()=>setOosMode(true)}
+                          style={{width:'100%',padding:'9px 0',borderRadius:8,background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.24)',color:'rgba(255,100,100,0.65)',fontFamily:F2,fontSize:'0.78rem',fontWeight:600,cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:7,transition:'all 0.15s'}}
+                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.18)';e.currentTarget.style.borderColor='rgba(220,60,60,0.50)';e.currentTarget.style.color='rgba(255,110,110,0.95)';}}
+                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.07)';e.currentTarget.style.borderColor='rgba(220,60,60,0.24)';e.currentTarget.style.color='rgba(255,100,100,0.65)';}}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                          Mark as Out of Scope
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -6990,13 +7118,33 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                             <span style={{fontSize:'0.46rem',color:'rgba(0,200,255,0.55)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Manage Documents</span>
                             <input ref={dirDocUploadRef} type="file" multiple hidden accept="*/*" onChange={async e=>{
                               if(!e.target.files?.length) return;
-                              const newDocs = await readFilesToDocs(Array.from(e.target.files));
-                              onUpdate(open,{docs:[...(req.docs||[]),...newDocs]});
+                              setDirDocUploadState('uploading');
+                              try {
+                                const newDocs = [];
+                                for (const file of Array.from(e.target.files)) {
+                                  const azureUrl = await uploadToAzure(file, req.id, file.name);
+                                  if (!azureUrl) throw new Error(`Failed to upload "${file.name}"`);
+                                  const ok = await verifyAzureBlob(azureUrl);
+                                  if (!ok) throw new Error(`Verification failed for "${file.name}"`);
+                                  newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl, verified: true });
+                                }
+                                onUpdate(open, { docs: [...(req.docs||[]), ...newDocs] });
+                                setDirDocUploadState(null);
+                              } catch(err) {
+                                console.error('Director doc upload error:', err);
+                                setDirDocUploadState('error');
+                                setTimeout(() => setDirDocUploadState(null), 4000);
+                              }
                               e.target.value='';
                             }}/>
-                            <button onClick={()=>dirDocUploadRef.current?.click()}
-                              style={{marginLeft:'auto',padding:'3px 10px',borderRadius:6,background:'rgba(0,200,255,0.10)',border:'1px solid rgba(0,200,255,0.30)',color:'rgba(0,200,255,0.85)',fontFamily:F2,fontSize:'0.60rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
-                              + Add File
+                            <button onClick={()=>!dirDocUploadState && dirDocUploadRef.current?.click()}
+                              disabled={dirDocUploadState==='uploading'}
+                              style={{marginLeft:'auto',padding:'3px 10px',borderRadius:6,
+                                background: dirDocUploadState==='error' ? 'rgba(220,50,50,0.14)' : 'rgba(0,200,255,0.10)',
+                                border: `1px solid ${dirDocUploadState==='error' ? 'rgba(220,50,50,0.40)' : 'rgba(0,200,255,0.30)'}`,
+                                color: dirDocUploadState==='error' ? 'rgba(255,100,100,0.90)' : dirDocUploadState==='uploading' ? 'rgba(0,200,255,0.45)' : 'rgba(0,200,255,0.85)',
+                                fontFamily:F2,fontSize:'0.60rem',fontWeight:700,cursor:dirDocUploadState==='uploading'?'wait':'pointer',outline:'none'}}>
+                              {dirDocUploadState==='uploading' ? '⟳ Uploading…' : dirDocUploadState==='error' ? '✕ Failed' : '+ Add File'}
                             </button>
                           </div>
                           {(req.docs||[]).length === 0 ? (
@@ -7004,6 +7152,14 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           ) : (req.docs||[]).map((d,i)=>(
                             <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
                               <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.80)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{docName(d)}</span>
+                              {d.verified
+                                ? <span title="Verified on Azure" style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
+                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.55)" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                  </span>
+                                : d.url
+                                ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                : null}
                               <button onClick={()=>onUpdate(open,{docs:(req.docs||[]).filter((_,j)=>j!==i)})}
                                 style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                             </div>
@@ -7135,11 +7291,23 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         {(req.estimationDocs?.length > 0 || req.estimationDoc?.data || req.estimationDoc?.url) ? (
                           <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:130,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(0,220,130,0.15) transparent',paddingRight:2}}>
                             {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
-                              <button key={i} onClick={()=>downloadDoc(d)}
-                                style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:'rgba(0,220,130,0.07)',border:'1px solid rgba(0,220,130,0.28)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left',minWidth:0}}
-                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.16)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.07)'}>
-                                <DlIco/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||req.estimationFile||`quotation-${i+1}`}</span>
-                              </button>
+                              <div key={i} style={{display:'flex',alignItems:'center',gap:4}}>
+                                <button onClick={()=>downloadDoc(d)}
+                                  style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:'rgba(0,220,130,0.07)',border:'1px solid rgba(0,220,130,0.28)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',flex:1,textAlign:'left',minWidth:0}}
+                                  onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.16)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.07)'}>
+                                  <DlIco/>
+                                  <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||req.estimationFile||`quotation-${i+1}`}</span>
+                                  {d.verified && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.85)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" title="Verified on Azure"><polyline points="20 6 9 17 4 12"/></svg>}
+                                </button>
+                                {dirEditMode && (
+                                  <button title="Delete file" onClick={()=>{
+                                    const all = req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc].filter(Boolean);
+                                    const updated = all.filter((_,j)=>j!==i);
+                                    onUpdate(open,{estimationDocs:updated, estimationDoc:updated.length?updated[updated.length-1]:null, estimationFile:updated.length?updated[updated.length-1].name:null});
+                                  }}
+                                    style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                                )}
+                              </div>
                             ))}
                           </div>
                         ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
@@ -7382,6 +7550,10 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       if (!fields.some(f => f.includes(lo))) return false;
     }
     if (viewMode === 'requester' && requesterFilter && r.submittedBy !== requesterFilter) return false;
+    if (dashFilter === 'pending-estimation') { if (r.status !== 'Pending Estimation') return false; }
+    else if (dashFilter === 'pending-approval') { if (r.reqStatus !== 'pending-director') return false; }
+    else if (dashFilter === 'unassigned') { if (r.estimator) return false; }
+    else if (dashFilter === 'out-of-scope') { if (r.reqStatus !== 'out-of-scope') return false; }
     return true;
   });
 
@@ -7424,7 +7596,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       )}
 
       {/* ── Header ── */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,gap:12,flexWrap:'wrap'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,gap:12,flexWrap:'wrap'}}>
         <h2 style={{fontSize:'1.3rem',fontWeight:700,letterSpacing:'0.1em',color:'rgba(255,255,255,0.85)',textTransform:'uppercase',margin:0,flexShrink:0}}>Estimation Dashboard</h2>
 
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',flex:1,justifyContent:'flex-end'}}>
@@ -7461,6 +7633,51 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           </div>
         </div>
       </div>
+
+      {/* ── Filter chips + Export Excel ── */}
+      {(() => {
+        const pendingEstCount  = requests.filter(r => r.status === 'Pending Estimation').length;
+        const pendingApprCount = requests.filter(r => r.reqStatus === 'pending-director').length;
+        const unassignedCount  = requests.filter(r => !r.estimator).length;
+        const oosCount         = requests.filter(r => r.reqStatus === 'out-of-scope').length;
+        const chips = [
+          { key:'pending-estimation', label:'Pending Estimation', count:pendingEstCount, c:'rgba(220,165,0,0.90)',  bg:'rgba(220,165,0,0.10)',  bd:'rgba(220,165,0,0.30)'  },
+          { key:'pending-approval',   label:'Pending Approval',   count:pendingApprCount,c:'rgba(180,130,255,0.90)',bg:'rgba(140,80,255,0.10)', bd:'rgba(180,130,255,0.30)'},
+          { key:'unassigned',         label:'Unassigned',         count:unassignedCount, c:'rgba(150,190,255,0.85)',bg:'rgba(60,100,200,0.10)', bd:'rgba(100,160,255,0.28)'},
+          { key:'out-of-scope',       label:'Out of Scope',       count:oosCount,        c:'rgba(255,80,80,0.90)',  bg:'rgba(200,40,40,0.09)',  bd:'rgba(220,60,60,0.35)'  },
+        ];
+        const exportCsv = () => {
+          const headers = ['ID','Status','Req Status','Project','Client','Main Contractor','Consultant','Estimator','Deal','Value (AED)','Lead Time','Submitted By','Date'];
+          const rows = filtered.map(r => [r.id,r.status,r.reqStatus,r.proj,r.client,r.mainContractor,r.consultant,r.estimator||'Unassigned',r.deal,r.projValue||'',r.leadTime||'',r.submittedBy||'',r.date||'']);
+          const csv = [headers,...rows].map(row=>row.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+          const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href=url; a.download=`EstimationDashboard_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+          URL.revokeObjectURL(url);
+        };
+        return (
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+            {chips.map(ch => {
+              const active = dashFilter === ch.key;
+              return (
+                <button key={ch.key} onClick={()=>setDashFilter(active ? '' : ch.key)}
+                  style={{display:'flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:100,border:`1px solid ${active?ch.bd:'rgba(255,255,255,0.10)'}`,background:active?ch.bg:'rgba(255,255,255,0.03)',color:active?ch.c:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.72rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}>
+                  {ch.label}
+                  <span style={{fontSize:'0.68rem',fontWeight:800,padding:'1px 6px',borderRadius:100,background:active?ch.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.07)',color:active?ch.c:'rgba(255,255,255,0.35)'}}>{ch.count}</span>
+                </button>
+              );
+            })}
+            <div style={{flex:1}}/>
+            <button onClick={exportCsv}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'6px 16px',borderRadius:8,border:'1px solid rgba(52,211,153,0.30)',background:'rgba(52,211,153,0.07)',color:'rgba(52,211,153,0.85)',fontFamily:F,fontSize:'0.72rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(52,211,153,0.16)';e.currentTarget.style.borderColor='rgba(52,211,153,0.55)';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(52,211,153,0.07)';e.currentTarget.style.borderColor='rgba(52,211,153,0.30)';}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Excel
+            </button>
+          </div>
+        );
+      })()}
 
       {requests.length === 0 ? (
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No requests submitted yet.</p>
@@ -8402,6 +8619,8 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
   const [diaryEntries, setDiaryEntries] = useState([]);
+  const [docUploadProgress, setDocUploadProgress] = useState(null); // null | [{name,size,status,url}]
+  const [pendingSubmit, setPendingSubmit]           = useState(null); // {formData, newId, uploadedDocs}
   // ─── Azure data blob (all request + diary JSON lives here) ──────────────────
   const DATA_BLOB_URL = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/apex-data.json?${AZURE_SAS}`;
   const currentEtag   = useRef(null);
@@ -8616,46 +8835,66 @@ const nextRequestId = () => {
     return 'AX' + String(max + 1).padStart(4, '0');
   };
 
-const handleSubmit = async (formData) => {
-  const newId = nextRequestId();
+// ── Verify an Azure blob is accessible after upload ───────────────────────────
+const verifyAzureBlob = async (url) => {
+  if (!url) return false;
+  try {
+    const res = await fetch(`${url}?${AZURE_SAS}&_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
+    return res.ok;
+  } catch { return false; }
+};
+
+const finaliseSubmit = (formData, newId, uploadedDocs) => {
   const uniqueId = `${newId}-00`;
-
-  // Upload request docs to Azure
-  const docFiles = formData.docFiles || [];
-  const uploadedDocs = await Promise.all(
-    docFiles.map(async (file) => {
-      const url = await uploadToAzure(file, newId);
-      if (!url) console.warn(`⚠️ Request doc upload failed for "${file.name}" — stored without URL`);
-      return { name: file.name, type: file.type, url: url || null };
-    })
-  );
-
   const entry = {
-    id: newId,
-    uniqueId,
-    parentRequestId: null,
-    revisionNumber: 0,
-    requestVersion: 'New',
+    id: newId, uniqueId, parentRequestId: null, revisionNumber: 0, requestVersion: 'New',
     ...formData,
     docs: uploadedDocs,
     status: 'Pending Estimation',
     date: new Date().toLocaleDateString('en-GB'),
     submittedAt: new Date().toISOString(),
-    estimationFile: null,
-    estimator: null,
-    margin: '',
-    taggedAt: null,
-    quotationSubmittedAt: null,
-    reqStatus: 'not-started',
-    directorAction: null,
-    directorNote: '',
-    rejectionCycles: [],
-    timeline: [{ event: 'submitted', ts: new Date().toISOString(), label: 'Request Submitted', by: formData.submittedBy || '' }],
+    estimationFile: null, estimator: null, margin: '', taggedAt: null,
+    quotationSubmittedAt: null, reqStatus: 'not-started',
+    directorAction: null, directorNote: '', rejectionCycles: [],
+    timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Request Submitted', by: formData.submittedBy||'' }],
     documentUrl: `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${newId}/`,
   };
-
   setRequests(prev => [entry, ...prev]);
+  setDocUploadProgress(null);
+  setPendingSubmit(null);
   setView('relax');
+};
+
+const runDocUploads = async (formData, newId, docFiles) => {
+  const progress = docFiles.map(f => ({ name: f.name, size: f.size, status: 'pending', url: null }));
+  setDocUploadProgress([...progress]);
+
+  const uploadedDocs = [];
+  for (let i = 0; i < docFiles.length; i++) {
+    // Mark current file as uploading
+    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
+    const url = await uploadToAzure(docFiles[i], newId);
+    // Verify the upload landed on Azure
+    const verified = url ? await verifyAzureBlob(url) : false;
+    const status = verified ? 'done' : 'error';
+    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
+    uploadedDocs.push({ name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified });
+  }
+
+  const allOk = uploadedDocs.every(d => d.verified);
+  setPendingSubmit({ formData, newId, uploadedDocs });
+  if (allOk) setTimeout(() => finaliseSubmit(formData, newId, uploadedDocs), 900);
+};
+
+const handleSubmit = async (formData) => {
+  const newId = nextRequestId();
+  const docFiles = formData.docFiles || [];
+  if (!docFiles.length) {
+    // No docs — skip upload screen, proceed directly
+    finaliseSubmit(formData, newId, []);
+    return;
+  }
+  await runDocUploads(formData, newId, docFiles);
 };
 
   const handleFinalPriceSubmit = async (formData) => {
@@ -8728,10 +8967,40 @@ const handleSubmit = async (formData) => {
     setRequests(prev => prev.filter((_,i) => i !== idx));
   };
 
+  // ── Retry failed doc uploads ──────────────────────────────────────────────
+  const retryDocUploads = async () => {
+    if (!pendingSubmit) return;
+    const { formData, newId, uploadedDocs } = pendingSubmit;
+    const failedIdxs = (docUploadProgress || []).map((p, i) => p.status === 'error' ? i : -1).filter(i => i >= 0);
+    const docFiles = formData.docFiles || [];
+    setDocUploadProgress(prev => prev.map((p, i) => failedIdxs.includes(i) ? { ...p, status: 'pending' } : p));
+    const updatedDocs = [...uploadedDocs];
+    for (const i of failedIdxs) {
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
+      const url = await uploadToAzure(docFiles[i], newId);
+      const verified = url ? await verifyAzureBlob(url) : false;
+      const status = verified ? 'done' : 'error';
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
+      updatedDocs[i] = { name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified };
+    }
+    const allOk = updatedDocs.every(d => d.verified);
+    setPendingSubmit(prev => ({ ...prev, uploadedDocs: updatedDocs }));
+    if (allOk) setTimeout(() => finaliseSubmit(formData, newId, updatedDocs), 900);
+  };
+
   return (
     <div className="root">
       <style>{S}</style>
       <div className="veil"/>
+
+      {/* Document upload progress overlay — shown during form submission */}
+      {docUploadProgress && (
+        <DocUploadOverlay
+          items={docUploadProgress}
+          onRetry={retryDocUploads}
+          onSkip={() => pendingSubmit && finaliseSubmit(pendingSubmit.formData, pendingSubmit.newId, pendingSubmit.uploadedDocs)}
+        />
+      )}
 
       {/* NN logo — faint watermark across all screens */}
       <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
