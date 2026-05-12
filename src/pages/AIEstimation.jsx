@@ -1294,17 +1294,18 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     setLoginError(false);
   };
 
-  // For sales: only show approved requests (quotation approved by Cost-Artist)
-  // Director showAll sees everything
+  // For sales: show approved + out-of-scope + cost-artist-rejected requests
   const myRequests = showAll
     ? requests
     : loggedIn
-      ? requests.filter(r =>
-          r.directorAction === 'approved' && (
-            (r.salesPerson || '').toLowerCase() === spName.toLowerCase() ||
-            (r.salesPerson || '').toUpperCase() === spName.toUpperCase()
-          )
-        )
+      ? requests.filter(r => {
+          const isMine = (r.salesPerson || '').toLowerCase() === spName.toLowerCase() ||
+                         (r.salesPerson || '').toUpperCase() === spName.toUpperCase();
+          if (!isMine) return false;
+          return r.directorAction === 'approved' ||
+                 r.reqStatus === 'out-of-scope' ||
+                 r.directorAction === 'rejected';
+        })
       : [];
 
   const filtered = dsearch.trim()
@@ -1438,6 +1439,57 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
             </div>
           )}
         </div>
+
+        {/* ── Estimator / Cost-Artist Rejection Notice ── */}
+        {(r.reqStatus === 'out-of-scope' || r.directorAction === 'rejected') && (
+          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:20 }}>
+            {r.reqStatus === 'out-of-scope' && (
+              <div style={{ background:'rgba(200,40,40,0.10)', border:'1px solid rgba(220,60,60,0.45)', borderRadius:10, padding:'16px 20px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,90,90,0.90)" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                  <span style={{ fontSize:'0.62rem', letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, color:'rgba(255,90,90,0.95)' }}>Estimator — Out of Scope</span>
+                  {r.outScopeAt && (
+                    <span style={{ fontSize:'0.60rem', color:'rgba(255,160,160,0.45)', marginLeft:'auto' }}>
+                      {new Date(r.outScopeAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}
+                    </span>
+                  )}
+                </div>
+                {r.outScopeBy && (
+                  <div style={{ fontSize:'0.66rem', color:'rgba(255,160,160,0.55)', marginBottom:8, letterSpacing:'0.04em' }}>
+                    Marked by: <span style={{ fontWeight:700, color:'rgba(255,160,160,0.80)' }}>{r.outScopeBy}</span>
+                  </div>
+                )}
+                {r.outScopeRemark ? (
+                  <div style={{ fontSize:'0.84rem', color:'rgba(255,210,210,0.88)', lineHeight:1.6, borderLeft:'2px solid rgba(220,60,60,0.50)', paddingLeft:12, fontStyle:'italic' }}>
+                    "{r.outScopeRemark}"
+                  </div>
+                ) : (
+                  <div style={{ fontSize:'0.78rem', color:'rgba(255,160,160,0.35)', fontStyle:'italic' }}>No reason provided.</div>
+                )}
+              </div>
+            )}
+            {r.directorAction === 'rejected' && (
+              <div style={{ background:'rgba(200,40,40,0.10)', border:'1px solid rgba(220,60,60,0.45)', borderRadius:10, padding:'16px 20px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,90,90,0.90)" strokeWidth="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <span style={{ fontSize:'0.62rem', letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, color:'rgba(255,90,90,0.95)' }}>Cost-Artist — Rejected</span>
+                  {r.directorRespondedAt && (
+                    <span style={{ fontSize:'0.60rem', color:'rgba(255,160,160,0.45)', marginLeft:'auto' }}>
+                      {new Date(r.directorRespondedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}
+                    </span>
+                  )}
+                </div>
+                {r.directorNote ? (
+                  <div style={{ fontSize:'0.84rem', color:'rgba(255,210,210,0.88)', lineHeight:1.6, borderLeft:'2px solid rgba(220,60,60,0.50)', paddingLeft:12, fontStyle:'italic' }}>
+                    "{r.directorNote}"
+                  </div>
+                ) : (
+                  <div style={{ fontSize:'0.78rem', color:'rgba(255,160,160,0.35)', fontStyle:'italic' }}>No remarks provided.</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── TAT Timeline row ── */}
         {(() => {
@@ -1886,71 +1938,103 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               return `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
             };
             const tatColor = tatMs === null ? 'rgba(255,255,255,0.25)' : tatDays <= 3 ? '#4ade80' : tatDays <= 7 ? '#fbbf24' : tatDays <= 14 ? '#fb923c' : '#f87171';
+            const isOos = r.reqStatus === 'out-of-scope';
+            const isCaRej = r.directorAction === 'rejected';
+            const hasNotice = isOos || isCaRej;
+            const noticeComment = isOos ? r.outScopeRemark : r.directorNote;
             return (
               <div key={r.id}
-                style={{ display:'grid', gridTemplateColumns:'110px 1fr 150px 150px 140px 36px', gap:10,
-                  padding:'12px 14px', borderRadius:12,
-                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.04)' : 'rgba(255,255,255,0.03)',
-                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.25)' : 'rgba(255,255,255,0.07)'}`,
-                  alignItems:'center', transition:'all 0.3s' }}>
+                style={{ borderRadius:12,
+                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : hasNotice ? 'rgba(200,40,40,0.06)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.04)' : 'rgba(255,255,255,0.03)',
+                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : hasNotice ? 'rgba(220,60,60,0.35)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                  transition:'all 0.3s', overflow:'hidden' }}>
 
-                {/* Request # */}
-                <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                  <span style={{ fontSize:'0.76rem', fontWeight:700, color:'rgba(220,165,0,0.90)', fontFamily:'monospace', letterSpacing:'0.04em' }}>{r.id}</span>
-                  {r.salesNeedsSupport && <span style={{ fontSize:'0.50rem', color:'rgba(255,150,50,0.90)', fontWeight:700, letterSpacing:'0.06em' }}>🚩 Flagged</span>}
-                </div>
+                {/* Main row grid */}
+                <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 150px 150px 140px 36px', gap:10, padding:'12px 14px', alignItems:'center' }}>
 
-                {/* Project · Customer */}
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(255,255,255,0.82)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.proj || '—'}</div>
-                  <div style={{ fontSize:'0.64rem', color:'rgba(255,255,255,0.35)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {[r.client, r.mainContractor].filter(Boolean).join(' · ') || '—'}
+                  {/* Request # */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                    <span style={{ fontSize:'0.76rem', fontWeight:700, color:'rgba(220,165,0,0.90)', fontFamily:'monospace', letterSpacing:'0.04em' }}>{r.id}</span>
+                    {r.salesNeedsSupport && <span style={{ fontSize:'0.50rem', color:'rgba(255,150,50,0.90)', fontWeight:700, letterSpacing:'0.06em' }}>🚩 Flagged</span>}
                   </div>
-                </div>
 
-                {/* Estimation Status — non-editable */}
-                <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:50,
-                  background:'rgba(220,165,0,0.08)', border:'1px solid rgba(220,165,0,0.22)', maxWidth:155 }}>
-                  <span style={{ width:5, height:5, borderRadius:'50%', background:'rgba(220,185,80,0.9)', flexShrink:0 }}/>
-                  <span style={{ fontSize:'0.64rem', fontWeight:600, color:'rgba(220,185,80,0.88)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.status || 'Pending'}</span>
-                </div>
+                  {/* Project · Customer */}
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:'0.82rem', fontWeight:600, color:'rgba(255,255,255,0.82)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.proj || '—'}</div>
+                    <div style={{ fontSize:'0.64rem', color:'rgba(255,255,255,0.35)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {[r.client, r.mainContractor].filter(Boolean).join(' · ') || '—'}
+                    </div>
+                  </div>
 
-                {/* Ageing TAT */}
-                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                  <span style={{ fontSize:'0.70rem', fontWeight:800, color:tatColor, fontFamily:'monospace', letterSpacing:'0.04em' }}>
-                    {tatMs !== null ? fmtDHMS(tatMs) : '—'}
-                  </span>
-                  {tatMs !== null && (
-                    <div style={{ width:'100%', height:2, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
-                      <div style={{ height:'100%', width:`${Math.min(100,(tatDays/30)*100)}%`, background:tatColor, borderRadius:2 }}/>
+                  {/* Estimation Status — highlights out-of-scope / rejected */}
+                  {hasNotice ? (
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:50,
+                      background:'rgba(220,50,50,0.12)', border:'1px solid rgba(220,60,60,0.40)', maxWidth:155 }}>
+                      <span style={{ width:5, height:5, borderRadius:'50%', background:'rgba(255,90,90,0.95)', flexShrink:0 }}/>
+                      <span style={{ fontSize:'0.64rem', fontWeight:700, color:'rgba(255,110,110,0.95)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {isOos ? 'Out of Scope' : 'Rejected'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:50,
+                      background:'rgba(220,165,0,0.08)', border:'1px solid rgba(220,165,0,0.22)', maxWidth:155 }}>
+                      <span style={{ width:5, height:5, borderRadius:'50%', background:'rgba(220,185,80,0.9)', flexShrink:0 }}/>
+                      <span style={{ fontSize:'0.64rem', fontWeight:600, color:'rgba(220,185,80,0.88)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.status || 'Pending'}</span>
                     </div>
                   )}
+
+                  {/* Ageing TAT */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                    <span style={{ fontSize:'0.70rem', fontWeight:800, color:tatColor, fontFamily:'monospace', letterSpacing:'0.04em' }}>
+                      {tatMs !== null ? fmtDHMS(tatMs) : '—'}
+                    </span>
+                    {tatMs !== null && (
+                      <div style={{ width:'100%', height:2, borderRadius:2, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:`${Math.min(100,(tatDays/30)*100)}%`, background:tatColor, borderRadius:2 }}/>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sales Status — read-only badge */}
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    {(() => {
+                      const col = scol[curSales] || scol.Pending;
+                      return (
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', borderRadius:50,
+                          background: col.bg, border:`1px solid ${col.bd}`,
+                          fontSize:'0.65rem', fontWeight:700, color: col.c, letterSpacing:'0.06em' }}>
+                          <span style={{ width:5, height:5, borderRadius:'50%', background:col.c, flexShrink:0 }}/>
+                          {curSales}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  {/* View detail */}
+                  <button onClick={() => setOpenIdx(globalIdx)}
+                    style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:6,
+                      color:'rgba(255,255,255,0.45)', fontFamily:F2, fontSize:'0.70rem', padding:'4px 8px',
+                      cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}
+                    onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}>
+                    →
+                  </button>
                 </div>
 
-                {/* Sales Status — read-only badge */}
-                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                  {(() => {
-                    const col = scol[curSales] || scol.Pending;
-                    return (
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', borderRadius:50,
-                        background: col.bg, border:`1px solid ${col.bd}`,
-                        fontSize:'0.65rem', fontWeight:700, color: col.c, letterSpacing:'0.06em' }}>
-                        <span style={{ width:5, height:5, borderRadius:'50%', background:col.c, flexShrink:0 }}/>
-                        {curSales}
-                      </span>
-                    );
-                  })()}
-                </div>
-
-                {/* View detail */}
-                <button onClick={() => setOpenIdx(globalIdx)}
-                  style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:6,
-                    color:'rgba(255,255,255,0.45)', fontFamily:F2, fontSize:'0.70rem', padding:'4px 8px',
-                    cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}
-                  onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
-                  onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.45)';e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}}>
-                  →
-                </button>
+                {/* Comment strip for out-of-scope / rejected */}
+                {hasNotice && (
+                  <div style={{ padding:'8px 14px 11px', borderTop:'1px solid rgba(220,60,60,0.18)', background:'rgba(200,40,40,0.04)', display:'flex', alignItems:'flex-start', gap:8 }}>
+                    <span style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700,
+                      color: isOos ? 'rgba(255,90,90,0.80)' : 'rgba(255,90,90,0.80)',
+                      background:'rgba(220,50,50,0.14)', border:'1px solid rgba(220,60,60,0.35)', borderRadius:50,
+                      padding:'2px 8px', flexShrink:0, marginTop:2 }}>
+                      {isOos ? '⊘ Out of Scope' : '✕ Rejected'}
+                    </span>
+                    <span style={{ fontSize:'0.74rem', color:'rgba(255,190,190,0.75)', lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                      {noticeComment || (isOos ? 'No reason provided.' : 'No remarks provided.')}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -3178,13 +3262,30 @@ const NotifToast = ({ toasts, onDismiss }) => (
   <div style={{position:'fixed',bottom:28,right:28,zIndex:99999,display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end',pointerEvents:'none'}}>
     {toasts.map(t=>(
       <div key={t.id} onClick={()=>onDismiss(t.id)}
-        style={{background:'rgba(8,4,22,0.97)',border:'1px solid rgba(100,210,255,0.38)',borderRadius:12,padding:'12px 16px',width:294,boxShadow:'0 10px 40px rgba(0,0,0,0.70)',animation:'notifIn 0.32s cubic-bezier(0.22,1,0.36,1) both',display:'flex',flexDirection:'column',gap:5,pointerEvents:'auto',cursor:'pointer',backdropFilter:'blur(14px)'}}>
+        style={{
+          background: t.type==='oos' ? 'rgba(22,4,4,0.97)' : 'rgba(8,4,22,0.97)',
+          border: `1px solid ${t.type==='oos' ? 'rgba(220,60,60,0.55)' : 'rgba(100,210,255,0.38)'}`,
+          borderRadius:12,padding:'12px 16px',width:294,
+          boxShadow: t.type==='oos' ? '0 10px 40px rgba(200,40,40,0.30)' : '0 10px 40px rgba(0,0,0,0.70)',
+          animation:'notifIn 0.32s cubic-bezier(0.22,1,0.36,1) both',
+          display:'flex',flexDirection:'column',gap:5,pointerEvents:'auto',cursor:'pointer',backdropFilter:'blur(14px)',
+        }}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-          <span style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(100,210,255,0.80)',fontWeight:700,fontFamily:"'Inter',sans-serif"}}>💬 New Message · {t.reqId}</span>
+          <span style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,fontFamily:"'Inter',sans-serif",
+            color: t.type==='oos' ? 'rgba(255,90,90,0.90)' : 'rgba(100,210,255,0.80)'}}>
+            {t.type==='oos' ? `⊘ Cancelled · ${t.reqId}` : `💬 New Message · ${t.reqId}`}
+          </span>
           <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.28)',lineHeight:1}}>✕</span>
         </div>
         <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.90)',fontWeight:700,fontFamily:"'Inter',sans-serif",overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.client||t.proj||'—'}</div>
-        <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.48)',lineHeight:1.4,fontFamily:"'Inter',sans-serif"}}><span style={{color:'rgba(168,85,247,0.95)',fontWeight:600}}>{t.from}: </span>{(t.text||'').slice(0,90)}{(t.text||'').length>90?'…':''}</div>
+        {t.type==='oos' ? (
+          <div style={{display:'flex',flexDirection:'column',gap:2,fontFamily:"'Inter',sans-serif"}}>
+            <span style={{fontSize:'0.68rem',color:'rgba(255,100,100,0.80)',fontWeight:600}}>Cancelled - Due to Invalid Documents</span>
+            {t.text && <span style={{fontSize:'0.64rem',color:'rgba(255,180,180,0.50)',fontStyle:'italic',lineHeight:1.4}}>{t.text.slice(0,80)}{t.text.length>80?'…':''}</span>}
+          </div>
+        ) : (
+          <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.48)',lineHeight:1.4,fontFamily:"'Inter',sans-serif"}}><span style={{color:'rgba(168,85,247,0.95)',fontWeight:600}}>{t.from}: </span>{(t.text||'').slice(0,90)}{(t.text||'').length>90?'…':''}</div>
+        )}
       </div>
     ))}
   </div>
@@ -3201,6 +3302,40 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   const [showAddPpl, setShowAddPpl] = useState(false);
   const [addPplQ,    setAddPplQ]    = useState('');
   const addPplRef = useRef(null);
+  const [recallOpen, setRecallOpen]     = useState(null); // req.id being recalled
+  const [recallDocs, setRecallDocs]     = useState([]);
+  const [recallUpState, setRecallUpState] = useState(null);
+  const recallFileRef = useRef(null);
+
+  const handleRecall = (req, realIdx) => {
+    const nowMs = Date.now();
+    onUpdate(realIdx, {
+      reqStatus:           'inprogress',
+      status:              'In Progress',
+      outScopeRemark:      null,
+      outScopeAt:          null,
+      outScopeBy:          null,
+      outOfScopeSubmitted: null,
+      oosNotification:     null,
+      estimator:           null,
+      estimationFile:      null,
+      estimationDocs:      [],
+      directorAction:      null,
+      directorNote:        null,
+      submittedAt:         nowMs,
+      docs:                recallDocs.length ? recallDocs : (req.docs || []),
+      timeline: [...(req.timeline || []), {
+        event: 'recalled',
+        ts:    new Date(nowMs).toISOString(),
+        tsMs:  nowMs,
+        label: 'Recalled & Resubmitted by Sales',
+        by:    req.salesPerson || spName || 'Sales',
+      }],
+      _immediate: true,
+    });
+    setRecallOpen(null);
+    setRecallDocs([]);
+  };
 
   const markReqSeen = (reqId) => {
     _markSeen(reqId, 'estimator');
@@ -3236,6 +3371,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
     return 0;
   };
   const statusColor = r => {
+    if (r.reqStatus === 'out-of-scope') return 'rgba(255,70,70,0.95)';
     if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'rgba(0,220,130,0.90)';
     if (r.directorAction === 'rejected') return 'rgba(255,80,80,0.90)';
     if (r.directorAction === 'revised')  return 'rgba(255,160,40,0.90)';
@@ -3245,6 +3381,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
     return 'rgba(100,180,255,0.90)';
   };
   const statusLabel = r => {
+    if (r.reqStatus === 'out-of-scope') return 'Cancelled by Estimator';
     if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'Approved';
     if (r.directorAction === 'rejected') return 'Rejected';
     if (r.directorAction === 'revised')  return 'Revision Required';
@@ -3299,22 +3436,84 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
           </div>
         </div>
         {/* Stage tracker */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'16px 20px',marginBottom:24}}>
+        <div style={{background: r.reqStatus==='out-of-scope' ? 'rgba(200,40,40,0.06)' : 'rgba(255,255,255,0.03)', border: r.reqStatus==='out-of-scope' ? '1px solid rgba(220,60,60,0.35)' : '1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'16px 20px',marginBottom:24}}>
           <div style={{display:'flex',alignItems:'center',gap:0}}>
             {STAGES.map((st,si)=>{
-              const done=si<=stageIdx; const active=si===stageIdx;
+              const done=si<=stageIdx; const active=si===stageIdx && r.reqStatus!=='out-of-scope';
+              const cancelled = r.reqStatus==='out-of-scope';
               return (
                 <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
-                    <div style={{width:'100%',height:4,background:done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
-                    <div style={{width:10,height:10,borderRadius:'50%',marginTop:-7,background:done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 10px ${st.color}`:undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
-                    <div style={{fontSize:'0.52rem',color:done?st.color:'rgba(255,255,255,0.22)',marginTop:5,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
+                    <div style={{width:'100%',height:4,background: cancelled && si>stageIdx ? 'rgba(255,255,255,0.04)' : done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
+                    <div style={{width:10,height:10,borderRadius:'50%',marginTop:-7,background: cancelled && si===stageIdx ? 'rgba(255,70,70,0.80)' : done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 10px ${st.color}`:cancelled&&si===stageIdx?'0 0 10px rgba(255,70,70,0.60)':undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
+                    <div style={{fontSize:'0.52rem',color: cancelled&&si===stageIdx?'rgba(255,70,70,0.90)':done?st.color:'rgba(255,255,255,0.22)',marginTop:5,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
                   </div>
                   {si<STAGES.length-1&&<div style={{width:6,flexShrink:0}}/>}
                 </div>
               );
             })}
           </div>
+          {r.reqStatus === 'out-of-scope' && (
+            <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid rgba(220,60,60,0.20)',display:'flex',alignItems:'flex-start',gap:10}}>
+              <div style={{width:28,height:28,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(220,50,50,0.18)',border:'1px solid rgba(220,60,60,0.40)',fontSize:'0.90rem'}}>⊘</div>
+              <div>
+                <div style={{fontSize:'0.62rem',fontWeight:800,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(255,70,70,0.95)',marginBottom:3}}>Cancelled by Estimator — Timeline Frozen</div>
+                <div style={{fontSize:'0.72rem',color:'rgba(255,200,200,0.65)'}}>Cancelled - Due to Invalid Documents</div>
+                {r.outScopeRemark && (
+                  <div style={{marginTop:6,fontSize:'0.74rem',color:'rgba(255,180,180,0.72)',fontStyle:'italic',borderLeft:'2px solid rgba(220,60,60,0.40)',paddingLeft:8,lineHeight:1.5}}>"{r.outScopeRemark}"</div>
+                )}
+                <div style={{marginTop:5,fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>By {r.outScopeBy||'estimator'}{r.outScopeAt ? ` · ${new Date(r.outScopeAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}` : ''}</div>
+                {onUpdate && (
+                  <div style={{marginTop:12}}>
+                    {recallOpen !== r.id ? (
+                      <button onClick={()=>{setRecallOpen(r.id);setRecallDocs([]);setRecallUpState(null);}}
+                        style={{display:'inline-flex',alignItems:'center',gap:7,padding:'6px 16px',borderRadius:8,background:'rgba(109,40,217,0.18)',border:'1px solid rgba(168,85,247,0.42)',color:'rgba(196,181,253,0.92)',fontFamily:F,fontSize:'0.74rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
+                        ↺ Recall &amp; Resubmit with Valid Documents
+                      </button>
+                    ) : (
+                      <div style={{background:'rgba(109,40,217,0.12)',border:'1px solid rgba(168,85,247,0.30)',borderRadius:10,padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
+                        <div style={{fontSize:'0.66rem',color:'rgba(196,181,253,0.75)',lineHeight:1.6}}>Upload replacement documents (optional), then confirm to reset the timeline and re-enter the estimation queue.</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:7,alignItems:'center'}}>
+                          <input ref={recallFileRef} type="file" multiple style={{display:'none'}} onChange={async e=>{
+                            if (!e.target.files?.length) return;
+                            setRecallUpState('uploading');
+                            try {
+                              const uploaded=[];
+                              for (const file of Array.from(e.target.files)) {
+                                const url = await uploadToAzure(file, r.id, file.name);
+                                if (!url) throw new Error('Upload failed');
+                                uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
+                              }
+                              setRecallDocs(prev=>[...prev,...uploaded]);
+                              setRecallUpState(null);
+                            } catch { setRecallUpState('error'); setTimeout(()=>setRecallUpState(null),3000); }
+                            e.target.value='';
+                          }}/>
+                          <button onClick={()=>recallFileRef.current?.click()} disabled={recallUpState==='uploading'}
+                            style={{padding:'4px 12px',borderRadius:7,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:recallUpState==='error'?'rgba(255,100,100,0.85)':recallUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.75)',fontFamily:F,fontSize:'0.68rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                            {recallUpState==='uploading'?'⟳ Uploading…':recallUpState==='error'?'✕ Failed':'+ Add Replacement Docs'}
+                          </button>
+                          {recallDocs.map((d,di)=>(
+                            <span key={di} style={{fontSize:'0.62rem',color:'rgba(100,210,150,0.85)',background:'rgba(0,180,100,0.08)',border:'1px solid rgba(0,200,120,0.25)',borderRadius:5,padding:'2px 9px'}}>{d.name}</span>
+                          ))}
+                        </div>
+                        <div style={{display:'flex',gap:10}}>
+                          <button onClick={()=>handleRecall(r, realIdx)} disabled={recallUpState==='uploading'}
+                            style={{flex:1,padding:'7px 0',borderRadius:8,background:'rgba(109,40,217,0.55)',border:'1px solid rgba(168,85,247,0.60)',color:'rgba(220,200,255,0.96)',fontFamily:F,fontSize:'0.76rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
+                            ✓ Confirm Resubmission — Fresh Timeline
+                          </button>
+                          <button onClick={()=>{setRecallOpen(null);setRecallDocs([]);}}
+                            style={{padding:'7px 18px',borderRadius:8,background:'transparent',border:'1px solid rgba(255,255,255,0.14)',color:'rgba(255,255,255,0.42)',fontFamily:F,fontSize:'0.76rem',cursor:'pointer',outline:'none'}}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         {/* 2-col: info + chat */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1.15fr',gap:20,alignItems:'start'}}>
@@ -3486,37 +3685,52 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
         const unread = _unreadCount(r.conversation, r.id, 'estimator');
         return (
           <div key={r.id||i}
-            onClick={()=>{ setOpenIdx(i); markReqSeen(r.id); }}
-            style={{background: unread>0 ? 'rgba(100,210,255,0.04)' : 'rgba(255,255,255,0.03)', border: unread>0 ? '1px solid rgba(100,210,255,0.22)' : '1px solid rgba(255,255,255,0.08)',borderRadius:10,padding:'10px 16px',marginBottom:8,cursor:'pointer',transition:'all 0.2s'}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(168,85,247,0.40)';e.currentTarget.style.background='rgba(109,40,217,0.06)';}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=unread>0?'rgba(100,210,255,0.22)':'rgba(255,255,255,0.08)';e.currentTarget.style.background=unread>0?'rgba(100,210,255,0.04)':'rgba(255,255,255,0.03)';}}>
+            onClick={e=>{ if (e.target.closest('[data-no-nav]')) return; setOpenIdx(i); markReqSeen(r.id); }}
+            style={{
+              background: r.reqStatus==='out-of-scope' ? 'rgba(80,10,10,0.55)' : unread>0 ? 'rgba(20,50,80,0.55)' : 'rgba(18,10,42,0.55)',
+              backdropFilter:'blur(14px)', WebkitBackdropFilter:'blur(14px)',
+              border: r.reqStatus==='out-of-scope' ? '1px solid rgba(220,60,60,0.32)' : unread>0 ? '1px solid rgba(100,210,255,0.28)' : '1px solid rgba(168,85,247,0.16)',
+              borderRadius:14, padding:'9px 14px', marginBottom:16, cursor:'pointer',
+              transition:'all 0.18s',
+              boxShadow: r.reqStatus==='out-of-scope' ? '0 4px 20px rgba(180,20,20,0.10)' : '0 4px 20px rgba(0,0,0,0.22)',
+            }}
+            onMouseEnter={e=>{
+              e.currentTarget.style.borderColor=r.reqStatus==='out-of-scope'?'rgba(255,70,70,0.50)':unread>0?'rgba(100,210,255,0.45)':'rgba(168,85,247,0.40)';
+              e.currentTarget.style.background=r.reqStatus==='out-of-scope'?'rgba(100,15,15,0.65)':unread>0?'rgba(20,60,100,0.65)':'rgba(30,14,64,0.65)';
+              e.currentTarget.style.boxShadow='0 8px 32px rgba(109,40,217,0.18)';
+            }}
+            onMouseLeave={e=>{
+              e.currentTarget.style.borderColor=r.reqStatus==='out-of-scope'?'rgba(220,60,60,0.32)':unread>0?'rgba(100,210,255,0.28)':'rgba(168,85,247,0.16)';
+              e.currentTarget.style.background=r.reqStatus==='out-of-scope'?'rgba(80,10,10,0.55)':unread>0?'rgba(20,50,80,0.55)':'rgba(18,10,42,0.55)';
+              e.currentTarget.style.boxShadow=r.reqStatus==='out-of-scope'?'0 4px 20px rgba(180,20,20,0.10)':'0 4px 20px rgba(0,0,0,0.22)';
+            }}>
 
             {/* Row 1: ID · status · unread · Open → */}
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
               <div style={{display:'flex',alignItems:'center',gap:7}}>
-                <span style={{fontFamily:'monospace',fontSize:'0.80rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
-                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'1px 8px',borderRadius:50,background:`${sc}15`,border:`1px solid ${sc}35`}}>
+                <span style={{fontFamily:'monospace',fontSize:'0.78rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
+                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'1px 7px',borderRadius:50,background:`${sc}15`,border:`1px solid ${sc}35`}}>
                   <span style={{width:4,height:4,borderRadius:'50%',background:sc,flexShrink:0}}/>
-                  <span style={{fontSize:'0.58rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
+                  <span style={{fontSize:'0.55rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
                 </span>
-                {unread > 0 && <span style={{fontSize:'0.58rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.12)',borderRadius:50,padding:'1px 8px'}}>💬 {unread}</span>}
+                {unread > 0 && <span style={{fontSize:'0.55rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.12)',borderRadius:50,padding:'1px 7px'}}>💬 {unread}</span>}
               </div>
-              <span style={{fontSize:'0.60rem',color:'rgba(168,85,247,0.50)',fontWeight:600,flexShrink:0}}>Open →</span>
+              <span style={{fontSize:'0.56rem',color:'rgba(168,85,247,0.45)',fontWeight:600,flexShrink:0}}>Open →</span>
             </div>
 
-            {/* Row 2: Main Contractor (big) · Project (small) — right: Estimator avatar + name (big) */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:6}}>
-              <div style={{display:'flex',alignItems:'baseline',gap:8,minWidth:0,overflow:'hidden'}}>
-                <span style={{fontSize:'1.05rem',fontWeight:800,color:'rgba(255,255,255,0.92)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'45vw'}}>{r.mainContractor||'—'}</span>
-                {r.proj && <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.35)',fontWeight:400,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{r.proj}</span>}
+            {/* Row 2: Main Contractor · Project — right: Estimator */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
+              <div style={{display:'flex',alignItems:'baseline',gap:7,minWidth:0,overflow:'hidden'}}>
+                <span style={{fontSize:'0.95rem',fontWeight:800,color:'rgba(255,255,255,0.92)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'45vw'}}>{r.mainContractor||'—'}</span>
+                {r.proj && <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.32)',fontWeight:400,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{r.proj}</span>}
               </div>
               {r.estimator ? (
-                <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
-                  <EstAvatar name={r.estimator} size={28}/>
-                  <span style={{fontSize:'0.90rem',fontWeight:700,color:'rgba(255,255,255,0.85)',whiteSpace:'nowrap'}}>{r.estimator}</span>
+                <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                  <EstAvatar name={r.estimator} size={24}/>
+                  <span style={{fontSize:'0.80rem',fontWeight:700,color:'rgba(255,255,255,0.80)',whiteSpace:'nowrap'}}>{r.estimator}</span>
                 </div>
               ) : (
-                <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic',flexShrink:0}}>Unassigned</span>
+                <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic',flexShrink:0}}>Unassigned</span>
               )}
             </div>
 
@@ -3524,43 +3738,116 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
             {(()=>{
               const supplyLabel = r.supplyInstall ? 'Supply & Install' : r.supplyOnly ? 'Supply Only' : r.deal||'—';
               return (
-                <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:8,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                  {/* Client, Consultant, Deal, Supply, Lead Time */}
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'2px 12px'}}>
-                    {[['Client',r.client],['Consultant',r.consultant],['Deal',r.deal],['Supply',supplyLabel],['Lead Time',r.leadTime]].map(([lbl,val])=>(
-                      <div key={lbl} style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
-                        <span style={{fontSize:'0.44rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',fontWeight:700}}>{lbl}</span>
-                        <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'2px 10px',marginBottom:7,paddingBottom:7,borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                  {[['Client',r.client],['Consultant',r.consultant],['Deal',r.deal],['Supply',supplyLabel],['Lead Time',r.leadTime]].map(([lbl,val])=>(
+                    <div key={lbl} style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
+                      <span style={{fontSize:'0.42rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700}}>{lbl}</span>
+                      <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.72)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
+                    </div>
+                  ))}
                 </div>
               );
             })()}
 
-              {/* Stage timeline */}
-              <div style={{display:'flex',alignItems:'center',gap:0}}>
-                {STAGES.map((st,si)=>{
-                  const done=si<=stageIdx,active=si===stageIdx;
-                  return (
-                    <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
-                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
-                        <div style={{width:'100%',height:2.5,background:done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
-                        <div style={{width:7,height:7,borderRadius:'50%',marginTop:-5,background:done?st.color:'rgba(255,255,255,0.10)',boxShadow:active?`0 0 7px ${st.color}`:undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
-                        <div style={{fontSize:'0.48rem',color:done?st.color:'rgba(255,255,255,0.20)',marginTop:3,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
-                      </div>
-                      {si<STAGES.length-1&&<div style={{width:6,flexShrink:0}}/>}
+            {/* Stage timeline */}
+            <div style={{display:'flex',alignItems:'center',gap:0}}>
+              {STAGES.map((st,si)=>{
+                const done=si<=stageIdx,active=si===stageIdx && r.reqStatus!=='out-of-scope';
+                const frozen=r.reqStatus==='out-of-scope';
+                return (
+                  <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
+                      <div style={{width:'100%',height:2,background:frozen&&si>stageIdx?'rgba(255,255,255,0.04)':done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
+                      <div style={{width:6,height:6,borderRadius:'50%',marginTop:-4,background:frozen&&si===stageIdx?'rgba(255,70,70,0.80)':done?st.color:'rgba(255,255,255,0.10)',boxShadow:active?`0 0 7px ${st.color}`:frozen&&si===stageIdx?'0 0 7px rgba(255,70,70,0.60)':undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
+                      <div style={{fontSize:'0.44rem',color:frozen&&si===stageIdx?'rgba(255,70,70,0.85)':done?st.color:'rgba(255,255,255,0.18)',marginTop:3,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
                     </div>
-                  );
-                })}
-              </div>
-              {r.directorNote&&(
-                <div style={{marginTop:8,paddingTop:7,borderTop:'1px solid rgba(255,255,255,0.05)',fontSize:'0.72rem',color:'rgba(255,200,140,0.65)',fontStyle:'italic'}}>
-                  Cost-Artist: "{r.directorNote}"
-                </div>
-              )}
+                    {si<STAGES.length-1&&<div style={{width:5,flexShrink:0}}/>}
+                  </div>
+                );
+              })}
             </div>
-          );
+
+            {/* Director note */}
+            {r.directorNote && (
+              <div style={{marginTop:7,paddingTop:6,borderTop:'1px solid rgba(255,255,255,0.05)',fontSize:'0.68rem',color:'rgba(255,200,140,0.65)',fontStyle:'italic'}}>
+                Cost-Artist: "{r.directorNote}"
+              </div>
+            )}
+
+            {/* Quotation download strip */}
+            {(r.estimationDocs?.length > 0 || r.estimationFile) && (
+              <div data-no-nav style={{marginTop:7,paddingTop:6,borderTop:'1px solid rgba(168,85,247,0.12)',display:'flex',flexWrap:'wrap',alignItems:'center',gap:6}} onClick={e=>e.stopPropagation()}>
+                <span style={{fontSize:'0.42rem',color:'rgba(168,85,247,0.55)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>Quotation</span>
+                {(r.estimationDocs?.length ? r.estimationDocs : [r.estimationFile]).filter(Boolean).map((d,di)=>(
+                  <button key={di} onClick={()=>downloadDoc(d)}
+                    style={{display:'flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:6,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(200,160,255,0.90)',fontFamily:F,fontSize:'0.58rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    {typeof d === 'object' && d.name ? d.name : `Quotation_${r.id}_${di+1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Out-of-scope section + Recall */}
+            {r.reqStatus === 'out-of-scope' && (
+              <div data-no-nav style={{marginTop:8,paddingTop:7,borderTop:'1px solid rgba(220,60,60,0.20)'}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:3}}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,70,70,0.85)" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                  <span style={{fontSize:'0.55rem',color:'rgba(255,70,70,0.90)',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase'}}>Cancelled by Estimator</span>
+                </div>
+                {r.outScopeRemark && (
+                  <div style={{fontSize:'0.64rem',color:'rgba(255,180,180,0.55)',fontStyle:'italic',paddingLeft:14,lineHeight:1.4,marginBottom:8}}>"{r.outScopeRemark}"</div>
+                )}
+                {onUpdate && recallOpen !== r.id && (
+                  <button onClick={()=>{setRecallOpen(r.id);setRecallDocs([]);setRecallUpState(null);}}
+                    style={{display:'flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:7,background:'rgba(109,40,217,0.14)',border:'1px solid rgba(168,85,247,0.35)',color:'rgba(196,181,253,0.90)',fontFamily:F,fontSize:'0.62rem',fontWeight:700,cursor:'pointer',outline:'none',marginTop:4}}>
+                    ↺ Recall &amp; Resubmit
+                  </button>
+                )}
+                {recallOpen === r.id && (
+                  <div style={{marginTop:6,background:'rgba(109,40,217,0.10)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:9,padding:'10px 12px',display:'flex',flexDirection:'column',gap:8}}>
+                    <div style={{fontSize:'0.58rem',color:'rgba(196,181,253,0.75)',lineHeight:1.5}}>Upload replacement documents (optional) then confirm to restart the timeline.</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}>
+                      <input ref={recallFileRef} type="file" multiple style={{display:'none'}} onChange={async e=>{
+                        if (!e.target.files?.length) return;
+                        setRecallUpState('uploading');
+                        try {
+                          const uploaded=[];
+                          for (const file of Array.from(e.target.files)) {
+                            const url = await uploadToAzure(file, r.id, file.name);
+                            if (!url) throw new Error('Upload failed');
+                            uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
+                          }
+                          setRecallDocs(prev=>[...prev,...uploaded]);
+                          setRecallUpState(null);
+                        } catch { setRecallUpState('error'); setTimeout(()=>setRecallUpState(null),3000); }
+                        e.target.value='';
+                      }}/>
+                      <button onClick={()=>recallFileRef.current?.click()} disabled={recallUpState==='uploading'}
+                        style={{padding:'3px 10px',borderRadius:6,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:recallUpState==='error'?'rgba(255,100,100,0.85)':recallUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.72)',fontFamily:F,fontSize:'0.60rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                        {recallUpState==='uploading'?'⟳ Uploading…':recallUpState==='error'?'✕ Failed':'+ Add Docs'}
+                      </button>
+                      {recallDocs.map((d,di)=>(
+                        <span key={di} style={{fontSize:'0.56rem',color:'rgba(100,210,150,0.80)',background:'rgba(0,180,100,0.08)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:4,padding:'1px 7px'}}>{d.name}</span>
+                      ))}
+                    </div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={()=>{ const rr=requests.find(x=>x.id===r.id); handleRecall(rr||r, requests.indexOf(rr||r)); }}
+                        disabled={recallUpState==='uploading'}
+                        style={{flex:1,padding:'5px 0',borderRadius:7,background:'rgba(109,40,217,0.50)',border:'1px solid rgba(168,85,247,0.55)',color:'rgba(220,200,255,0.95)',fontFamily:F,fontSize:'0.68rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
+                        ✓ Confirm Resubmission
+                      </button>
+                      <button onClick={()=>{setRecallOpen(null);setRecallDocs([]);}}
+                        style={{padding:'5px 14px',borderRadius:7,background:'transparent',border:'1px solid rgba(255,255,255,0.14)',color:'rgba(255,255,255,0.45)',fontFamily:F,fontSize:'0.68rem',cursor:'pointer',outline:'none'}}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
         })}
     </div>
   );
@@ -5284,7 +5571,7 @@ const REQ_STATUS_STYLE = {
   risky:              {c:'#dd3535',               bg:'rgba(215,45,45,0.09)',    bd:'rgba(215,55,55,0.38)',    label:'Risky'},
   'pending-director':    {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost-Artist Under Review'},
   completed:          {c:'#00cc77',               bg:'rgba(0,180,90,0.09)',     bd:'rgba(0,210,100,0.35)',   label:'Approved ✓'},
-  'out-of-scope':     {c:'rgba(255,70,70,0.95)',  bg:'rgba(200,40,40,0.09)',    bd:'rgba(220,60,60,0.45)',   label:'Out of Scope ⊘'},
+  'out-of-scope':     {c:'rgba(255,70,70,0.95)',  bg:'rgba(200,40,40,0.09)',    bd:'rgba(220,60,60,0.45)',   label:'Cancelled - Due to Invalid Documents'},
 };
 
 // ── TAT stage calculator ──────────────────────────────────────────────────────
@@ -5851,9 +6138,35 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
   const [deleteConfirm, setDeleteConfirm] = useState(null); // realIdx to delete
   const [deleteCode, setDeleteCode] = useState('');          // must type 'xepa' to confirm
   const [convoInput, setConvoInput] = useState('');
-  const [convoCollapsed, setConvoCollapsed] = useState(false);
-  const [dirConvoOpen, setDirConvoOpen] = useState(true);   // Conversation panel expanded
+  const [convoCollapsed, setConvoCollapsed] = useState(true);
+  const [dirConvoOpen, setDirConvoOpen] = useState(false);  // Conversation panel expanded
   const [dirAiOpen, setDirAiOpen] = useState(true);         // AI Suggestions panel expanded
+  const [colLeftW, setColLeftW] = useState(380);
+  const [colRightW, setColRightW] = useState(420);
+
+  // Auto-expand conversation when request has messages, collapse when empty
+  useEffect(() => {
+    if (open !== null && requests[open]) {
+      const hasMessages = (requests[open].conversation || []).length > 0;
+      setConvoCollapsed(!hasMessages);
+      setDirConvoOpen(hasMessages);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Drag-to-resize column handler
+  const startColDrag = (which, e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = which === 'left' ? colLeftW : colRightW;
+    const onMove = ev => {
+      const dx = ev.clientX - startX;
+      if (which === 'left') setColLeftW(Math.max(220, Math.min(540, startW + dx)));
+      else setColRightW(Math.max(220, Math.min(560, startW - dx)));
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
   const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
   const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
   const [resubmitToast, setResubmitToast] = useState(false);
@@ -5951,7 +6264,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const F2 = "'Inter',sans-serif";
 
     const rankLabels = ['','Bronze','Silver','Gold','Platinum','Diamond'];
-    const infoRows = [['ID',req.id],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Supply',req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'—'],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
+    const infoRows = [[req.id,'ID'],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Supply',req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'—'],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
 
     return (
       <div className="dash-detail-wrap" style={{position:'fixed',inset:'58px 0 0 0',display:'flex',flexDirection:'column',overflowY:'hidden',animation:'fadeUp 0.4s ease both',background:'rgba(6,3,18,0.96)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',zIndex:10}}>
@@ -6132,9 +6445,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
           <div style={{display:'flex',alignItems:'flex-start',gap:14,padding:'14px 20px',marginBottom:16,borderRadius:10,background:'rgba(200,40,40,0.10)',border:'1px solid rgba(220,60,60,0.50)',boxShadow:'0 0 22px rgba(200,40,40,0.14)'}}>
             <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(220,50,50,0.20)',border:'1px solid rgba(220,60,60,0.45)',fontSize:'1.1rem'}}>⊘</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:'0.72rem',fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'rgba(255,90,90,0.95)',marginBottom:4}}>Out of Scope — Estimation Stopped</div>
+              <div style={{fontSize:'0.72rem',fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'rgba(255,90,90,0.95)',marginBottom:4}}>Cancelled by Estimator — Timeline Frozen</div>
               <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>
-                This request has been marked as out of scope by the estimator. Timeline is frozen. Contact the estimator or recall to re-open.
+                This request has been cancelled due to invalid documents. Timeline is frozen. Contact the estimator or use Recall to re-open.
               </div>
               {req.outScopeRemark && (
                 <div style={{marginTop:8,paddingLeft:12,borderLeft:'2px solid rgba(255,80,80,0.40)',fontSize:'0.74rem',color:'rgba(255,200,200,0.80)',fontStyle:'italic',lineHeight:1.5}}>
@@ -6215,9 +6528,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         )}
 
         {viewMode !== 'director' && (
-          <div className="dash-2col" style={{display:'grid',gridTemplateColumns:viewMode==='estimator'?(convoCollapsed?'380px 1fr 44px':'380px 1fr 420px'):'1fr 1fr',gap:20,maxWidth:'100%',width:'100%'}}>
+          <div className="dash-2col" style={{display:'flex',gap:0,maxWidth:'100%',width:'100%',alignItems:'stretch',minHeight:0}}>
             {/* LEFT — request info */}
-            <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'18px 20px'}}>
+            <div style={{width: viewMode==='estimator' ? colLeftW : undefined, flex: viewMode==='estimator' ? 'none' : '1', flexShrink:0, background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'18px 20px'}}>
               <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.40)',marginBottom:12,fontWeight:700}}>Request Info</p>
               {infoRows.map(([k,v])=>(
                 <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.06)',padding:'7px 0',gap:12}}>
@@ -6265,8 +6578,20 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               )}
             </div>
 
+            {/* Drag handle — left / middle */}
+            {viewMode === 'estimator' && (
+              <div onMouseDown={e=>startColDrag('left',e)}
+                onMouseEnter={e=>{const bar=e.currentTarget.firstChild;if(bar)bar.style.background='rgba(220,165,0,0.65)';}}
+                onMouseLeave={e=>{const bar=e.currentTarget.firstChild;if(bar)bar.style.background='rgba(255,255,255,0.12)';}}
+                style={{width:10,flexShrink:0,cursor:'col-resize',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 5px',zIndex:5,userSelect:'none'}}
+                title="Drag to resize">
+                <div style={{width:2,height:'50%',borderRadius:2,background:'rgba(255,255,255,0.12)',transition:'background 0.2s',pointerEvents:'none'}}/>
+              </div>
+            )}
+            {viewMode !== 'estimator' && <div style={{width:20,flexShrink:0}}/>}
+
             {/* RIGHT — view-specific panels */}
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:14}}>
 
               {/* ── REQUESTER right panel ── */}
               {viewMode === 'requester' && (<>
@@ -6803,17 +7128,18 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 const nowMs = Date.now();
                                 onUpdate(open, {
                                   reqStatus: 'out-of-scope',
-                                  status: 'Out of Scope',
+                                  status: 'Cancelled - Due to Invalid Documents',
                                   outScopeRemark: oosRemark.trim(),
                                   outScopeAt: nowMs,
                                   outScopeBy: req.estimator || 'estimator',
                                   outOfScopeSubmitted: true,
+                                  oosNotification: { tsMs: nowMs, ts: new Date(nowMs).toISOString() },
                                   _immediate: true,
                                   timeline: [...(req.timeline||[]), {
                                     event: 'out-of-scope',
                                     ts: new Date(nowMs).toISOString(),
                                     tsMs: nowMs,
-                                    label: 'Marked Out of Scope',
+                                    label: 'Cancelled by Estimator',
                                     by: req.estimator || 'estimator',
                                     remark: oosRemark.trim(),
                                   }],
@@ -6871,10 +7197,20 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               </div>)}
             </div>
             {/* ── 3rd column: Conversation (estimator view only) ── */}
-            {viewMode === 'estimator' && (
-              convoCollapsed ? (
+            {viewMode === 'estimator' && (<>
+              {/* Drag handle — middle / right */}
+              {!convoCollapsed && (
+                <div onMouseDown={e=>startColDrag('right',e)}
+                  onMouseEnter={e=>{const bar=e.currentTarget.firstChild;if(bar)bar.style.background='rgba(168,85,247,0.70)';}}
+                  onMouseLeave={e=>{const bar=e.currentTarget.firstChild;if(bar)bar.style.background='rgba(168,85,247,0.22)';}}
+                  style={{width:10,flexShrink:0,cursor:'col-resize',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 5px',zIndex:5,userSelect:'none'}}
+                  title="Drag to resize">
+                  <div style={{width:2,height:'50%',borderRadius:2,background:'rgba(168,85,247,0.22)',transition:'background 0.2s',pointerEvents:'none'}}/>
+                </div>
+              )}
+              {convoCollapsed ? (
                 /* Minimized strip */
-                <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'space-between',padding:'14px 0',position:'sticky',top:62,height:'100%',minHeight:200,cursor:'pointer'}} onClick={()=>setConvoCollapsed(false)}>
+                <div style={{width:44,flexShrink:0,background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'space-between',padding:'14px 0',position:'sticky',top:62,height:'100%',minHeight:200,cursor:'pointer'}} onClick={()=>setConvoCollapsed(false)}>
                   <button onClick={e=>{e.stopPropagation();setConvoCollapsed(false);}} title="Expand conversation"
                     style={{width:28,height:28,borderRadius:8,background:'rgba(168,85,247,0.18)',border:'1px solid rgba(168,85,247,0.35)',color:'rgba(168,85,247,0.90)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',outline:'none',flexShrink:0}}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -6887,7 +7223,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                 </div>
               ) : (
                 /* Expanded panel */
-                <div style={{background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,height:'100%',minHeight:560,position:'sticky',top:62}}>
+                <div style={{width:colRightW,flexShrink:0,background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,height:'100%',minHeight:560,position:'sticky',top:62}}>
                   <div style={{display:'flex',alignItems:'center',gap:8,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)',position:'relative'}}>
                     <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
                     <p style={{fontSize:'0.60rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(168,85,247,0.85)',margin:0,fontWeight:700}}>Conversation</p>
@@ -6979,8 +7315,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     </button>
                   </div>
                 </div>
-              )
-            )}
+              )}
+            </>)}
           </div>
         )}
 
@@ -8336,7 +8672,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://aiest87-253545847030.us-west1.run.app"
+        src="https://aiest88-338841056432.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -8363,8 +8699,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://aiest87-253545847030.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://aiest87-253545847030.us-west1.run.app';
+    ? `https://aiest88-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://aiest88-338841056432.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
@@ -8794,6 +9130,26 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
             const base = Date.now();
             setToasts(prev => [...prev, ...newMsgs.map((m,i) => ({ id:base+i, ...m }))]);
           }
+
+          // Fire toast for sales when estimator cancels (out-of-scope)
+          if (userRole === 'sales') {
+            const seenOos = (() => { try { return JSON.parse(localStorage.getItem('apex_seen_oos')||'{}'); } catch { return {}; } })();
+            const oosToasts = [];
+            relevant.forEach(r => {
+              if (r.reqStatus === 'out-of-scope' && r.oosNotification?.tsMs) {
+                const lastSeen = seenOos[r.id] || 0;
+                if (r.oosNotification.tsMs > lastSeen && r.oosNotification.tsMs > appStartMs.current) {
+                  oosToasts.push({ reqId:r.id, client:r.client, proj:r.proj, type:'oos', text: r.outScopeRemark || '' });
+                  seenOos[r.id] = r.oosNotification.tsMs;
+                }
+              }
+            });
+            if (oosToasts.length) {
+              localStorage.setItem('apex_seen_oos', JSON.stringify(seenOos));
+              const base2 = Date.now();
+              setToasts(prev => [...prev, ...oosToasts.map((t,i) => ({ id:base2+i+500, ...t }))]);
+            }
+          }
         }
       } catch(e) { /* silent */ }
     };
@@ -9008,7 +9364,7 @@ const handleSubmit = async (formData) => {
       </div>
       {/* RoleLogin only when no role AND not in a guest-accessible view */}
       {!userRole && !['landing','form','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','relax','loading','results','dashboard','openRequests'].includes(view) && <RoleLogin onLogin={handleRoleLogin}/>}
-      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>setDirectOpen(true)}
+      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}
         onDirectorAccess={(code='STAR')=>{ setUserRole('director'); setUserCode(code); setView('dashboard'); }}/>
 
       {/* ── Floating AI Bot button — landing only, estimator & director ── */}
@@ -9037,7 +9393,7 @@ const handleSubmit = async (formData) => {
 
       {/* ── AI Tool Direct — fixed top center-right, in navbar zone ── */}
       {((userRole && userRole !== 'sales' && userRole !== 'director') || (userRole === 'director' && view === 'form') || (!userRole && view === 'dashboard')) && (
-        <button onClick={()=>setDirectOpen(true)}
+        <button onClick={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}
           style={{
             position:'fixed', top:10, right:265, zIndex:9501,
             display:'inline-flex', alignItems:'center', gap:6,
@@ -9062,7 +9418,7 @@ const handleSubmit = async (formData) => {
       {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
-      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>setDirectOpen(true)} userRole={userRole}/>}
+      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
@@ -9071,7 +9427,7 @@ const handleSubmit = async (formData) => {
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
       {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
-          initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>setDirectOpen(true)}/>}
+          initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
       {view==='salesDashboard' && <SalesDashboard
           requests={requests}
