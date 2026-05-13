@@ -1405,13 +1405,20 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     };
     const sc2 = statusColors[curStatus] || statusColors.Pending;
     const infoRows = [
-      ['Request ID', r.id], ['Project', r.proj || '—'], ['Client', r.client || '—'],
-      ['Main Contractor', r.mainContractor || '—'], ['Consultant', r.consultant || '—'],
-      ['Submitted By', r.submittedBy || '—'], ['Deal Type', r.deal || '—'],
-      ['Supply', r.supplyOnly ? 'Supply Only' : r.supplyInstall ? 'Supply & Install' : '—'],
-      ['Email', r.email || '—'], ['MOB', r.mob || '—'], ['Tel', r.tel || '—'],
-      ['Lead Time', r.leadTime || '—'], ['Address', r.address || '—'],
-      ['Submitted On', r.date || '—'],
+      [r.id || '—',                                                          'Request ID'],
+      [r.proj || '—',                                                        'Project'],
+      [r.client || '—',                                                      'Client'],
+      [r.mainContractor || '—',                                              'Main Contractor'],
+      [r.consultant || '—',                                                  'Consultant'],
+      [r.submittedBy || '—',                                                 'Submitted By'],
+      [r.deal || '—',                                                        'Deal Type'],
+      [r.supplyOnly ? 'Supply Only' : r.supplyInstall ? 'Supply & Install' : '—', 'Supply'],
+      [r.email || '—',                                                       'Email'],
+      [r.mob || '—',                                                         'MOB'],
+      [r.tel || '—',                                                         'Tel'],
+      [r.leadTime || '—',                                                    'Lead Time'],
+      [r.address || '—',                                                     'Address'],
+      [r.date || '—',                                                        'Submitted On'],
     ];
 
     return (
@@ -1588,9 +1595,9 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
           <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: '18px 20px' }}>
             <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', marginBottom: 12 }}>Request Info</p>
             {infoRows.map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0', gap: 12 }}>
-                <span style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.32)', flexShrink: 0 }}>{k}</span>
-                <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.78)', textAlign: 'left' }}>{v}</span>
+              <div key={v} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '6px 0', gap: 12 }}>
+                <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.82)', fontWeight: 600, flex: 1, minWidth: 0, wordBreak: 'break-word', lineHeight: 1.45 }}>{k}</span>
+                <span style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.32)', flexShrink: 0, textAlign: 'right', lineHeight: 1.45 }}>{v}</span>
               </div>
             ))}
             {r.remarks && (
@@ -6201,11 +6208,11 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     try {
       const newDocs = [];
       for (const file of files) {
-        const customName = `quotation-${file.name}`;
+        const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
+        const customName = `quotation-${safeFn}`;
         const azureUrl = await uploadToAzure(file, req.id, customName);
-        if (!azureUrl) throw new Error(`Failed to upload "${file.name}" to Azure`);
-        const verified = await verifyAzureBlob(azureUrl);
-        if (!verified) throw new Error(`Upload verification failed for "${file.name}" — please retry`);
+        if (!azureUrl) throw new Error(`Failed to upload "${file.name}" — check your connection and retry`);
+        // Trust the PUT 201 response — no separate HEAD verification needed
         newDocs.push({
           id: Math.random().toString(36).slice(2) + Date.now().toString(36),
           name: customName,
@@ -6223,9 +6230,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       });
       setQuotUploadState(null);
     } catch (err) {
-      console.error('Quotation upload/verify error:', err);
+      console.error('Quotation upload error:', err);
       setQuotUploadState('error');
-      setTimeout(() => setQuotUploadState(null), 5000);
+      setTimeout(() => setQuotUploadState(null), 6000);
     }
     e.target.value = '';
   };
@@ -6264,7 +6271,25 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const F2 = "'Inter',sans-serif";
 
     const rankLabels = ['','Bronze','Silver','Gold','Platinum','Diamond'];
-    const infoRows = [[req.id,'ID'],['Submitted By',req.submittedBy||'—'],['Sales Person',req.salesPerson||'—'],['Project',req.proj||'—'],['Client / Grantor',req.client||'—'],['Customer Rank',req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—'],['Main Contractor',req.mainContractor||'—'],['Consultant',req.consultant||'—'],['Deal Type',req.deal],['Supply',req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'—'],['Email',req.email||'—'],['MOB',req.mob||'—'],['Tel',req.tel||'—'],['Lead Time',req.leadTime||'—'],['Address',req.address||'—'],['Remarks',req.remarks||'—'],['Submitted',req.date]];
+    const infoRows = [
+      [req.id,                                                                    'ID'],
+      [req.submittedBy||'—',                                                      'Submitted By'],
+      [req.salesPerson||'—',                                                      'Sales Person'],
+      [req.proj||'—',                                                             'Project'],
+      [req.client||'—',                                                           'Client / Grantor'],
+      [req.customerRank>0?rankLabels[req.customerRank]+' ('+req.customerRank+'★)':'—', 'Customer Rank'],
+      [req.mainContractor||'—',                                                   'Main Contractor'],
+      [req.consultant||'—',                                                       'Consultant'],
+      [req.deal||'—',                                                             'Deal Type'],
+      [req.supplyOnly?'Supply Only':req.supplyInstall?'Supply & Install':'—',     'Supply'],
+      [req.email||'—',                                                            'Email'],
+      [req.mob||'—',                                                              'MOB'],
+      [req.tel||'—',                                                              'Tel'],
+      [req.leadTime||'—',                                                         'Lead Time'],
+      [req.address||'—',                                                          'Address'],
+      [req.remarks||'—',                                                          'Remarks'],
+      [req.date||'—',                                                             'Submitted'],
+    ];
 
     return (
       <div className="dash-detail-wrap" style={{position:'fixed',inset:'58px 0 0 0',display:'flex',flexDirection:'column',overflowY:'hidden',animation:'fadeUp 0.4s ease both',background:'rgba(6,3,18,0.96)',backdropFilter:'blur(20px) saturate(1.4)',WebkitBackdropFilter:'blur(20px) saturate(1.4)',zIndex:10}}>
@@ -6533,9 +6558,9 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             <div style={{width: viewMode==='estimator' ? colLeftW : undefined, flex: viewMode==='estimator' ? 'none' : '1', flexShrink:0, background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'18px 20px'}}>
               <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.40)',marginBottom:12,fontWeight:700}}>Request Info</p>
               {infoRows.map(([k,v])=>(
-                <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.06)',padding:'7px 0',gap:12}}>
-                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.52)',flexShrink:0,fontWeight:500}}>{k}</span>
-                  <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.88)',textAlign:'left',fontWeight:600}}>{v}</span>
+                <div key={v} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',borderBottom:'1px solid rgba(255,255,255,0.06)',padding:'7px 0',gap:12}}>
+                  <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.88)',fontWeight:600,flex:1,minWidth:0,wordBreak:'break-word',lineHeight:1.45}}>{k}</span>
+                  <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.35)',fontWeight:500,flexShrink:0,textAlign:'right',lineHeight:1.45}}>{v}</span>
                 </div>
               ))}
               {req.docs?.length > 0 && (
@@ -6859,7 +6884,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                   : null
                                 }
                               </button>
-                              {req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && (
+                              {req.reqStatus !== 'completed' && !isRejected && !isOutOfScope && (
                                 <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
                                   style={{flexShrink:0,width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
                                   onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
@@ -6873,16 +6898,16 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       );
                     })()}
                     <button onClick={()=>!quotUploadState && uploadRef.current.click()}
-                      disabled={req.reqStatus==='pending-director'||req.reqStatus==='completed'||isRejected||quotUploadState==='uploading'}
-                      style={{...btnStyle,opacity:1,cursor:quotUploadState==='uploading'?'wait':'pointer',
+                      disabled={req.reqStatus==='completed'||isRejected||isOutOfScope||quotUploadState==='uploading'}
+                      style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isRejected||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
                         color: quotUploadState==='error'?'rgba(255,100,100,0.95)':'rgba(255,210,60,0.95)',
                         border:`1px solid ${quotUploadState==='error'?'rgba(255,80,80,0.50)':'rgba(255,200,40,0.40)'}`,
                         background: quotUploadState==='error'?'rgba(255,50,50,0.12)':'rgba(255,180,0,0.10)',fontWeight:700}}>
                       {quotUploadState==='uploading'
-                        ? '⟳ Uploading - Please Wait'
+                        ? '⟳ Uploading — Please Wait…'
                         : quotUploadState==='error'
                         ? '✕ Upload Failed — Retry'
-                        : `↑ ${(req.estimationDocs?.length||0)>0?'Add More Files':'Upload Quotation'}`}
+                        : `↑ ${(req.estimationDocs?.length||0)>0?'Add / Replace Files':'Upload Quotation'}`}
                     </button>
                   </div>
                   {/* ── Margin breakdown ── */}
@@ -8894,6 +8919,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   else if (currentPath === 'diary') view = 'salesDiary';
   else if (currentPath === 'loading') view = 'loading';
   else if (currentPath === 'results') view = 'results';
+  else if (currentPath === 'AIapextool') view = 'directTool';
   // If they are just at /estimation or /sales, show the default screen based on role
   else if (currentPath === 'estimation' || currentPath === 'sales') {
      view = (userRole === 'estimator' || userRole === 'director') ? 'dashboard' : 'landing';
@@ -8919,7 +8945,8 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
       myActivities: 'activities',
       salesDiary: 'diary',
       loading: 'loading',
-      results: 'results'
+      results: 'results',
+      directTool: 'AIapextool' 
     };
     
     const targetPath = viewMap[newView] !== undefined ? viewMap[newView] : '';
@@ -9393,7 +9420,9 @@ const handleSubmit = async (formData) => {
 
       {/* ── AI Tool Direct — fixed top center-right, in navbar zone ── */}
       {((userRole && userRole !== 'sales' && userRole !== 'director') || (userRole === 'director' && view === 'form') || (!userRole && view === 'dashboard')) && (
-        <button onClick={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}
+        <a href="a href="/estimation/AIapextool"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
             position:'fixed', top:10, right:265, zIndex:9501,
             display:'inline-flex', alignItems:'center', gap:6,
@@ -9403,7 +9432,7 @@ const handleSubmit = async (formData) => {
             padding:'7px 16px',
             color:'rgba(200,160,255,0.90)',
             fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:700, letterSpacing:'0.07em',
-            cursor:'pointer', outline:'none',
+            cursor:'pointer', outline:'none', textDecoration:'none',
             boxShadow:'0 2px 16px rgba(168,85,247,0.25)',
             backdropFilter:'blur(16px)', transition:'all 0.2s', whiteSpace:'nowrap',
           }}
@@ -9412,13 +9441,13 @@ const handleSubmit = async (formData) => {
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           ✦ AI Tool Direct
-        </button>
+        </a>
       )}
 
       {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
-      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
+      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
@@ -9427,7 +9456,7 @@ const handleSubmit = async (formData) => {
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
       {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
       {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
-          initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}/>}
+          initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')}/>}
       {view==='analyse'      && <Analyse requests={requests}/>}
       {view==='salesDashboard' && <SalesDashboard
           requests={requests}
@@ -9459,6 +9488,7 @@ const handleSubmit = async (formData) => {
         />}
       {view==='loading'   && <Loading id={id} q={q} setQ={setQ} go={handleSearch}/>}
       {view==='results'   && <Results id={id} req={foundReq} q={q} setQ={setQ} go={handleSearch}/>}
+      {view==='directTool'&& <DirectToolModal onClose={() => window.close()} userCode={userCode}/>}
       <NotifToast toasts={toasts} onDismiss={dismissToast}/>
     </div>
   );
