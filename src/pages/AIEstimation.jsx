@@ -4523,6 +4523,19 @@ const uploadToAzure = async (file, folder, customFileName) => {
   }
 };
 
+const deleteAzureBlob = async (url) => {
+  if (!url) return;
+  try {
+    const blobName = url.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
+    const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+    const res = await fetch(deleteUrl, { method: 'DELETE' });
+    if (res.ok) console.log('✅ Azure blob deleted:', blobName);
+    else console.warn('⚠️ Azure blob delete HTTP', res.status, 'for', blobName);
+  } catch(err) {
+    console.error('❌ Azure blob delete error:', err);
+  }
+};
+
 // ------------------------------------------------------------------------------
 
 const Form = ({onSubmit, onBack}) => {
@@ -6227,6 +6240,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         estimationFile: allDocs[allDocs.length - 1].name,
         estimationDoc: allDocs[allDocs.length - 1],
         estimationDocs: allDocs,
+        _immediate: true, // flush to Azure immediately so all users can download
       });
       setQuotUploadState(null);
     } catch (err) {
@@ -6239,11 +6253,14 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
 
   const handleEstimatorDeleteDoc = (idx) => {
     const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+    const toDelete = existing[idx];
+    if (toDelete?.url) deleteAzureBlob(toDelete.url); // physically remove from Azure
     const updated = existing.filter((_, i) => i !== idx);
     onUpdate(open, {
       estimationDocs: updated,
       estimationDoc: updated.length ? updated[updated.length - 1] : null,
       estimationFile: updated.length ? updated[updated.length - 1].name : null,
+      _immediate: true, // flush to Azure now so all users see the removal
     });
   };
 
@@ -6262,7 +6279,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const isOutOfScope = req.reqStatus === 'out-of-scope';
     const minFiles = 1;
     const allDocsVerified = (req.estimationDocs || []).length >= minFiles && (req.estimationDocs || []).every(d => d.verified !== false);
-    const canSendToDirector = allDocsVerified && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isRejected && !isOutOfScope;
+    const canSendToDirector = allDocsVerified && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isOutOfScope;
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -6540,7 +6557,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               </div>
               <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>
                 {isRejected
-                  ? 'This request has been permanently rejected. No further action is required.'
+                  ? 'Rejected by Cost-Artist. Delete the current quotation, upload a new or revised file, then resubmit for re-review.'
                   : 'Cost-Artist has marked this as Correction Required. Update your quotation and re-submit.'}
               </div>
               {req.directorNote && (
@@ -6884,7 +6901,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                   : null
                                 }
                               </button>
-                              {req.reqStatus !== 'completed' && !isRejected && !isOutOfScope && (
+                              {req.reqStatus !== 'completed' && !isOutOfScope && (
                                 <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
                                   style={{flexShrink:0,width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
                                   onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
@@ -6898,8 +6915,8 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       );
                     })()}
                     <button onClick={()=>!quotUploadState && uploadRef.current.click()}
-                      disabled={req.reqStatus==='completed'||isRejected||isOutOfScope||quotUploadState==='uploading'}
-                      style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isRejected||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
+                      disabled={req.reqStatus==='completed'||isOutOfScope||quotUploadState==='uploading'}
+                      style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
                         color: quotUploadState==='error'?'rgba(255,100,100,0.95)':'rgba(255,210,60,0.95)',
                         border:`1px solid ${quotUploadState==='error'?'rgba(255,80,80,0.50)':'rgba(255,200,40,0.40)'}`,
                         background: quotUploadState==='error'?'rgba(255,50,50,0.12)':'rgba(255,180,0,0.10)',fontWeight:700}}>
@@ -7090,7 +7107,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
         outline: 'none'
       }}
     >
-      {isResubmission ? '↺ Re-submit with Revised Quote for Cost-Artist Approval' : '✦ Submit to Cost-Artist for Approval'}
+      {isRejected ? '↺ Resubmit After Rejection for Re-Review' : isResubmission ? '↺ Re-submit with Revised Quote for Cost-Artist Approval' : '✦ Submit to Cost-Artist for Approval'}
     </button>
 
     {resubmitToast && (
@@ -7489,7 +7506,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                   if (!ok) throw new Error(`Verification failed for "${file.name}"`);
                                   newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl, verified: true });
                                 }
-                                onUpdate(open, { docs: [...(req.docs||[]), ...newDocs] });
+                                onUpdate(open, { docs: [...(req.docs||[]), ...newDocs], _immediate: true });
                                 setDirDocUploadState(null);
                               } catch(err) {
                                 console.error('Director doc upload error:', err);
@@ -7521,7 +7538,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 : d.url
                                 ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
                                 : null}
-                              <button onClick={()=>onUpdate(open,{docs:(req.docs||[]).filter((_,j)=>j!==i)})}
+                              <button onClick={()=>{ const d=(req.docs||[])[i]; if(d?.url)deleteAzureBlob(d.url); onUpdate(open,{docs:(req.docs||[]).filter((_,j)=>j!==i),_immediate:true}); }}
                                 style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                             </div>
                           ))}
@@ -8998,15 +9015,16 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     estimationDocs: (r.estimationDocs || []).map(stripDocData),
   }));
 
-  // Per-request merge: remote wins when its updatedAt is newer; preserve local file refs
+  // Per-request merge: remote wins when its updatedAt is newer.
+  // All documents now have Azure URLs so we always use the newer side's docs —
+  // the old "preserve local file refs" override was causing uploaded docs to be
+  // invisible on other computers because local always had empty/stale doc arrays.
   const mergeRequests = (local, remote) => {
     const remoteMap = new Map(remote.map(r => [r.id, r]));
     const updated = local.map(lr => {
       const rr = remoteMap.get(lr.id);
       if (!rr) return lr;
-      return (rr.updatedAt || 0) > (lr.updatedAt || 0)
-        ? { ...rr, docs: lr.docs, originalDocs: lr.originalDocs, estimationDoc: lr.estimationDoc, estimationDocs: lr.estimationDocs }
-        : lr;
+      return (rr.updatedAt || 0) > (lr.updatedAt || 0) ? rr : lr;
     });
     const localIds = new Set(local.map(r => r.id));
     const newFromRemote = remote.filter(r => !localIds.has(r.id));
