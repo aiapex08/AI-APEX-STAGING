@@ -9419,30 +9419,30 @@ const handleSubmit = async (formData) => {
       )}
 
       {/* ── AI Tool Direct — fixed top center-right, in navbar zone ── */}
-      {((userRole && userRole !== 'sales' && userRole !== 'director') || (userRole === 'director' && view === 'form') || (!userRole && view === 'dashboard')) && (
-        <a href="a href="/estimation/AIapextool"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            position:'fixed', top:10, right:265, zIndex:9501,
-            display:'inline-flex', alignItems:'center', gap:6,
-            background:'rgba(10,6,30,0.82)',
-            border:'1px solid rgba(168,85,247,0.48)',
-            borderRadius:'100px',
-            padding:'7px 16px',
-            color:'rgba(200,160,255,0.90)',
-            fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:700, letterSpacing:'0.07em',
-            cursor:'pointer', outline:'none', textDecoration:'none',
-            boxShadow:'0 2px 16px rgba(168,85,247,0.25)',
-            backdropFilter:'blur(16px)', transition:'all 0.2s', whiteSpace:'nowrap',
-          }}
-          onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(168,85,247,0.55)';}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.color='rgba(200,160,255,0.90)';e.currentTarget.style.boxShadow='0 2px 16px rgba(168,85,247,0.25)';}}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          ✦ AI Tool Direct
-        </a>
-      )}
+{((userRole && userRole !== 'sales' && userRole !== 'director') || (userRole === 'director' && view === 'form') || (!userRole && view === 'dashboard')) && (
+  <a href="/estimation/AIapextool"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      position:'fixed', top:10, right:265, zIndex:9501,
+      display:'inline-flex', alignItems:'center', gap:6,
+      background:'rgba(10,6,30,0.82)',
+      border:'1px solid rgba(168,85,247,0.48)',
+      borderRadius:'100px',
+      padding:'7px 16px',
+      color:'rgba(200,160,255,0.90)',
+      fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:700, letterSpacing:'0.07em',
+      cursor:'pointer', outline:'none', textDecoration:'none',
+      boxShadow:'0 2px 16px rgba(168,85,247,0.25)',
+      backdropFilter:'blur(16px)', transition:'all 0.2s', whiteSpace:'nowrap',
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(168,85,247,0.55)';}}
+    onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.color='rgba(200,160,255,0.90)';e.currentTarget.style.boxShadow='0 2px 16px rgba(168,85,247,0.25)';}}
+  >
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    ✦ AI Tool Direct
+  </a>
+)}
 
       {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
 
