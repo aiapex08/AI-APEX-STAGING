@@ -7229,6 +7229,27 @@ const Dashboard = ({
                         </div>
                       </div>
                     )}
+                    {docUploadProgress && (
+                      <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:2}}>
+                        {docUploadProgress.map((p, i) => (
+                          <div key={i} style={{display:'flex',alignItems:'center',gap:7,padding:'5px 10px',borderRadius:6,
+                            background: p.status==='done'?'rgba(0,200,100,0.07)':p.status==='error'?'rgba(255,60,60,0.06)':'rgba(0,180,255,0.05)',
+                            border:`1px solid ${p.status==='done'?'rgba(0,200,100,0.28)':p.status==='error'?'rgba(255,80,80,0.30)':'rgba(0,180,255,0.20)'}`,
+                          }}>
+                            {p.status==='uploading' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.80)" strokeWidth="2.5" strokeLinecap="round" style={{animation:'coreOrb 1s linear infinite',flexShrink:0}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>}
+                            {p.status==='done'      && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,100,0.90)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
+                            {p.status==='error'     && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,80,80,0.85)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                            {p.status==='pending'   && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.20)',flexShrink:0}}/>}
+                            <span style={{fontSize:'0.72rem',fontFamily:"'Inter',sans-serif",fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,
+                              color:p.status==='done'?'rgba(0,220,130,0.90)':p.status==='error'?'rgba(255,120,120,0.85)':p.status==='uploading'?'rgba(0,200,255,0.80)':'rgba(255,255,255,0.35)',
+                            }}>{p.name}</span>
+                          </div>
+                        ))}
+                        {docUploadProgress.some(p=>p.status==='error') && (
+                          <button onClick={retryDocUploads} style={{alignSelf:'flex-start',fontSize:'0.68rem',color:'rgba(255,130,130,0.90)',background:'rgba(255,60,60,0.10)',border:'1px solid rgba(255,80,80,0.30)',borderRadius:6,padding:'3px 10px',cursor:'pointer',fontFamily:"'Inter',sans-serif",outline:'none',marginTop:2}}>↺ Retry Failed</button>
+                        )}
+                      </div>
+                    )}
                     <button onClick={()=>!quotUploadState && uploadRef.current.click()}
                       disabled={req.reqStatus==='completed'||isOutOfScope||quotUploadState==='uploading'}
                       style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
@@ -8288,27 +8309,6 @@ const Dashboard = ({
         </div>
       )}
 
-      {/* Doc upload overlay for estimator re-uploads */}
-      {docUploadProgress && (
-        <DocUploadOverlay
-          items={docUploadProgress}
-          title="Uploading Quotation to Azure"
-          onRetry={retryDocUploads}
-          onSkip={() => {
-            if (pendingSubmit?.completionCallback) {
-              pendingSubmit.completionCallback(
-                pendingSubmit.formData,
-                pendingSubmit.newId,
-                pendingSubmit.uploadedDocs
-              );
-            } else {
-              setDocUploadProgress(null);
-              setQuotUploadState(null);
-              setPendingSubmit(null);
-            }
-          }}
-        />
-      )}
 
       {/* ── Header ── */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,gap:12,flexWrap:'wrap'}}>
