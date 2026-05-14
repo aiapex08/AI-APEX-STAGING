@@ -4574,7 +4574,7 @@ const deleteAzureBlob = async (url) => {
 
 // ------------------------------------------------------------------------------
 
-const Form = ({onSubmit, onBack}) => {
+const Form = ({onSubmit, onBack, docUploadProgress}) => {
   const [f,setF] = useState({submittedBy:'',salesPerson:'',proj:'',mainContractor:'',consultant:'',client:'',email:'',mob:'',tel:'',leadTime:'',address:'',remarks:'',supplyOnly:false,supplyInstall:false,customerRank:0});
   const [deal,setDeal] = useState('Job In Hand');
   const [files,setFiles] = useState([]);
@@ -4611,50 +4611,6 @@ const Form = ({onSubmit, onBack}) => {
 
   return (
     <div className="form-page">
-
-      {/* ── Upload animation overlay ── */}
-      {submitting && (
-        <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(6,6,18,0.93)',backdropFilter:'blur(18px)'}}>
-          <style>{`
-            @keyframes _spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-            @keyframes _ring{0%{transform:scale(1);opacity:0.7}100%{transform:scale(1.9);opacity:0}}
-            @keyframes _bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-            @keyframes _bar{0%{width:0%}100%{width:90%}}
-          `}</style>
-          <div style={{position:'relative',width:110,height:110,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:28}}>
-            {/* pulsing rings */}
-            <div style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid rgba(100,200,255,0.55)',animation:'_ring 1.6s ease-out infinite'}}/>
-            <div style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid rgba(160,130,255,0.40)',animation:'_ring 1.6s ease-out 0.55s infinite'}}/>
-            {/* spinning arc */}
-            <div style={{width:76,height:76,borderRadius:'50%',border:'3px solid transparent',borderTopColor:'rgba(100,200,255,0.95)',borderRightColor:'rgba(160,130,255,0.65)',animation:'_spin 0.9s linear infinite'}}/>
-            {/* inner static ring */}
-            <div style={{position:'absolute',width:52,height:52,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.10)'}}/>
-            {/* upload arrow */}
-            <div style={{position:'absolute',display:'flex',flexDirection:'column',alignItems:'center',gap:1}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(100,200,255,0.92)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
-                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-              </svg>
-            </div>
-          </div>
-          <div style={{color:'rgba(255,255,255,0.95)',fontSize:'1.15rem',fontWeight:700,fontFamily:"'Inter',sans-serif",letterSpacing:'0.02em',marginBottom:6}}>
-            Uploading Documents
-          </div>
-          <div style={{color:'rgba(255,255,255,0.40)',fontSize:'0.78rem',fontFamily:"'Inter',sans-serif",marginBottom:22}}>
-            Please wait while we store your request…
-          </div>
-          {/* progress bar */}
-          <div style={{width:220,height:3,borderRadius:2,background:'rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:18}}>
-            <div style={{height:'100%',borderRadius:2,background:'linear-gradient(90deg,rgba(100,200,255,0.9),rgba(160,130,255,0.9))',animation:'_bar 3s ease-out forwards'}}/>
-          </div>
-          {/* bouncing dots */}
-          <div style={{display:'flex',gap:8}}>
-            {[0,1,2].map(i=>(
-              <div key={i} style={{width:7,height:7,borderRadius:'50%',background:`rgba(${i===0?'100,200,255':i===1?'160,130,255':'100,220,180'},0.75)`,animation:`_bob 1.1s ease-in-out ${i*0.18}s infinite`}}/>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── LEFT — AIBOT2 image panel ── */}
       <div className="form-left">
@@ -4693,16 +4649,53 @@ const Form = ({onSubmit, onBack}) => {
                   <span onClick={e=>{e.stopPropagation();ref.current.click();}} style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.4)',cursor:'pointer'}}>+ Add More</span>
                 </div>
                 <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:files.length>5?200:'none',overflowY:files.length>5?'auto':'visible',paddingRight:files.length>5?4:0}}>
-                  {files.map((file,i)=>(
-                    <div key={i} className="file-chip-g">
-                      <FileText size={12} color="rgba(255,255,255,0.5)"/>
-                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:'0.72rem'}}>{file.name}</span>
-                      <button onClick={e=>{e.stopPropagation();setFiles(p=>p.filter((_,j)=>j!==i));}}
-                        style={{background:'transparent',border:'none',cursor:'pointer',padding:2,display:'flex'}}>
-                        <X size={11} color="rgba(255,80,80,0.8)"/>
-                      </button>
-                    </div>
-                  ))}
+                  {files.map((file, i) => {
+                    const ps = submitting ? (docUploadProgress?.[i]?.status ?? 'pending') : null;
+                    return (
+                      <div key={i} className="file-chip-g" style={
+                        ps === 'done'     ? {borderColor:'rgba(0,200,100,0.35)',background:'rgba(0,200,100,0.07)'}
+                        : ps === 'error'  ? {borderColor:'rgba(255,80,80,0.30)',background:'rgba(255,60,60,0.06)'}
+                        : ps === 'uploading' ? {borderColor:'rgba(0,180,255,0.28)'}
+                        : {}
+                      }>
+                        {/* Left status icon */}
+                        {!submitting && <FileText size={12} color="rgba(255,255,255,0.5)"/>}
+                        {ps === 'uploading' && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="rgba(0,180,255,0.90)" strokeWidth="2.2" strokeLinecap="round"
+                            style={{animation:'coreOrb 1s linear infinite',flexShrink:0}}>
+                            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                          </svg>
+                        )}
+                        {ps === 'done' && (
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                            stroke="rgba(0,200,255,0.80)" strokeWidth="1.8" style={{flexShrink:0}}>
+                            <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/>
+                          </svg>
+                        )}
+                        {ps === 'pending' && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.20)',flexShrink:0}}/>}
+                        {ps === 'error' && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="rgba(255,80,80,0.85)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                          </svg>
+                        )}
+                        <span style={{
+                          flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:'0.72rem',
+                          color: ps === 'done' ? 'rgba(0,220,130,0.90)'
+                            : ps === 'error' ? 'rgba(255,120,120,0.85)'
+                            : ps === 'uploading' ? 'rgba(0,200,255,0.80)'
+                            : 'inherit',
+                        }}>{file.name}</span>
+                        {!submitting && (
+                          <button onClick={e=>{e.stopPropagation();setFiles(p=>p.filter((_,j)=>j!==i));}}
+                            style={{background:'transparent',border:'none',cursor:'pointer',padding:2,display:'flex'}}>
+                            <X size={11} color="rgba(255,80,80,0.8)"/>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -6100,70 +6093,265 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
   );
 };
 
-// ─── DOC UPLOAD OVERLAY ───────────────────────────────────────────────────────
-const DocUploadOverlay = ({ items, onRetry, onSkip }) => {
+// ─── DOC UPLOAD OVERLAY (Gmail-style per-file progress) ────────────────────
+const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents to Azure' }) => {
   const F = "'Inter',sans-serif";
   const allDone   = items.every(i => i.status === 'done');
   const anyError  = items.some(i => i.status === 'error');
   const anyActive = items.some(i => i.status === 'uploading');
   const done      = items.filter(i => i.status === 'done').length;
+  const total     = items.length;
+  const pct       = Math.round((done / total) * 100);
   const fmt = b => b < 1048576 ? `${(b/1024).toFixed(0)} KB` : `${(b/1024/1024).toFixed(1)} MB`;
+
   return (
-    <div style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(2,1,12,0.97)',backdropFilter:'blur(24px)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:F}}>
-      <style>{`@keyframes dup-bar{0%{left:-45%;width:45%}100%{left:110%;width:45%}}@keyframes dup-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{width:'min(500px,92vw)',display:'flex',flexDirection:'column',gap:22}}>
+    <div style={{
+      position:'fixed', inset:0, zIndex:9999,
+      background:'rgba(2,1,12,0.97)', backdropFilter:'blur(24px)',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+      fontFamily:F,
+    }}>
+      <style>{`
+        @keyframes dup-bar  { 0%{left:-45%;width:45%} 100%{left:110%;width:45%} }
+        @keyframes dup-spin { to{transform:rotate(360deg)} }
+        @keyframes dup-pop  { 0%{transform:scale(0.7);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+      `}</style>
+
+      <div style={{ width:'min(500px,92vw)', display:'flex', flexDirection:'column', gap:20 }}>
+
         {/* Header */}
-        <div style={{textAlign:'center'}}>
-          <div style={{fontSize:'0.52rem',letterSpacing:'0.24em',textTransform:'uppercase',color:'rgba(0,200,255,0.50)',marginBottom:8,fontWeight:700}}>NAFFCO · AZURE DOCUMENT STORAGE</div>
-          <h2 style={{fontSize:'1.5rem',fontWeight:800,margin:0,letterSpacing:'0.03em',background:allDone?'linear-gradient(105deg,#00e5ff,#00cc77)':anyError?'linear-gradient(105deg,#ff4444,#ff8800)':'linear-gradient(105deg,#0099ff,#a855f7)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
-            {allDone ? 'All Documents Secured' : anyError && !anyActive ? 'Upload Issue — Action Required' : 'Uploading Documents to Azure'}
+        <div style={{ textAlign:'center' }}>
+          <div style={{
+            fontSize:'0.52rem', letterSpacing:'0.24em', textTransform:'uppercase',
+            color:'rgba(0,200,255,0.50)', marginBottom:8, fontWeight:700,
+          }}>NAFFCO · AZURE DOCUMENT STORAGE</div>
+          <h2 style={{
+            fontSize:'1.5rem', fontWeight:800, margin:0, letterSpacing:'0.03em',
+            background: allDone
+              ? 'linear-gradient(105deg,#00e5ff,#00cc77)'
+              : anyError && !anyActive
+              ? 'linear-gradient(105deg,#ff4444,#ff8800)'
+              : 'linear-gradient(105deg,#0099ff,#a855f7)',
+            WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text',
+          }}>
+            {allDone
+              ? '✓ All Documents Secured'
+              : anyError && !anyActive
+              ? 'Upload Issue — Action Required'
+              : title}
           </h2>
           {!allDone && !anyError && (
-            <p style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.32)',margin:'6px 0 0',lineHeight:1.6}}>Please keep this window open. Documents are being secured on Azure cloud storage.</p>
+            <p style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.32)', margin:'6px 0 0', lineHeight:1.6 }}>
+              Keep this window open while files are uploading.
+            </p>
           )}
-          {allDone && <p style={{fontSize:'0.76rem',color:'rgba(0,220,130,0.65)',margin:'6px 0 0'}}>✓ {done} file{done!==1?'s':''} verified on Azure — proceeding…</p>}
+          {allDone && (
+            <p style={{ fontSize:'0.76rem', color:'rgba(0,220,130,0.65)', margin:'6px 0 0' }}>
+              ✓ {done} file{done!==1?'s':''} verified on Azure — proceeding…
+            </p>
+          )}
         </div>
-        {/* Progress summary bar */}
+
+        {/* Overall progress bar */}
         {!allDone && (
-          <div style={{height:4,background:'rgba(255,255,255,0.06)',borderRadius:4,overflow:'hidden',position:'relative'}}>
-            <div style={{position:'absolute',height:'100%',background:'linear-gradient(90deg,rgba(0,150,255,0.80),rgba(100,80,255,0.80))',borderRadius:4,transition:'width 0.4s',width:`${Math.round((done/items.length)*100)}%`}}/>
-            {anyActive && <div style={{position:'absolute',height:'100%',width:'45%',background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.20),transparent)',animation:'dup-bar 1.4s ease-in-out infinite'}}/>}
+          <div>
+            <div style={{
+              display:'flex', justifyContent:'space-between', alignItems:'center',
+              marginBottom:6, fontFamily:F,
+            }}>
+              <span style={{ fontSize:'0.62rem', color:'rgba(255,255,255,0.35)' }}>
+                {done} of {total} uploaded
+              </span>
+              <span style={{ fontSize:'0.72rem', fontWeight:700, color:'rgba(0,200,255,0.85)', fontFamily:'monospace' }}>
+                {pct}%
+              </span>
+            </div>
+            <div style={{ height:5, background:'rgba(255,255,255,0.06)', borderRadius:4, overflow:'hidden', position:'relative' }}>
+              <div style={{
+                position:'absolute', height:'100%',
+                background:'linear-gradient(90deg,rgba(0,150,255,0.80),rgba(100,80,255,0.80))',
+                borderRadius:4, transition:'width 0.4s ease',
+                width:`${pct}%`,
+              }}/>
+              {anyActive && (
+                <div style={{
+                  position:'absolute', height:'100%', width:'45%',
+                  background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.20),transparent)',
+                  animation:'dup-bar 1.4s ease-in-out infinite',
+                }}/>
+              )}
+            </div>
           </div>
         )}
-        {/* File list */}
-        <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,overflow:'hidden'}}>
-          {items.map((item, i) => (
-            <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 18px',borderBottom:i<items.length-1?'1px solid rgba(255,255,255,0.05)':'none',background:item.status==='error'?'rgba(220,40,40,0.06)':item.status==='done'?'rgba(0,200,100,0.04)':'transparent',transition:'background 0.3s'}}>
-              <div style={{flexShrink:0,width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:item.status==='done'?'rgba(0,200,100,0.15)':item.status==='error'?'rgba(220,40,40,0.15)':item.status==='uploading'?'rgba(0,150,255,0.12)':'rgba(255,255,255,0.04)',border:`1px solid ${item.status==='done'?'rgba(0,200,100,0.40)':item.status==='error'?'rgba(220,40,40,0.40)':item.status==='uploading'?'rgba(0,150,255,0.35)':'rgba(255,255,255,0.08)'}`}}>
-                {item.status==='done'     && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,120,0.95)" strokeWidth="2.8" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                {item.status==='error'    && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,80,80,0.95)" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
-                {item.status==='uploading'&& <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(0,180,255,0.95)" strokeWidth="2.2" strokeLinecap="round" style={{animation:'dup-spin 1s linear infinite'}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>}
-                {item.status==='pending'  && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.18)'}}/>}
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'0.80rem',fontWeight:600,color:'rgba(255,255,255,0.88)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
-                <div style={{fontSize:'0.60rem',color:item.status==='done'?'rgba(0,200,130,0.65)':item.status==='error'?'rgba(255,120,120,0.70)':'rgba(255,255,255,0.28)',marginTop:2}}>
-                  {fmt(item.size)} · {item.status==='done'?'✓ Secured on Azure':item.status==='error'?'✕ Upload failed — retry required':item.status==='uploading'?'Uploading to Azure…':'Queued'}
+
+        {/* Per-file list — Gmail style */}
+        <div style={{
+          background:'rgba(255,255,255,0.03)',
+          border:'1px solid rgba(255,255,255,0.08)',
+          borderRadius:14, overflow:'hidden',
+          maxHeight:320, overflowY:'auto',
+          scrollbarWidth:'thin', scrollbarColor:'rgba(255,255,255,0.08) transparent',
+        }}>
+          {items.map((item, i) => {
+            const pctFile = item.status === 'done' ? 100
+              : item.status === 'uploading' ? (item.progress || 50)
+              : 0;
+            return (
+              <div key={i} style={{
+                display:'flex', alignItems:'center', gap:12,
+                padding:'13px 18px',
+                borderBottom: i < items.length-1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                background: item.status==='error'
+                  ? 'rgba(220,40,40,0.06)'
+                  : item.status==='done'
+                  ? 'rgba(0,200,100,0.04)'
+                  : 'transparent',
+                transition:'background 0.3s',
+              }}>
+                {/* Status icon */}
+                <div style={{
+                  flexShrink:0, width:32, height:32, borderRadius:'50%',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  background: item.status==='done'
+                    ? 'rgba(0,200,100,0.15)'
+                    : item.status==='error'
+                    ? 'rgba(220,40,40,0.15)'
+                    : item.status==='uploading'
+                    ? 'rgba(0,150,255,0.12)'
+                    : 'rgba(255,255,255,0.04)',
+                  border:`1px solid ${item.status==='done'
+                    ? 'rgba(0,200,100,0.40)'
+                    : item.status==='error'
+                    ? 'rgba(220,40,40,0.40)'
+                    : item.status==='uploading'
+                    ? 'rgba(0,150,255,0.35)'
+                    : 'rgba(255,255,255,0.08)'}`,
+                  animation: item.status==='done' ? 'dup-pop 0.35s ease both' : 'none',
+                }}>
+                  {item.status==='done' && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="rgba(0,220,120,0.95)" strokeWidth="2.8" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  )}
+                  {item.status==='error' && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="rgba(255,80,80,0.95)" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  )}
+                  {item.status==='uploading' && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="rgba(0,180,255,0.95)" strokeWidth="2.2" strokeLinecap="round"
+                      style={{ animation:'dup-spin 1s linear infinite' }}>
+                      <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    </svg>
+                  )}
+                  {item.status==='pending' && (
+                    <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(255,255,255,0.20)' }}/>
+                  )}
                 </div>
-                {item.status==='uploading' && <div style={{height:2,background:'rgba(0,150,255,0.12)',borderRadius:2,marginTop:5,overflow:'hidden',position:'relative'}}><div style={{position:'absolute',height:'100%',background:'rgba(0,180,255,0.75)',borderRadius:2,animation:'dup-bar 1.4s ease-in-out infinite'}}/></div>}
+
+                {/* File info + progress */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{
+                    fontSize:'0.82rem', fontWeight:600,
+                    color:'rgba(255,255,255,0.88)',
+                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                    marginBottom:4,
+                  }}>{item.name}</div>
+
+                  <div style={{
+                    display:'flex', alignItems:'center',
+                    justifyContent:'space-between', gap:8, marginBottom:4,
+                  }}>
+                    <span style={{
+                      fontSize:'0.62rem',
+                      color: item.status==='done'
+                        ? 'rgba(0,200,130,0.65)'
+                        : item.status==='error'
+                        ? 'rgba(255,120,120,0.70)'
+                        : item.status==='uploading'
+                        ? 'rgba(0,180,255,0.65)'
+                        : 'rgba(255,255,255,0.28)',
+                    }}>
+                      {item.size ? fmt(item.size) + ' · ' : ''}
+                      {item.status==='done'
+                        ? '✓ Secured on Azure'
+                        : item.status==='error'
+                        ? '✕ Upload failed'
+                        : item.status==='uploading'
+                        ? 'Uploading to Azure…'
+                        : 'Queued'}
+                    </span>
+                    {item.status==='done' && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                        stroke="rgba(0,200,255,0.45)" strokeWidth="1.8">
+                        <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/>
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Per-file progress bar */}
+                  {(item.status === 'uploading' || item.status === 'done') && (
+                    <div style={{
+                      height:3, borderRadius:2,
+                      background:'rgba(255,255,255,0.08)', overflow:'hidden',
+                      position:'relative',
+                    }}>
+                      <div style={{
+                        position:'absolute', height:'100%',
+                        background: item.status==='done'
+                          ? 'rgba(0,220,130,0.75)'
+                          : 'rgba(0,180,255,0.75)',
+                        borderRadius:2,
+                        width:`${pctFile}%`,
+                        transition:'width 0.3s ease',
+                        boxShadow: item.status==='done'
+                          ? '0 0 6px rgba(0,200,130,0.50)'
+                          : '0 0 6px rgba(0,180,255,0.50)',
+                      }}/>
+                      {item.status==='uploading' && (
+                        <div style={{
+                          position:'absolute', height:'100%', width:'40%',
+                          background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)',
+                          animation:'dup-bar 1.2s ease-in-out infinite',
+                        }}/>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              {item.status==='done' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="1.8"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
-            </div>
-          ))}
+            );
+          })}
         </div>
-        {/* Actions */}
+
+        {/* Error actions */}
         {anyError && !anyActive && (
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{fontSize:'0.73rem',color:'rgba(255,160,160,0.70)',textAlign:'center',lineHeight:1.5,padding:'0 8px'}}>
-              ⚠ Document upload failed. These documents are critical for estimation — please retry before proceeding.
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{
+              fontSize:'0.74rem', color:'rgba(255,160,160,0.70)',
+              textAlign:'center', lineHeight:1.5, padding:'0 8px',
+            }}>
+              ⚠ Some files failed to upload. Documents are critical for estimation — retry before proceeding.
             </div>
-            <div style={{display:'flex',gap:8}}>
-              <button onClick={onRetry} style={{flex:3,padding:'11px 0',borderRadius:10,background:'rgba(0,150,255,0.15)',border:'1px solid rgba(0,180,255,0.45)',color:'rgba(100,210,255,0.95)',fontFamily:F,fontSize:'0.82rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'background 0.15s'}}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={onRetry} style={{
+                flex:3, padding:'11px 0', borderRadius:10,
+                background:'rgba(0,150,255,0.15)', border:'1px solid rgba(0,180,255,0.45)',
+                color:'rgba(100,210,255,0.95)', fontFamily:F, fontSize:'0.82rem', fontWeight:700,
+                cursor:'pointer', outline:'none', transition:'background 0.15s',
+              }}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(0,150,255,0.28)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(0,150,255,0.15)'}>
                 ↺ Retry Failed Uploads
               </button>
-              <button onClick={onSkip} style={{flex:1,padding:'11px 0',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.09)',color:'rgba(255,255,255,0.28)',fontFamily:F,fontSize:'0.72rem',cursor:'pointer',outline:'none'}}>
+              <button onClick={onSkip} style={{
+                flex:1, padding:'11px 0', borderRadius:10,
+                background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.09)',
+                color:'rgba(255,255,255,0.28)', fontFamily:F, fontSize:'0.72rem',
+                cursor:'pointer', outline:'none',
+              }}>
                 Skip
               </button>
             </div>
@@ -6175,7 +6363,10 @@ const DocUploadOverlay = ({ items, onRetry, onSkip }) => {
 };
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool }) => {
+const Dashboard = ({
+  requests, onUpdate, onDelete, initialViewMode, onDirectTool,
+  docUploadProgress, setDocUploadProgress, setPendingSubmit, retryDocUploads, pendingSubmit
+}) => {
   const [open, setOpen] = useState(null);
   const [reviewIdx, setReviewIdx] = useState(null);
   const [seenTs, setSeenTs] = useState(() => _getSeen());
@@ -6259,54 +6450,108 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
 
   const req = open !== null ? requests[open] : null;
 
-  const handleEstimatorUpload = async e => {
-    if (!e.target.files?.length) return;
-    if (!req?.id) { setQuotUploadState('error'); return; }
+  const handleEstimatorUpload = async (e) => {
+    if (!e.target.files?.length || !req?.id) return;
     const files = Array.from(e.target.files);
+    e.target.value = '';
+
+    const progressItems = files.map(f => ({ name: f.name, size: f.size, status: 'pending', url: null }));
+    setDocUploadProgress(progressItems);
     setQuotUploadState('uploading');
-    try {
-      const newDocs = [];
-      for (const file of files) {
-        const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
-        const customName = `quotation-${safeFn}`;
-        const azureUrl = await uploadToAzure(file, req.id, customName);
-        if (!azureUrl) throw new Error(`Failed to upload "${file.name}" — check your connection and retry`);
-        // Trust the PUT 201 response — no separate HEAD verification needed
-        newDocs.push({
-          id: Math.random().toString(36).slice(2) + Date.now().toString(36),
-          name: customName,
-          type: file.type,
-          url: azureUrl,
-          verified: true,
-        });
-      }
+
+    const newDocs = [];
+    for (let i = 0; i < files.length; i++) {
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
+
+      const file = files[i];
+      const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
+      const customName = `quotation-${safeFn}`;
+      const azureUrl = await uploadToAzure(file, req.id, customName);
+      const verified = azureUrl ? await verifyAzureBlob(azureUrl) : false;
+      const status = verified ? 'done' : 'error';
+
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: azureUrl || null } : p));
+
+      newDocs.push({
+        id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+        name: customName,
+        type: file.type,
+        url: azureUrl || null,
+        verified,
+      });
+    }
+
+    const allOk = newDocs.every(d => d.verified);
+
+    if (allOk) {
       const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
       const allDocs = [...existing, ...newDocs];
       onUpdate(req.id, {
         estimationFile: allDocs[allDocs.length - 1].name,
         estimationDoc: allDocs[allDocs.length - 1],
         estimationDocs: allDocs,
-        _immediate: true, // flush to Azure immediately so all users can download
+        status: 'Pending Approval',
+        reqStatus: 'pending-director',
+        directorAction: null,
+        directorNote: '',
+        directorRespondedAt: null,
+        directorSubmitted: false,
+        _immediate: true,
       });
-      setQuotUploadState(null);
-    } catch (err) {
-      console.error('Quotation upload error:', err);
+      setTimeout(() => {
+        setDocUploadProgress(null);
+        setQuotUploadState(null);
+      }, 1200);
+    } else {
       setQuotUploadState('error');
-      setTimeout(() => setQuotUploadState(null), 6000);
+      setPendingSubmit({
+        formData: null,
+        newId: req.id,
+        uploadedDocs: newDocs,
+        completionCallback: (_, __, finalDocs) => {
+          const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+          const allDocs = [...existing, ...finalDocs];
+          onUpdate(req.id, {
+            estimationFile: allDocs[allDocs.length - 1].name,
+            estimationDoc: allDocs[allDocs.length - 1],
+            estimationDocs: allDocs,
+            status: 'Pending Approval',
+            reqStatus: 'pending-director',
+            directorAction: null,
+            directorNote: '',
+            directorRespondedAt: null,
+            directorSubmitted: false,
+            _immediate: true,
+          });
+          setDocUploadProgress(null);
+          setQuotUploadState(null);
+          setPendingSubmit(null);
+        },
+      });
     }
-    e.target.value = '';
   };
 
-  const handleEstimatorDeleteDoc = (idx) => {
+  const handleEstimatorDeleteDoc = async (idx) => {
     const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
     const toDelete = existing[idx];
-    if (toDelete?.url) deleteAzureBlob(toDelete.url); // physically remove from Azure
+    if (toDelete?.url) {
+      try {
+        const baseUrl = toDelete.url.split('?')[0];
+        const blobName = baseUrl.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
+        const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+        const res = await fetch(deleteUrl, { method: 'DELETE' });
+        if (res.ok) console.log('✅ Azure blob deleted:', blobName);
+        else console.warn('⚠️ Azure blob delete HTTP', res.status);
+      } catch (err) {
+        console.error('❌ Azure blob delete error:', err);
+      }
+    }
     const updated = existing.filter((_, i) => i !== idx);
     onUpdate(req.id, {
       estimationDocs: updated,
       estimationDoc: updated.length ? updated[updated.length - 1] : null,
       estimationFile: updated.length ? updated[updated.length - 1].name : null,
-      _immediate: true, // flush to Azure now so all users see the removal
+      _immediate: true,
     });
   };
 
@@ -6714,7 +6959,16 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     );
                   })()
                 )}
-                {(req.directorAction==='approved'||req.reqStatus==='completed'||req.status==='Approved'||req.status==='Completed') ? (
+                {(() => {
+                  const canDownloadQuotation =
+                    (req.directorAction === 'approved' ||
+                     req.reqStatus === 'completed' ||
+                     req.status === 'Approved' ||
+                     req.status === 'Completed') &&
+                    req.directorAction !== 'rejected' &&
+                    req.directorAction !== 'revised';
+                  return canDownloadQuotation;
+                })() ? (
                   <div style={{background:'rgba(0,40,20,0.50)',border:'1px solid rgba(0,200,100,0.28)',borderRadius:10,padding:'16px 18px'}}>
                     <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(0,200,100,0.60)',marginBottom:10}}>Download Quotation</p>
                     <div style={{display:'flex',flexDirection:'column',gap:6}}>
@@ -6960,6 +7214,21 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         </div>
                       );
                     })()}
+                    {(isRejected || isResubmission) && (req.estimationDocs?.length > 0 || req.estimationDoc) && (
+                      <div style={{ background:'rgba(255,160,30,0.06)', border:'1px solid rgba(255,160,30,0.22)', borderRadius:8, padding:'10px 14px' }}>
+                        <p style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,180,60,0.60)', marginBottom:7, fontWeight:700 }}>
+                          Previously Uploaded Files (for reference)
+                        </p>
+                        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                          {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d, i) => (
+                            <button key={i} onClick={() => downloadDoc(d)} style={{ display:'flex', alignItems:'center', gap:7, padding:'5px 10px', borderRadius:6, background:'rgba(255,160,30,0.08)', border:'1px solid rgba(255,160,30,0.28)', color:'rgba(255,200,80,0.90)', fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:600, cursor:'pointer', outline:'none', textAlign:'left', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                              {d.name || `quotation-file-${i + 1}`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <button onClick={()=>!quotUploadState && uploadRef.current.click()}
                       disabled={req.reqStatus==='completed'||isOutOfScope||quotUploadState==='uploading'}
                       style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
@@ -8017,6 +8286,28 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
             </div>
           </div>
         </div>
+      )}
+
+      {/* Doc upload overlay for estimator re-uploads */}
+      {docUploadProgress && (
+        <DocUploadOverlay
+          items={docUploadProgress}
+          title="Uploading Quotation to Azure"
+          onRetry={retryDocUploads}
+          onSkip={() => {
+            if (pendingSubmit?.completionCallback) {
+              pendingSubmit.completionCallback(
+                pendingSubmit.formData,
+                pendingSubmit.newId,
+                pendingSubmit.uploadedDocs
+              );
+            } else {
+              setDocUploadProgress(null);
+              setQuotUploadState(null);
+              setPendingSubmit(null);
+            }
+          }}
+        />
       )}
 
       {/* ── Header ── */}
@@ -9299,18 +9590,6 @@ const nextRequestId = () => {
     return 'AX' + String(max + 1).padStart(4, '0');
   };
 
-const verifyAzureBlob = async (url) => {
-    if (!url) return false;
-    try {
-      // Append a timestamp to break the cache
-      const res = await fetch(`${url}?${AZURE_SAS}&_cb=${Date.now()}`, { 
-        method: 'HEAD', 
-        cache: 'no-store' 
-      });
-      return res.ok;
-    } catch { return false; }
-  };
-
 const finaliseSubmit = (formData, newId, uploadedDocs) => {
   const uniqueId = `${newId}-00`;
   const entry = {
@@ -9453,38 +9732,50 @@ const handleSubmit = async (formData) => {
   };
 
   const retryDocUploads = async () => {
-  if (!pendingSubmit) return;
-  const { formData, newId, uploadedDocs, completionCallback } = pendingSubmit;
-  const failedIdxs = (docUploadProgress || []).map((p, i) => p.status === 'error' ? i : -1).filter(i => i >= 0);
-  const docFiles = formData.docFiles || [];
-  setDocUploadProgress(prev => prev.map((p, i) => failedIdxs.includes(i) ? { ...p, status: 'pending' } : p));
-  const updatedDocs = [...uploadedDocs];
-  for (const i of failedIdxs) {
-    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
-    const url = await uploadToAzure(docFiles[i], newId);
-    const verified = url ? await verifyAzureBlob(url) : false;
-    const status = verified ? 'done' : 'error';
-    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
-    updatedDocs[i] = { name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified };
-  }
-  const allOk = updatedDocs.every(d => d.verified);
-  setPendingSubmit(prev => ({ ...prev, uploadedDocs: updatedDocs }));
-  if (allOk) setTimeout(() => completionCallback(formData, newId, updatedDocs), 900);
-};
+    if (!pendingSubmit) return;
+    const { formData, newId, uploadedDocs, completionCallback } = pendingSubmit;
+    const failedIdxs = (docUploadProgress || [])
+      .map((p, i) => p.status === 'error' ? i : -1).filter(i => i >= 0);
+
+    setDocUploadProgress(prev => prev.map((p, i) => failedIdxs.includes(i) ? { ...p, status: 'pending' } : p));
+
+    const updatedDocs = [...uploadedDocs];
+    const docFiles = formData?.docFiles || [];
+
+    for (const i of failedIdxs) {
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
+
+      let url = null;
+      let verified = false;
+
+      if (docFiles[i]) {
+        url = await uploadToAzure(docFiles[i], newId, docFiles[i].name);
+        verified = url ? await verifyAzureBlob(url) : false;
+      }
+
+      const status = verified ? 'done' : 'error';
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
+      updatedDocs[i] = { ...updatedDocs[i], url: url || updatedDocs[i]?.url, verified };
+    }
+
+    const allOk = updatedDocs.every(d => d.verified);
+    setPendingSubmit(prev => ({ ...prev, uploadedDocs: updatedDocs }));
+    if (allOk) setTimeout(() => completionCallback(formData, newId, updatedDocs), 900);
+  };
 
   return (
     <div className="root">
       <style>{S}</style>
       <div className="veil"/>
 
-      {/* Document upload progress overlay — shown during form submission */}
-      {docUploadProgress && (
-  <DocUploadOverlay
-    items={docUploadProgress}
-    onRetry={retryDocUploads}
-    onSkip={() => pendingSubmit && pendingSubmit.completionCallback && pendingSubmit.completionCallback(pendingSubmit.formData, pendingSubmit.newId, pendingSubmit.uploadedDocs)}
-  />
-)}
+      {/* Document upload overlay — shown for revised/final-price submissions (not new form, which uses inline icons) */}
+      {docUploadProgress && view !== 'form' && (
+        <DocUploadOverlay
+          items={docUploadProgress}
+          onRetry={retryDocUploads}
+          onSkip={() => pendingSubmit && pendingSubmit.completionCallback && pendingSubmit.completionCallback(pendingSubmit.formData, pendingSubmit.newId, pendingSubmit.uploadedDocs)}
+        />
+      )}
 
       {/* NN logo — faint watermark across all screens */}
       <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -9549,15 +9840,25 @@ const handleSubmit = async (formData) => {
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
       {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
-      {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')}/>}
+      {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')} docUploadProgress={docUploadProgress}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={requests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
       {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
-      {view==='dashboard' && <Dashboard requests={requests} onUpdate={updateRequest} onDelete={deleteRequest}
-          initialViewMode={userRole==='director'?'director':'estimator'} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')}/>}
+      {view==='dashboard' && <Dashboard
+          requests={requests}
+          onUpdate={updateRequest}
+          onDelete={deleteRequest}
+          initialViewMode={userRole==='director'?'director':'estimator'}
+          onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')}
+          docUploadProgress={docUploadProgress}
+          setDocUploadProgress={setDocUploadProgress}
+          setPendingSubmit={setPendingSubmit}
+          retryDocUploads={retryDocUploads}
+          pendingSubmit={pendingSubmit}
+      />}
       {view==='analyse'      && <Analyse requests={requests}/>}
       {view==='salesDashboard' && <SalesDashboard
           requests={requests}
