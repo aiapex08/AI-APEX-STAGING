@@ -5893,7 +5893,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
                 {!req.supplyOnly && !req.supplyInstall && <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.22)'}}>—</span>}
               </div>
             </GC>
-                        {/* Quotation files — Visible whenever files exist so Cost-Artist can review them */}
+            {/* Quotation files — Visible whenever files exist so Cost-Artist can review them */}
             <GC>
               {lbl('Quotation Files')}
               {(req.estimationDocs?.length > 0 || req.estimationDoc?.url || req.estimationDoc?.data) ? (
@@ -9008,6 +9008,12 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const [diaryEntries, setDiaryEntries] = useState([]);
   const [docUploadProgress, setDocUploadProgress] = useState(null); // null | [{name,size,status,url}]
   const [pendingSubmit, setPendingSubmit]           = useState(null); // {formData, newId, uploadedDocs}
+  const latestRequestsRef = useRef(requests);
+  const latestDiaryRef = useRef(diaryEntries);
+  useEffect(() => {
+    latestRequestsRef.current = requests;
+    latestDiaryRef.current = diaryEntries;
+  }, [requests, diaryEntries]);
   // ─── Azure data blob (all request + diary JSON lives here) ──────────────────
   const DATA_BLOB_URL = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/apex-data.json?${AZURE_SAS}`;
   const currentEtag   = useRef(null);
@@ -9075,7 +9081,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
       if (pendingSave.current) {
         pendingSave.current = false;
         clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => saveToAzure(requests, diaryEntries), 100);
+        saveTimer.current = setTimeout(() => saveToAzure(latestRequestsRef.current, latestDiaryRef.current), 100);
       }
     }
   };
@@ -9382,7 +9388,8 @@ const handleSubmit = async (formData) => {
       const updated = next(prev);
       if (immediate) {
         clearTimeout(saveTimer.current);
-        saveToAzure(updated, diaryEntries);
+        latestRequestsRef.current = updated;
+        saveToAzure(updated, latestDiaryRef.current);
       }
       return updated;
     });
