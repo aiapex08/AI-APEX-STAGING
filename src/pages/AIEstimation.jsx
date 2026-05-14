@@ -2122,14 +2122,14 @@ const RoleLogin = ({ onLogin }) => {
         {/* Role hints */}
         <div style={{display:'flex',flexDirection:'column',gap:7}}>
           {[
-            { label:'Sales',       hint:'SX985 · SX417 · SE628 · SE842 · SE519 · SM386', color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
-            { label:'Estimator',   hint:'EX552 · EX719 · EX638 · EX904 · EX471 · EX856 · EX392 · EX681 · EX547 · EX903 · EX764', color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
-            { label:'Cost-Artist', hint:'STAR',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
-          ].map(({label,hint,color,bg,bd}) => (
+            { label:'Sales',       sub:'Sales team access',           color:'rgba(160,130,255,0.85)', bg:'rgba(130,90,255,0.07)',  bd:'rgba(130,90,255,0.20)'  },
+            { label:'Estimator',   sub:'Cost estimation team access', color:'rgba(0,200,255,0.85)',   bg:'rgba(0,150,255,0.07)',   bd:'rgba(0,180,255,0.20)'   },
+            { label:'Cost-Artist', sub:'Director / approval access',  color:'rgba(255,210,60,0.85)',  bg:'rgba(200,150,0,0.07)',   bd:'rgba(220,170,0,0.20)'   },
+          ].map(({label,sub,color,bg,bd}) => (
             <div key={label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
               background:bg, border:`1px solid ${bd}`, borderRadius:10, padding:'9px 14px'}}>
               <span style={{fontSize:'0.78rem',fontWeight:600,color,letterSpacing:'0.04em'}}>{label}</span>
-              <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontFamily:'monospace',letterSpacing:'0.12em'}}>{hint}</span>
+              <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.22)',fontFamily:"'Inter',sans-serif",letterSpacing:'0.03em'}}>{sub}</span>
             </div>
           ))}
         </div>
@@ -2884,7 +2884,18 @@ const EstAvatar = ({ name, size=40, code='' }) => {
 
 const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }) => {
   const F = "'Inter',sans-serif";
-  const openReqs = requests.map((r,i)=>({r,i})).filter(({r})=>!r.estimator && r.status==='Pending Estimation');
+  const [orSearch, setOrSearch] = useState('');
+  const allOpen = requests.map((r,i)=>({r,i})).filter(({r})=>!r.estimator && r.status==='Pending Estimation');
+  const openReqs = orSearch.trim()
+    ? allOpen.filter(({r}) => {
+        const lo = orSearch.trim().toLowerCase();
+        return (r.id||'').toLowerCase().includes(lo)
+          || (r.proj||'').toLowerCase().includes(lo)
+          || (r.client||'').toLowerCase().includes(lo)
+          || (r.mainContractor||'').toLowerCase().includes(lo)
+          || (r.submittedBy||'').toLowerCase().includes(lo);
+      })
+    : allOpen;
   const [claiming, setClaiming] = useState(null);
   const [estName, setEstName] = useState('');
   const [nameErr, setNameErr] = useState(false);
@@ -3001,19 +3012,30 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
       )}
 
       {/* Header */}
-      <div style={{marginBottom:28}}>
+      <div style={{marginBottom:20}}>
         <p style={{fontSize:'0.55rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(160,130,255,0.55)',marginBottom:6,fontWeight:600}}>NAFFCO · AI SYSTEM</p>
         <div style={{display:'flex',alignItems:'baseline',gap:14}}>
           <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.88)',margin:0}}>Open Requests</h2>
-          <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',fontWeight:400}}>{openReqs.length} unassigned</span>
+          <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',fontWeight:400}}>{allOpen.length} unassigned</span>
         </div>
         <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:4}}>Pick a request and assign it to yourself to begin estimation.</p>
+      </div>
+
+      {/* Search */}
+      <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:10,marginBottom:22,overflow:'hidden',maxWidth:680}}>
+        <span style={{padding:'0 14px',display:'flex',alignItems:'center',flexShrink:0,opacity:0.35}}><Search size={15} color="#fff"/></span>
+        <input value={orSearch} onChange={e=>setOrSearch(e.target.value)}
+          placeholder="Search by project, client, contractor, ID or requester…"
+          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.82)',fontFamily:F,fontSize:'0.86rem',padding:'13px 0'}}/>
+        {orSearch && <button onClick={()=>setOrSearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.40,flexShrink:0}}><X size={13} color="#fff"/></button>}
       </div>
 
       {openReqs.length === 0 ? (
         <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:260,gap:14,opacity:0.4}}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <p style={{fontSize:'0.9rem',color:'rgba(255,255,255,0.4)',fontFamily:F,textAlign:'center'}}>All requests are assigned.<br/>No open requests right now.</p>
+          <p style={{fontSize:'0.9rem',color:'rgba(255,255,255,0.4)',fontFamily:F,textAlign:'center'}}>
+            {orSearch.trim() ? `No requests match "${orSearch}"` : 'All requests are assigned.\nNo open requests right now.'}
+          </p>
         </div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:20}}>
@@ -8385,11 +8407,11 @@ const Dashboard = ({
           )}
 
           {/* Search */}
-          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,overflow:'hidden',width:'min(260px,100%)'}}>
-            <span style={{padding:'0 10px',display:'flex',alignItems:'center',opacity:0.30,flexShrink:0}}><Search size={13} color="#fff"/></span>
-            <input value={dsearch} onChange={e=>setDsearch(e.target.value)} placeholder="Search…"
-              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.75)',fontFamily:F,fontSize:'0.82rem',padding:'10px 0'}}/>
-            {dsearch && <button onClick={()=>setDsearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 10px',display:'flex',alignItems:'center',opacity:0.4}}><X size={12} color="#fff"/></button>}
+          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:8,overflow:'hidden',width:'min(520px,100%)'}}>
+            <span style={{padding:'0 12px',display:'flex',alignItems:'center',opacity:0.30,flexShrink:0}}><Search size={14} color="#fff"/></span>
+            <input value={dsearch} onChange={e=>setDsearch(e.target.value)} placeholder="Search by project, client, contractor, ID, requester or estimator…"
+              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.82rem',padding:'11px 0'}}/>
+            {dsearch && <button onClick={()=>setDsearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 12px',display:'flex',alignItems:'center',opacity:0.4}}><X size={12} color="#fff"/></button>}
           </div>
         </div>
       </div>
