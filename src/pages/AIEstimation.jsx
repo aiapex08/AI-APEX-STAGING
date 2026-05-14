@@ -1332,7 +1332,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     });
     const entry = { status: newStatus, remark: remark.trim(), by: spName || 'Sales', ts, tsMs: now.getTime() };
     const prev = requests[globalIdx].salesLog || [];
-    onUpdate(globalIdx, { salesStatus: newStatus, salesStatusAt: ts, salesLog: [...prev, entry] });
+    onUpdate(requests[globalIdx].id, { salesStatus: newStatus, salesStatusAt: ts, salesLog: [...prev, entry] });
     setFlashId(requests[globalIdx].id);
     setTimeout(() => setFlashId(null), 900);
   };
@@ -1820,7 +1820,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                     <button onClick={()=>{
                       if (!supportDraft.trim()) return;
                       const ts = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-                      onUpdate(openIdx, { salesNeedsSupport: { note: supportDraft.trim(), by: spName||'Sales', ts, tsMs: Date.now() } });
+                      onUpdate(requests[openIdx].id, { salesNeedsSupport: { note: supportDraft.trim(), by: spName||'Sales', ts, tsMs: Date.now() } });
                       setShowSupport(false); setSupportDraft('');
                     }}
                       style={{ flex:1, padding:'7px 16px', borderRadius:8, background:'rgba(255,140,40,0.18)', border:'1px solid rgba(255,140,40,0.38)', color:'rgba(255,200,80,0.95)', fontFamily:F2, fontSize:'0.82rem', fontWeight:700, cursor:'pointer', outline:'none' }}>
@@ -2900,7 +2900,7 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
     if (!name) { setNameErr(true); return; }
     const nowMs = Date.now();
     const ts    = new Date(nowMs).toISOString();
-    onUpdate(claiming.idx, {
+    onUpdate(claiming.reqId, {
       estimator:   name,
       taggedAt:    nowMs,
       claimedAtMs: nowMs,   // millisecond-precision claim timestamp
@@ -3316,7 +3316,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
 
   const handleRecall = (req, realIdx) => {
     const nowMs = Date.now();
-    onUpdate(realIdx, {
+    onUpdate(req.id, {
       reqStatus:           'inprogress',
       status:              'In Progress',
       outScopeRemark:      null,
@@ -3401,7 +3401,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   const sendMsg = (req, realIdx) => {
     if (!chatMsg.trim() || !onUpdate) return;
     const ts = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-    onUpdate(realIdx, { conversation:[...(req.conversation||[]),{from:req.salesPerson||spName||'Sales',role:'sales',text:chatMsg.trim(),ts,tsMs:Date.now()}] });
+    onUpdate(req.id, { conversation:[...(req.conversation||[]),{from:req.salesPerson||spName||'Sales',role:'sales',text:chatMsg.trim(),ts,tsMs:Date.now()}] });
     setChatMsg('');
     setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:'smooth'}),60);
   };
@@ -3595,7 +3595,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
                         .filter(s => !addPplQ || s.name.toLowerCase().includes(addPplQ.toLowerCase()))
                         .map(s => (
                           <div key={s.code}
-                            onClick={()=>{ onUpdate(realIdx,{chatParticipants:[...(r.chatParticipants||[]),{name:s.name,code:s.code,role:s.role}]}); setShowAddPpl(false); setAddPplQ(''); }}
+                            onClick={()=>{ onUpdate(r.id,{chatParticipants:[...(r.chatParticipants||[]),{name:s.name,code:s.code,role:s.role}]}); setShowAddPpl(false); setAddPplQ(''); }}
                             style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:7,cursor:'pointer',transition:'background 0.15s'}}
                             onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.18)'}
                             onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
@@ -5783,7 +5783,7 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
     const newReqStatus = action === 'approved' ? 'completed' : 'inprogress';
     const dTs = new Date().toISOString();
     const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Cost Artist Approved':action==='rejected'?'Cost Artist Rejected':'Correction Required', by: 'Cost Artist' };
-    onUpdate(idx, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
+    onUpdate(req.id, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
       directorRespondedAt: dTs, timeline: [...(req.timeline||[]), tlEntry] });
     setSubmitted(true);
     setTimeout(() => onClose(), 1800);
@@ -6236,7 +6236,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       }
       const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
       const allDocs = [...existing, ...newDocs];
-      onUpdate(open, {
+      onUpdate(req.id, {
         estimationFile: allDocs[allDocs.length - 1].name,
         estimationDoc: allDocs[allDocs.length - 1],
         estimationDocs: allDocs,
@@ -6256,7 +6256,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     const toDelete = existing[idx];
     if (toDelete?.url) deleteAzureBlob(toDelete.url); // physically remove from Azure
     const updated = existing.filter((_, i) => i !== idx);
-    onUpdate(open, {
+    onUpdate(req.id, {
       estimationDocs: updated,
       estimationDoc: updated.length ? updated[updated.length - 1] : null,
       estimationFile: updated.length ? updated[updated.length - 1].name : null,
@@ -6506,7 +6506,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
               <button
                 onClick={() => {
                   const nowMs = Date.now();
-                  onUpdate(open, {
+                  onUpdate(r.id, {
                     reqStatus: 'inprogress',
                     outScopeRemark: null,
                     outScopeAt: null,
@@ -6717,12 +6717,12 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   </div>
                   <div style={{display:'flex',gap:9,alignItems:'flex-end',paddingTop:10,borderTop:'1px solid rgba(168,85,247,0.14)'}}>
                     <textarea value={convoInput} onChange={e=>setConvoInput(e.target.value)}
-                      onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!convoInput.trim())return;const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.salesPerson||'Sales',role:'sales',text:convoInput.trim(),ts,tsMs:Date.now()}]});setConvoInput('');}}}
+                      onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!convoInput.trim())return;const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});onUpdate(req.id,{conversation:[...(req.conversation||[]),{from:req.salesPerson||'Sales',role:'sales',text:convoInput.trim(),ts,tsMs:Date.now()}]});setConvoInput('');}}}
                       placeholder="Type a message… (Enter to send)"
                       rows={2}
                       style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(168,85,247,0.28)',borderRadius:10,padding:'10px 13px',color:'#e2e8f0',fontFamily:F2,fontSize:'0.86rem',outline:'none',resize:'none',lineHeight:1.5}}
                     />
-                    <button onClick={()=>{if(!convoInput.trim())return;const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.salesPerson||'Sales',role:'sales',text:convoInput.trim(),ts,tsMs:Date.now()}]});setConvoInput('');}}
+                    <button onClick={()=>{if(!convoInput.trim())return;const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});onUpdate(req.id,{conversation:[...(req.conversation||[]),{from:req.salesPerson||'Sales',role:'sales',text:convoInput.trim(),ts,tsMs:Date.now()}]});setConvoInput('');}}
                       style={{width:40,height:40,borderRadius:10,flexShrink:0,background:'rgba(109,40,217,0.55)',border:'1px solid rgba(168,85,247,0.50)',color:'#e2d9ff',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',alignSelf:'flex-end'}}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     </button>
@@ -6938,7 +6938,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingRight:10}}>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Overhead %</p>
                         <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                          <input className="no-spin" type="number" value={req.overhead||''} onChange={e=>{const oh=e.target.value;onUpdate(open,{overhead:oh,margin:(parseFloat(oh||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
+                          <input className="no-spin" type="number" value={req.overhead||''} onChange={e=>{const oh=e.target.value;onUpdate(req.id,{overhead:oh,margin:(parseFloat(oh||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
                             style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
@@ -6947,7 +6947,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Profit %</p>
                         <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                          <input className="no-spin" type="number" value={req.profit||''} onChange={e=>{const pr=e.target.value;onUpdate(open,{profit:pr,margin:(parseFloat(req.overhead||0)+parseFloat(pr||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
+                          <input className="no-spin" type="number" value={req.profit||''} onChange={e=>{const pr=e.target.value;onUpdate(req.id,{profit:pr,margin:(parseFloat(req.overhead||0)+parseFloat(pr||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
                             style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
@@ -6956,11 +6956,11 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Warranty</p>
                         <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                          <input className="no-spin" type="number" value={req.warrantyYr||''} onChange={e=>onUpdate(open,{warrantyYr:e.target.value})} placeholder="0" min="0" max="20" step="1" disabled={isRejected}
+                          <input className="no-spin" type="number" value={req.warrantyYr||''} onChange={e=>onUpdate(req.id,{warrantyYr:e.target.value})} placeholder="0" min="0" max="20" step="1" disabled={isRejected}
                             style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.35)',fontFamily:'monospace'}}>yr</span>
                           <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.20)',fontFamily:'monospace'}}>|</span>
-                          <input className="no-spin" type="number" value={req.warrantyPct||''} onChange={e=>{const wp=e.target.value;onUpdate(open,{warrantyPct:wp,margin:(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(wp||0)).toFixed(1)});}} placeholder="0" min="0" max="50" step="0.5" disabled={isRejected}
+                          <input className="no-spin" type="number" value={req.warrantyPct||''} onChange={e=>{const wp=e.target.value;onUpdate(req.id,{warrantyPct:wp,margin:(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(wp||0)).toFixed(1)});}} placeholder="0" min="0" max="50" step="0.5" disabled={isRejected}
                             style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                           <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
                         </div>
@@ -6977,13 +6977,13 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                   {/* Project Value */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
                     <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
-                    <input type="number" value={req.projValue||''} onChange={e=>onUpdate(open,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
+                    <input type="number" value={req.projValue||''} onChange={e=>onUpdate(req.id,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
                       style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                   </div>
                   {/* Estimator Comments */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(255,200,80,0.22)',borderRadius:8,padding:'10px 12px'}}>
                     <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,200,80,0.45)',marginBottom:6}}>Estimator Comments</p>
-                    <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(open,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3} disabled={isRejected}
+                    <textarea value={req.estimatorComments||''} onChange={e=>onUpdate(req.id,{estimatorComments:e.target.value})} placeholder="Add comments, notes or scope clarifications…" rows={3} disabled={isRejected}
                       style={{background:'transparent',border:'none',outline:'none',color:'rgba(255,230,140,0.88)',fontFamily:F2,fontSize:'0.84rem',fontWeight:400,width:'100%',resize:'vertical',lineHeight:1.55,opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                   </div>
 {/* ── Submit to Director — inside card, below comments ── */}
@@ -7006,7 +7006,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
     <button
       onClick={()=>{
         const ts = new Date().toISOString();
-        onUpdate(open,{
+        onUpdate(req.id,{
           status:'Pending Estimation',
           reqStatus:'inprogress',
           directorAction:null,
@@ -7047,7 +7047,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
       onClick={() => {
         if (canSendToDirector) {
           const ts = new Date().toISOString();
-          onUpdate(open, {
+          onUpdate(req.id, {
             status: 'Pending Approval',
             reqStatus: 'pending-director',
             directorAction: null,
@@ -7168,7 +7168,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                               onClick={()=>{
                                 if(!oosRemark.trim()) return;
                                 const nowMs = Date.now();
-                                onUpdate(open, {
+                                onUpdate(req.id, {
                                   reqStatus: 'out-of-scope',
                                   status: 'Cancelled - Due to Invalid Documents',
                                   outScopeRemark: oosRemark.trim(),
@@ -7290,7 +7290,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                               .filter(s => !dashAddPplQ || s.name.toLowerCase().includes(dashAddPplQ.toLowerCase()))
                               .map(s => (
                                 <div key={s.code}
-                                  onClick={()=>{ onUpdate(open,{chatParticipants:[...(req.chatParticipants||[]),{name:s.name,code:s.code,role:s.role}]}); setShowDashAddPpl(false); setDashAddPplQ(''); }}
+                                  onClick={()=>{ onUpdate(req.id,{chatParticipants:[...(req.chatParticipants||[]),{name:s.name,code:s.code,role:s.role}]}); setShowDashAddPpl(false); setDashAddPplQ(''); }}
                                   style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:7,cursor:'pointer',transition:'background 0.15s'}}
                                   onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.18)'}
                                   onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
@@ -7338,7 +7338,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           e.preventDefault();
                           if(!convoInput.trim())return;
                           const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-                          onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.estimator||'Estimator',role:'estimator',text:convoInput.trim(),ts,tsMs:Date.now()}]});
+                          onUpdate(req.id,{conversation:[...(req.conversation||[]),{from:req.estimator||'Estimator',role:'estimator',text:convoInput.trim(),ts,tsMs:Date.now()}]});
                           setConvoInput('');
                         }
                       }}
@@ -7349,7 +7349,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                     <button onClick={()=>{
                       if(!convoInput.trim())return;
                       const ts=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-                      onUpdate(open,{conversation:[...(req.conversation||[]),{from:req.estimator||'Estimator',role:'estimator',text:convoInput.trim(),ts,tsMs:Date.now()}]});
+                      onUpdate(req.id,{conversation:[...(req.conversation||[]),{from:req.estimator||'Estimator',role:'estimator',text:convoInput.trim(),ts,tsMs:Date.now()}]});
                       setConvoInput('');
                     }}
                       style={{width:42,height:42,borderRadius:10,flexShrink:0,background:'rgba(109,40,217,0.55)',border:'1px solid rgba(168,85,247,0.50)',color:'#e2d9ff',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',alignSelf:'flex-end'}}>
@@ -7389,7 +7389,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.26)',letterSpacing:'0.16em',textTransform:'uppercase',fontWeight:600,marginBottom:2}}>Project Brief</div>
                           {dirEditMode ? (
-                            <input value={req.proj||''} onChange={e=>onUpdate(open,{proj:e.target.value})} style={{...inpStyle,fontSize:'0.90rem',fontWeight:800}} placeholder="Project name"/>
+                            <input value={req.proj||''} onChange={e=>onUpdate(req.id,{proj:e.target.value})} style={{...inpStyle,fontSize:'0.90rem',fontWeight:800}} placeholder="Project name"/>
                           ) : (
                             <div style={{fontSize:'0.92rem',fontWeight:900,background:GLASSY,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1.1,overflow:'hidden',textOverflow:'ellipsis'}}>{req.proj||'—'}</div>
                           )}
@@ -7433,7 +7433,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8,alignItems:'center'}}>
                           <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
                           {dirEditMode && editable ? (
-                            <input value={v||''} onChange={e=>onUpdate(open,{[field]:e.target.value})} style={{...inpStyle,textAlign:'right',width:'60%'}} placeholder={k}/>
+                            <input value={v||''} onChange={e=>onUpdate(req.id,{[field]:e.target.value})} style={{...inpStyle,textAlign:'right',width:'60%'}} placeholder={k}/>
                           ) : (
                             <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.75)',textAlign:'right',fontWeight:500}}>{v||'—'}</span>
                           )}
@@ -7448,7 +7448,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                               {[['Email','email'],['MOB','mob'],['Tel','tel']].map(([label,field])=>(
                                 <div key={field} style={{display:'flex',alignItems:'center',gap:6}}>
                                   <span style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',width:32,flexShrink:0}}>{label}</span>
-                                  <input value={req[field]||''} onChange={e=>onUpdate(open,{[field]:e.target.value})} style={inpStyle} placeholder={label}/>
+                                  <input value={req[field]||''} onChange={e=>onUpdate(req.id,{[field]:e.target.value})} style={inpStyle} placeholder={label}/>
                                 </div>
                               ))}
                             </div>
@@ -7467,7 +7467,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
                           <div style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.24)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Remarks</div>
                           {dirEditMode ? (
-                            <textarea value={req.remarks||''} onChange={e=>onUpdate(open,{remarks:e.target.value})} rows={2} placeholder="Remarks…"
+                            <textarea value={req.remarks||''} onChange={e=>onUpdate(req.id,{remarks:e.target.value})} rows={2} placeholder="Remarks…"
                               style={{...inpStyle,resize:'vertical',lineHeight:1.5}}/>
                           ) : (
                             <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.58)',lineHeight:1.6,borderLeft:'2px solid rgba(255,255,255,0.10)',paddingLeft:8}}>{req.remarks}</div>
@@ -7506,7 +7506,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                   if (!ok) throw new Error(`Verification failed for "${file.name}"`);
                                   newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl, verified: true });
                                 }
-                                onUpdate(open, { docs: [...(req.docs||[]), ...newDocs], _immediate: true });
+                                onUpdate(req.id, { docs: [...(req.docs||[]), ...newDocs], _immediate: true });
                                 setDirDocUploadState(null);
                               } catch(err) {
                                 console.error('Director doc upload error:', err);
@@ -7538,7 +7538,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 : d.url
                                 ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
                                 : null}
-                              <button onClick={()=>{ const d=(req.docs||[])[i]; if(d?.url)deleteAzureBlob(d.url); onUpdate(open,{docs:(req.docs||[]).filter((_,j)=>j!==i),_immediate:true}); }}
+                              <button onClick={()=>{ const d=(req.docs||[])[i]; if(d?.url)deleteAzureBlob(d.url); onUpdate(req.id,{docs:(req.docs||[]).filter((_,j)=>j!==i),_immediate:true}); }}
                                 style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                             </div>
                           ))}
@@ -7555,14 +7555,14 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                       <div>
                         <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Revised Margin %</div>
                         <div style={{display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.16)',borderRadius:7,padding:'5px 8px'}}>
-                          <input type="number" value={req.revisedMargin||''} onChange={e=>onUpdate(open,{revisedMargin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
+                          <input type="number" value={req.revisedMargin||''} onChange={e=>onUpdate(req.id,{revisedMargin:e.target.value})} placeholder="0.0" min="0" max="100" step="0.5"
                             style={{flex:1,background:'transparent',border:'none',outline:'none',fontFamily:'monospace',fontSize:'1.00rem',fontWeight:700,width:'100%',color:'rgba(255,255,255,0.95)'}}/>
                           <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.35)',fontFamily:'monospace',fontWeight:700}}>%</span>
                         </div>
                       </div>
                       <div>
                         <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Emelaine Jane Remarks</div>
-                        <textarea value={req.directorNote||''} onChange={e=>onUpdate(open,{directorNote:e.target.value})} placeholder="Notes…" rows={2}
+                        <textarea value={req.directorNote||''} onChange={e=>onUpdate(req.id,{directorNote:e.target.value})} placeholder="Notes…" rows={2}
                           style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:7,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.78rem',padding:'5px 9px',outline:'none',resize:'none',boxSizing:'border-box',lineHeight:1.4}}
                           onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
                       </div>
@@ -7574,7 +7574,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           // FIXED: Correctly map the exact status names for all 3 actions
                           const ns = a.v === 'approved' ? 'Approved' : a.v === 'rejected' ? 'Rejected' : 'Correction Required';
                           const nr = a.v === 'approved' ? 'completed' : a.v === 'rejected' ? 'onhold' : 'inprogress';
-                          onUpdate(open,{directorAction:a.v, status:ns, reqStatus:nr, directorSubmitted:false});
+                          onUpdate(req.id,{directorAction:a.v, status:ns, reqStatus:nr, directorSubmitted:false});
                         }}
                                       style={{flex:1,padding:'7px 4px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.74rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',textAlign:'center',whiteSpace:'nowrap',boxShadow:req.directorAction===a.v?`0 0 14px ${a.c}22`:'none'}}
                           onMouseEnter={e=>{if(req.directorAction!==a.v)e.currentTarget.style.background='rgba(255,255,255,0.07)';}}
@@ -7598,7 +7598,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                           const actionLabel = req.directorAction === 'approved' ? 'Cost Artist Approved' : req.directorAction === 'rejected' ? 'Cost Artist Rejected' : 'Correction Required';
                           const eventType = req.directorAction === 'approved' ? 'approved' : req.directorAction === 'rejected' ? 'rejected' : 'revision';
                           
-                          onUpdate(open,{
+                          onUpdate(req.id,{
                             status: ns,
                             reqStatus: nr,
                             directorSubmitted: true,
@@ -7681,7 +7681,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                   <button title="Delete file" onClick={()=>{
                                     const all = req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc].filter(Boolean);
                                     const updated = all.filter((_,j)=>j!==i);
-                                    onUpdate(open,{estimationDocs:updated, estimationDoc:updated.length?updated[updated.length-1]:null, estimationFile:updated.length?updated[updated.length-1].name:null});
+                                    onUpdate(req.id,{estimationDocs:updated, estimationDoc:updated.length?updated[updated.length-1]:null, estimationFile:updated.length?updated[updated.length-1].name:null});
                                   }}
                                     style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                                 )}
@@ -7765,7 +7765,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                         <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.38)',marginBottom:7,lineHeight:1.4}}>{req.submittedBy||'—'}</div>
                         <div style={{display:'flex',gap:4,alignItems:'center'}}>
                           {[1,2,3,4,5].map(n=>(
-                            <button key={n} type="button" onClick={()=>onUpdate(open,{requesterRating:n})}
+                            <button key={n} type="button" onClick={()=>onUpdate(req.id,{requesterRating:n})}
                               style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:'1.2rem',lineHeight:1,color:(req.requesterRating||0)>=n?'rgba(255,200,0,0.95)':'rgba(255,255,255,0.15)',transition:'color 0.15s, transform 0.15s',filter:(req.requesterRating||0)>=n?'drop-shadow(0 0 5px rgba(255,200,0,0.60))':'none'}}
                               onMouseEnter={e=>e.currentTarget.style.transform='scale(1.2)'} onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}>★</button>
                           ))}
@@ -7879,7 +7879,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                                 const txt=dirConvoMsg.trim();
                                 if(!txt)return;
                                 const msg={role:'director',from:'Emelaine Jane',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
-                                onUpdate(open,{conversation:[...(req.conversation||[]),msg]});
+                                onUpdate(req.id,{conversation:[...(req.conversation||[]),msg]});
                                 setDirConvoMsg('');
                               }
                             }}
@@ -7894,7 +7894,7 @@ const Dashboard = ({ requests, onUpdate, onDelete, initialViewMode, onDirectTool
                               const txt=dirConvoMsg.trim();
                               if(!txt)return;
                               const msg={role:'director',from:'Emelaine Jane',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
-                              onUpdate(open,{conversation:[...(req.conversation||[]),msg]});
+                              onUpdate(req.id,{conversation:[...(req.conversation||[]),msg]});
                               setDirConvoMsg('');
                             }}
                             style={{flexShrink:0,width:34,height:34,borderRadius:8,background:dirConvoMsg.trim()?'rgba(168,85,247,0.35)':'rgba(255,255,255,0.05)',border:`1px solid ${dirConvoMsg.trim()?'rgba(168,85,247,0.55)':'rgba(255,255,255,0.10)'}`,color:dirConvoMsg.trim()?'rgba(200,160,255,0.95)':'rgba(255,255,255,0.22)',cursor:dirConvoMsg.trim()?'pointer':'default',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}>
@@ -9006,6 +9006,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const currentEtag   = useRef(null);
   const saveTimer     = useRef(null);
   const isSaving      = useRef(false);
+  const pendingSave   = useRef(false);
 
   const serializeRequests = (reqs) => reqs.map(r => ({
     ...r,
@@ -9015,10 +9016,6 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     estimationDocs: (r.estimationDocs || []).map(stripDocData),
   }));
 
-  // Per-request merge: remote wins when its updatedAt is newer.
-  // All documents now have Azure URLs so we always use the newer side's docs —
-  // the old "preserve local file refs" override was causing uploaded docs to be
-  // invisible on other computers because local always had empty/stale doc arrays.
   const mergeRequests = (local, remote) => {
     const remoteMap = new Map(remote.map(r => [r.id, r]));
     const updated = local.map(lr => {
@@ -9032,20 +9029,28 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   };
 
   const saveToAzure = async (reqs, diary, retryOnConflict = true) => {
-    if (isSaving.current) return;
+    if (isSaving.current) {
+      pendingSave.current = true;
+      return;
+    }
+    
     isSaving.current = true;
     try {
       const body = JSON.stringify({ requests: serializeRequests(reqs), diaryEntries: diary });
       const headers = { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': 'application/json' };
       if (currentEtag.current) headers['If-Match'] = currentEtag.current;
+      
       const res = await fetch(DATA_BLOB_URL, { method: 'PUT', headers, body });
+      
       if (res.ok) {
         currentEtag.current = res.headers.get('ETag') || null;
         console.log('✅ Saved to Azure');
       } else if (res.status === 412 && retryOnConflict) {
-        // Someone else saved between our load and save — fetch remote, merge, retry once
         console.warn('⚠️ Conflict — merging with remote and retrying');
-        const getRes = await fetch(DATA_BLOB_URL, { cache: 'no-store' });
+        
+        const fetchUrl = `${DATA_BLOB_URL}&_cb=${Date.now()}`;
+        const getRes = await fetch(fetchUrl, { cache: 'no-store' }); 
+        
         if (getRes.ok) {
           const remoteData = await getRes.json();
           currentEtag.current = getRes.headers.get('ETag') || null;
@@ -9055,11 +9060,17 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
           await saveToAzure(merged, diary, false);
           return;
         }
-      } else {
-        console.error('Azure save failed:', res.status);
       }
-    } catch(err) { console.error('Save error:', err); }
-    finally { isSaving.current = false; }
+    } catch(err) { 
+      console.error('Save error:', err); 
+    } finally { 
+      isSaving.current = false; 
+      if (pendingSave.current) {
+        pendingSave.current = false;
+        clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(() => saveToAzure(requests, diaryEntries), 100);
+      }
+    }
   };
 
   // Load on startup — Azure first, fall back to JSONBin once for migration
@@ -9236,14 +9247,17 @@ const nextRequestId = () => {
     return 'AX' + String(max + 1).padStart(4, '0');
   };
 
-// ── Verify an Azure blob is accessible after upload ───────────────────────────
 const verifyAzureBlob = async (url) => {
-  if (!url) return false;
-  try {
-    const res = await fetch(`${url}?${AZURE_SAS}&_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
-    return res.ok;
-  } catch { return false; }
-};
+    if (!url) return false;
+    try {
+      // Append a timestamp to break the cache
+      const res = await fetch(`${url}?${AZURE_SAS}&_cb=${Date.now()}`, { 
+        method: 'HEAD', 
+        cache: 'no-store' 
+      });
+      return res.ok;
+    } catch { return false; }
+  };
 
 const finaliseSubmit = (formData, newId, uploadedDocs) => {
   const uniqueId = `${newId}-00`;
@@ -9344,19 +9358,22 @@ const handleSubmit = async (formData) => {
     setView('relax');
   };
 
-  const updateRequest = async (idx, patch) => {
+  const updateRequest = async (id, patch) => { 
+    // Changed parameter from 'idx' to 'id'
     const immediate = !!patch._immediate;
     const { _immediate, ...cleanPatch } = patch;
+    
     if (cleanPatch.estimationDoc)  await saveDocToIDB(cleanPatch.estimationDoc);
     if (cleanPatch.estimationDocs) await Promise.all(cleanPatch.estimationDocs.map(saveDocToIDB));
     if (cleanPatch.docs)           await Promise.all(cleanPatch.docs.map(saveDocToIDB));
     if (cleanPatch.originalDocs)   await Promise.all(cleanPatch.originalDocs.map(saveDocToIDB));
-    // updatedAt lets the merge function know which user's version is the most recent
-    const next = (prev) => prev.map((r,i) => i===idx ? {...r,...cleanPatch, updatedAt: Date.now()} : r);
+    
+    // Match by r.id instead of i === idx
+    const next = (prev) => prev.map(r => r.id === id ? {...r, ...cleanPatch, updatedAt: Date.now()} : r);
+    
     setRequests(prev => {
       const updated = next(prev);
       if (immediate) {
-        // Flush to Azure without waiting for the 1.5s debounce
         clearTimeout(saveTimer.current);
         saveToAzure(updated, diaryEntries);
       }
