@@ -5501,7 +5501,7 @@ const useTypewriter = (lines, speed = 38) => {
 };
 
 // ─── RELAX SCREEN ─────────────────────────────────────────────────────────────
-const RelaxScreen = ({ onAnother, onHome }) => {
+const RelaxScreen = ({ onAnother, onHome, docUploadProgress, onRetry }) => {
   const LINES = [
     { text: 'Sit back and relax!',                delay: 2200 },
     { text: "We're analyzing your request —",     delay: 3700 },
@@ -5563,6 +5563,50 @@ const RelaxScreen = ({ onAnother, onHome }) => {
             onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.35)'}>
             ← Back to Home
           </button>
+        )}
+
+        {/* Document upload progress — background uploads after form submit */}
+        {docUploadProgress && (
+          <div style={{display:'flex',flexDirection:'column',gap:7,maxWidth:340,marginTop:4}}>
+            <div style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,
+              color: docUploadProgress.every(p=>p.status==='done') ? 'rgba(0,220,130,0.65)'
+                   : docUploadProgress.some(p=>p.status==='error')  ? 'rgba(255,120,100,0.65)'
+                   : 'rgba(0,200,255,0.55)'}}>
+              {docUploadProgress.every(p=>p.status==='done')
+                ? '✓ All documents uploaded'
+                : docUploadProgress.some(p=>p.status==='error')
+                ? '⚠ Some uploads failed'
+                : 'Uploading documents in background…'}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+              {docUploadProgress.map((p,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',borderRadius:8,
+                  background: p.status==='done'     ? 'rgba(0,200,100,0.07)'
+                            : p.status==='error'    ? 'rgba(255,60,60,0.06)'
+                            : p.status==='uploading'? 'rgba(0,180,255,0.06)'
+                            : 'rgba(255,255,255,0.03)',
+                  border:`1px solid ${p.status==='done'?'rgba(0,200,100,0.22)':p.status==='error'?'rgba(255,80,80,0.26)':p.status==='uploading'?'rgba(0,180,255,0.18)':'rgba(255,255,255,0.06)'}`,
+                }}>
+                  {p.status==='uploading' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.80)" strokeWidth="2.5" strokeLinecap="round" style={{animation:'coreOrb 1s linear infinite',flexShrink:0}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>}
+                  {p.status==='done'      && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,210,120,0.90)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
+                  {p.status==='error'     && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,80,80,0.85)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  {p.status==='pending'   && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.18)',flexShrink:0}}/>}
+                  <span style={{fontSize:'0.72rem',fontFamily:"'Inter',sans-serif",fontWeight:500,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                    color: p.status==='done'?'rgba(0,220,130,0.80)':p.status==='error'?'rgba(255,120,120,0.80)':p.status==='uploading'?'rgba(0,200,255,0.75)':'rgba(255,255,255,0.28)',
+                  }}>{p.name}</span>
+                  {p.status==='done' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="2" style={{flexShrink:0}}><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
+                </div>
+              ))}
+            </div>
+            {docUploadProgress.some(p=>p.status==='error') && onRetry && (
+              <button onClick={onRetry}
+                style={{alignSelf:'flex-start',fontSize:'0.72rem',color:'rgba(255,140,130,0.90)',background:'rgba(255,60,60,0.10)',border:'1px solid rgba(255,80,80,0.28)',borderRadius:7,padding:'5px 14px',cursor:'pointer',fontFamily:"'Inter',sans-serif",fontWeight:600,outline:'none',transition:'all 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,60,60,0.20)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,60,60,0.10)'}>
+                ↺ Retry Failed Uploads
+              </button>
+            )}
+          </div>
         )}
 
         {/* Submit Another — glowing aurora pill, fades in after delay */}
@@ -6432,7 +6476,7 @@ const Dashboard = ({
 
   const PIN = { estimator: 'EST', director: 'star' };
   const requestViewSwitch = (mode) => {
-    if (mode === 'requester') { setViewMode('requester'); return; }
+    if (mode === 'requester' || mode === 'kpi') { setViewMode(mode); return; }
     setPinValue(''); setPinError(false); setPinPrompt(mode);
   };
   const confirmPin = () => {
@@ -8275,11 +8319,12 @@ const Dashboard = ({
   // Unified column layout
   const COL = '100px 160px 1fr 130px 130px 130px 130px 120px 100px 110px';
 
-  const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost-Artist'};
+  const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost-Artist', kpi:'KPI'};
   const VIEW_COLORS = {
     requester:{act:'rgba(100,200,255,0.90)', bg:'rgba(0,180,255,0.12)', bd:'rgba(0,200,255,0.30)'},
     estimator:{act:'rgba(160,255,180,0.90)', bg:'rgba(0,200,100,0.12)', bd:'rgba(0,220,130,0.30)'},
     director: {act:'rgba(200,150,255,0.90)', bg:'rgba(140,80,255,0.12)', bd:'rgba(180,100,255,0.30)'},
+    kpi:      {act:'rgba(255,200,60,0.95)',  bg:'rgba(220,150,0,0.12)',  bd:'rgba(255,190,40,0.32)'},
   };
 
   const F = "'Inter',sans-serif";
@@ -8317,14 +8362,14 @@ const Dashboard = ({
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',flex:1,justifyContent:'flex-end'}}>
           {/* View mode toggle — hidden when role is set externally */}
           {!lockViewMode && <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:3,gap:2,flexShrink:0}}>
-            {(['requester','estimator','director']).map(vm=>{
+            {(['requester','estimator','director','kpi']).map(vm=>{
               const vc = VIEW_COLORS[vm];
               const active = viewMode === vm;
               return (
                 <button key={vm} onClick={()=>requestViewSwitch(vm)}
                   style={{padding:'6px 14px',borderRadius:6,border:active?`1px solid ${vc.bd}`:'1px solid transparent',background:active?vc.bg:'transparent',color:active?vc.act:'rgba(255,255,255,0.35)',fontFamily:F,fontSize:'0.75rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>
                   {VIEW_LABELS[vm]}
-                  {vm!=='requester' && <span style={{fontSize:'0.55rem',opacity:0.55,marginLeft:5}}>🔒</span>}
+                  {(vm==='estimator'||vm==='director') && <span style={{fontSize:'0.55rem',opacity:0.55,marginLeft:5}}>🔒</span>}
                 </button>
               );
             })}
@@ -8394,7 +8439,104 @@ const Dashboard = ({
         );
       })()}
 
-      {requests.length === 0 ? (
+      {viewMode === 'kpi' ? (() => {
+        const fmtDur = ms => {
+          if (!ms) return '—';
+          const d = Math.floor(ms / 86400000);
+          const h = Math.floor((ms % 86400000) / 3600000);
+          const m = Math.floor((ms % 3600000) / 60000);
+          if (d > 0) return `${d}d ${h}h`;
+          if (h > 0) return `${h}h ${m}m`;
+          return `${m}m`;
+        };
+        const totalCompleted = requests.filter(r => r.reqStatus === 'completed' || r.status === 'Approved' || r.status === 'Completed').length;
+        const totalInHand    = requests.filter(r => r.estimator && r.reqStatus !== 'completed' && r.status !== 'Approved' && r.status !== 'Completed').length;
+        return (
+          <div style={{paddingTop:4}}>
+            {/* Summary strip */}
+            <div style={{display:'flex',gap:12,marginBottom:28,flexWrap:'wrap'}}>
+              {[
+                {label:'Total Requests',  val:requests.length,  c:'rgba(100,180,255,0.90)',  bg:'rgba(0,150,255,0.07)',  bd:'rgba(0,180,255,0.22)'},
+                {label:'Completed',       val:totalCompleted,   c:'rgba(0,220,130,0.95)',    bg:'rgba(0,180,100,0.07)',  bd:'rgba(0,200,120,0.25)'},
+                {label:'Active / In Hand',val:totalInHand,      c:'rgba(80,200,255,0.90)',   bg:'rgba(0,150,220,0.07)',  bd:'rgba(0,180,255,0.22)'},
+                {label:'Unassigned',      val:requests.filter(r=>!r.estimator).length, c:'rgba(200,160,255,0.85)', bg:'rgba(130,80,255,0.07)', bd:'rgba(160,100,255,0.22)'},
+              ].map(s=>(
+                <div key={s.label} style={{flex:'1 1 140px',background:s.bg,border:`1px solid ${s.bd}`,borderRadius:12,padding:'14px 18px',display:'flex',flexDirection:'column',gap:4}}>
+                  <span style={{fontSize:'1.6rem',fontWeight:800,color:s.c,fontFamily:F,lineHeight:1}}>{s.val}</span>
+                  <span style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:s.c,opacity:0.55,fontWeight:700}}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Estimator cards */}
+            <div style={{fontSize:'0.54rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(255,200,60,0.50)',marginBottom:18,fontWeight:700}}>Estimator Performance</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:18}}>
+              {EST_ROSTER.map(e => {
+                const myReqs = requests.filter(r => r.estimator === e.name);
+                const done   = myReqs.filter(r => r.reqStatus==='completed'||r.status==='Approved'||r.status==='Completed');
+                const active = myReqs.filter(r => r.reqStatus!=='completed'&&r.status!=='Approved'&&r.status!=='Completed');
+                const timings = done.filter(r=>r.taggedAt&&r.quotationSubmittedAt)
+                  .map(r=>new Date(r.quotationSubmittedAt).getTime()-r.taggedAt);
+                const avgMs = timings.length ? timings.reduce((a,b)=>a+b,0)/timings.length : null;
+                const isActive = active.length > 0;
+                return (
+                  <div key={e.code} style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:18,padding:'26px 20px 20px',display:'flex',flexDirection:'column',alignItems:'center',gap:16,transition:'border-color 0.2s,box-shadow 0.2s',
+                    ...(isActive?{borderColor:'rgba(34,197,94,0.28)',boxShadow:'0 0 24px rgba(34,197,94,0.06)'}:{})}}>
+
+                    {/* Avatar + online dot */}
+                    <div style={{position:'relative'}}>
+                      <EstAvatar name={e.name} code={e.code} size={96}/>
+                      <div style={{position:'absolute',bottom:4,right:4,width:16,height:16,borderRadius:'50%',
+                        background:isActive?'#22c55e':'rgba(255,255,255,0.15)',
+                        border:'2.5px solid rgba(4,2,14,0.95)',
+                        boxShadow:isActive?'0 0 8px rgba(34,197,94,0.70)':'none',
+                        transition:'all 0.3s'}}/>
+                    </div>
+
+                    {/* Name + code */}
+                    <div style={{textAlign:'center',lineHeight:1.3}}>
+                      <div style={{fontSize:'0.95rem',fontWeight:700,color:'rgba(255,255,255,0.90)',fontFamily:F}}>{e.name}</div>
+                      <div style={{fontSize:'0.52rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(100,180,255,0.45)',marginTop:3,fontFamily:F}}>{e.code}</div>
+                    </div>
+
+                    {/* Completed / In Hand stat boxes */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,width:'100%'}}>
+                      <div style={{background:'rgba(0,200,100,0.07)',border:'1px solid rgba(0,200,100,0.22)',borderRadius:10,padding:'14px 8px',textAlign:'center'}}>
+                        <div style={{fontSize:'2rem',fontWeight:800,color:'rgba(0,220,130,0.95)',lineHeight:1,fontFamily:F}}>{done.length}</div>
+                        <div style={{fontSize:'0.46rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,100,0.50)',marginTop:5,fontWeight:700}}>Completed</div>
+                      </div>
+                      <div style={{background:'rgba(0,180,255,0.07)',border:'1px solid rgba(0,180,255,0.22)',borderRadius:10,padding:'14px 8px',textAlign:'center'}}>
+                        <div style={{fontSize:'2rem',fontWeight:800,color:'rgba(80,200,255,0.95)',lineHeight:1,fontFamily:F}}>{active.length}</div>
+                        <div style={{fontSize:'0.46rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,180,255,0.50)',marginTop:5,fontWeight:700}}>In Hand</div>
+                      </div>
+                    </div>
+
+                    {/* Avg time */}
+                    <div style={{width:'100%',background:'rgba(255,180,50,0.06)',border:'1px solid rgba(255,180,50,0.20)',borderRadius:10,padding:'11px 14px',textAlign:'center'}}>
+                      <div style={{fontSize:'1.15rem',fontWeight:700,color:avgMs?'rgba(255,205,70,0.95)':'rgba(255,255,255,0.22)',fontFamily:F}}>{fmtDur(avgMs)}</div>
+                      <div style={{fontSize:'0.46rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(255,180,50,0.45)',marginTop:4,fontWeight:700}}>Avg. Time to Quote</div>
+                    </div>
+
+                    {/* Active request titles (condensed) */}
+                    {active.length > 0 && (
+                      <div style={{width:'100%',display:'flex',flexDirection:'column',gap:4}}>
+                        <div style={{fontSize:'0.46rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:1}}>Current</div>
+                        {active.slice(0,3).map(r=>(
+                          <div key={r.id} style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.55)',fontFamily:F,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'3px 8px',background:'rgba(255,255,255,0.04)',borderRadius:5,border:'1px solid rgba(255,255,255,0.07)'}}
+                            title={r.proj}>
+                            {r.id} — {r.proj||'—'}
+                          </div>
+                        ))}
+                        {active.length > 3 && <div style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.25)',fontFamily:F,textAlign:'center'}}>+{active.length-3} more</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })() : requests.length === 0 ? (
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No requests submitted yet.</p>
       ) : filtered.length === 0 ? (
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No results match your filter.</p>
@@ -9633,12 +9775,56 @@ const runDocUploads = async (formData, newId, docFiles, completionCallback) => {
 const handleSubmit = async (formData) => {
     const newId = nextRequestId();
     const docFiles = formData.docFiles || [];
-    
-    if (!docFiles.length) {
-      finaliseSubmit(formData, newId, []); // Fixed: properly calls finaliseSubmit
-      return;
+
+    // Create request + navigate to relax immediately — uploads happen in background
+    const entry = {
+      id: newId, uniqueId: `${newId}-00`, parentRequestId: null, revisionNumber: 0, requestVersion: 'New',
+      ...formData,
+      docs: docFiles.map(f => ({ name: f.name, type: f.type, url: null, verified: false })),
+      status: 'Pending Estimation',
+      date: new Date().toLocaleDateString('en-GB'),
+      submittedAt: new Date().toISOString(),
+      estimationFile: null, estimator: null, margin: '', taggedAt: null,
+      quotationSubmittedAt: null, reqStatus: 'not-started',
+      directorAction: null, directorNote: '', rejectionCycles: [],
+      timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Request Submitted', by: formData.submittedBy||'' }],
+      documentUrl: `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${newId}/`,
+    };
+    setRequests(prev => [entry, ...prev]);
+    setView('relax');
+
+    if (!docFiles.length) return;
+
+    // Background uploads — track progress on relax screen
+    const progress = docFiles.map(f => ({ name: f.name, size: f.size, status: 'pending', url: null }));
+    setDocUploadProgress(progress);
+
+    const uploadedDocs = [];
+    for (let i = 0; i < docFiles.length; i++) {
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
+      const url = await uploadToAzure(docFiles[i], newId);
+      const verified = url ? await verifyAzureBlob(url) : false;
+      const status = verified ? 'done' : 'error';
+      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
+      uploadedDocs.push({ name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified });
     }
-    await runDocUploads(formData, newId, docFiles, finaliseSubmit);
+
+    // Patch request with real URLs now that uploads finished
+    setRequests(prev => prev.map(r => r.id === newId ? { ...r, docs: uploadedDocs } : r));
+
+    const allOk = uploadedDocs.every(d => d.verified);
+    if (allOk) {
+      setTimeout(() => setDocUploadProgress(null), 1500);
+    } else {
+      setPendingSubmit({
+        formData, newId, uploadedDocs,
+        completionCallback: (_, __, finalDocs) => {
+          setRequests(prev => prev.map(r => r.id === newId ? { ...r, docs: finalDocs } : r));
+          setDocUploadProgress(null);
+          setPendingSubmit(null);
+        },
+      });
+    }
   };
 
   const handleFinalPriceSubmit = async (formData) => {
@@ -9768,8 +9954,8 @@ const handleSubmit = async (formData) => {
       <style>{S}</style>
       <div className="veil"/>
 
-      {/* Document upload overlay — shown for revised/final-price submissions (not new form, which uses inline icons) */}
-      {docUploadProgress && view !== 'form' && (
+      {/* Document upload overlay — shown for revised/final-price submissions only */}
+      {docUploadProgress && view !== 'form' && view !== 'relax' && (
         <DocUploadOverlay
           items={docUploadProgress}
           onRetry={retryDocUploads}
@@ -9845,7 +10031,7 @@ const handleSubmit = async (formData) => {
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={requests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
-      {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')}/>}
+      {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')} docUploadProgress={docUploadProgress} onRetry={retryDocUploads}/>}
       {view==='openRequests' && <OpenRequests requests={requests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
       {view==='dashboard' && <Dashboard
           requests={requests}
