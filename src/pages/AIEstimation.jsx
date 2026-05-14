@@ -5893,18 +5893,25 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
                 {!req.supplyOnly && !req.supplyInstall && <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.22)'}}>—</span>}
               </div>
             </GC>
-            {/* Quotation files — only available after director approves */}
+                        {/* Quotation files — Visible whenever files exist so Cost-Artist can review them */}
             <GC>
               {lbl('Quotation Files')}
-              {(req.directorAction === 'approved' || req.reqStatus === 'completed') ? (
-                <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(52,211,153,0.06)',border:'1px solid rgba(52,211,153,0.22)',display:'flex',alignItems:'center',gap:7}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'rgba(52,211,153,0.85)',flexShrink:0}}/>
-                  <span style={{fontSize:'0.68rem',color:'rgba(52,211,153,0.85)',fontWeight:600}}>Quotation Approved — documents available above</span>
+              {(req.estimationDocs?.length > 0 || req.estimationDoc?.url || req.estimationDoc?.data) ? (
+                <div style={{display:'flex',flexDirection:'column',gap:5,marginTop:6}}>
+                  {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
+                    <button key={i} onClick={()=>downloadDoc(d)}
+                      style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',borderRadius:7,background:'rgba(0,220,130,0.06)',border:'1px solid rgba(0,220,130,0.22)',color:'rgba(0,220,130,0.90)',fontSize:'0.74rem',fontWeight:600,cursor:'pointer',outline:'none',fontFamily:F2,transition:'background 0.15s',textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,220,130,0.12)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,220,130,0.06)'}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      {d.name || `Quotation ${i+1}`}
+                    </button>
+                  ))}
                 </div>
               ) : (
                 <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:7}}>
                   <span style={{width:5,height:5,borderRadius:'50%',background:'rgba(255,180,0,0.70)',flexShrink:0}}/>
-                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>Available after Cost-Artist approval</span>
+                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>No quotation files uploaded yet</span>
                 </div>
               )}
             </GC>
