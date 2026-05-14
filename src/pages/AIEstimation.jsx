@@ -1832,11 +1832,14 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
             </div>
 
             {/* Attached submitted files */}
-            {r.docs?.filter(d => d && typeof d === 'object' && (d.data || d.url)).length > 0 && (
+           {/* Attached submitted files */}
+            {r.docs?.filter(d => d && typeof d === 'object').length > 0 && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '16px 18px' }}>
                 <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 10 }}>Attached Documents</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {r.docs.filter(d => d && typeof d === 'object' && (d.data || d.url)).map((d, i) => (
+                  
+                  {/* Notice how the .map is cleanly inside this div now! */}
+                  {r.docs.filter(d => d && typeof d === 'object').map((d, i) => (
                     <button key={i} onClick={() => downloadDoc(d)}
                       style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', borderRadius: 7, background: 'rgba(99,160,240,0.07)', border: '1px solid rgba(99,160,240,0.22)', color: 'rgba(99,160,240,0.88)', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', outline: 'none', fontFamily: F2, transition: 'background 0.15s', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,160,240,0.16)'}
@@ -1845,6 +1848,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                       {d.name}
                     </button>
                   ))}
+                  
                 </div>
               </div>
             )}
@@ -5019,7 +5023,6 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
           style={{background:'linear-gradient(105deg,#0f4c75,#1b6ca8 30%,#1e90ff 55%,#00c6ff 80%,#0072ff 100%)',backgroundSize:'220% 220%'}}
           onClick={async()=>{
             const revisedBy = document.getElementById('revisedByInput')?.value?.trim() || original.submittedBy;
-            const docs = await readFilesToDocs(newFiles);
             onSubmit({
               // Carry over original project fields
               proj: original.proj,
@@ -5044,7 +5047,8 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
                 submittedBy: original.submittedBy,
                 date: original.date,
               },
-              docs,
+              docs: newFiles.map(x => x.name),
+              docFiles: newFiles,
               remarks: revRemarks,
             });
           }}>
@@ -5293,7 +5297,6 @@ const FinalPriceForm = ({original, onSubmit, onBack}) => {
           style={{background:'linear-gradient(105deg,#064e3b,#065f46 20%,#047857 38%,#10b981 54%,#34d399 72%,#6ee7b7 88%,#a7f3d0 100%)',backgroundSize:'220% 220%'}}
           onClick={async()=>{
             const submittedBy = document.getElementById('finalPriceByInput')?.value?.trim() || original.submittedBy;
-            const docs = await readFilesToDocs(newFiles);
             onSubmit({
               proj: original.proj,
               client: original.client,
@@ -5317,7 +5320,8 @@ const FinalPriceForm = ({original, onSubmit, onBack}) => {
                 submittedBy: original.submittedBy,
                 date: original.date,
               },
-              docs,
+              docs: newFiles.map(x => x.name),
+              docFiles: newFiles,
               remarks: finalRemarks,
             });
           }}>
@@ -5408,12 +5412,14 @@ const Results = ({id, req, q, setQ, go}) => {
                   }}>{req.status}</span>
                 </div>
               )}
-              {/* ── Attached submitted files — visible to all users ── */}
-              {req.docs?.filter(d => d && typeof d === 'object' && (d.data || d.url)).length > 0 && (
+             {/* ── Attached submitted files — visible to all users ── */}
+              {req.docs?.filter(d => d && typeof d === 'object').length > 0 && (
                 <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:8}}>
                   <p style={{fontSize:'0.60rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',margin:0}}>Attached Documents</p>
                   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                    {req.docs.filter(d => d && typeof d === 'object' && (d.data || d.url)).map((d,i) => (
+                    
+                    {/* Notice the clean filter and map here! */}
+                    {req.docs.filter(d => d && typeof d === 'object').map((d,i) => (
                       <button key={i} onClick={()=>downloadDoc(d)}
                         style={{display:'flex',alignItems:'center',gap:7,padding:'7px 14px',borderRadius:7,background:'rgba(99,160,240,0.08)',border:'1px solid rgba(99,160,240,0.25)',color:'rgba(99,160,240,0.90)',fontSize:'0.76rem',fontWeight:600,cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif",transition:'background 0.15s',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
                         onMouseEnter={e=>e.currentTarget.style.background='rgba(99,160,240,0.18)'}
@@ -5422,6 +5428,7 @@ const Results = ({id, req, q, setQ, go}) => {
                         {d.name}
                       </button>
                     ))}
+                    
                   </div>
                 </div>
               )}
@@ -9293,16 +9300,14 @@ const finaliseSubmit = (formData, newId, uploadedDocs) => {
   setView('relax');
 };
 
-const runDocUploads = async (formData, newId, docFiles) => {
+const runDocUploads = async (formData, newId, docFiles, completionCallback) => {
   const progress = docFiles.map(f => ({ name: f.name, size: f.size, status: 'pending', url: null }));
   setDocUploadProgress([...progress]);
 
   const uploadedDocs = [];
   for (let i = 0; i < docFiles.length; i++) {
-    // Mark current file as uploading
     setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
     const url = await uploadToAzure(docFiles[i], newId);
-    // Verify the upload landed on Azure
     const verified = url ? await verifyAzureBlob(url) : false;
     const status = verified ? 'done' : 'error';
     setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
@@ -9310,65 +9315,81 @@ const runDocUploads = async (formData, newId, docFiles) => {
   }
 
   const allOk = uploadedDocs.every(d => d.verified);
-  setPendingSubmit({ formData, newId, uploadedDocs });
-  if (allOk) setTimeout(() => finaliseSubmit(formData, newId, uploadedDocs), 900);
+  setPendingSubmit({ formData, newId, uploadedDocs, completionCallback });
+  if (allOk) setTimeout(() => completionCallback(formData, newId, uploadedDocs), 900);
 };
 
 const handleSubmit = async (formData) => {
-  const newId = nextRequestId();
-  const docFiles = formData.docFiles || [];
-  if (!docFiles.length) {
-    // No docs — skip upload screen, proceed directly
-    finaliseSubmit(formData, newId, []);
-    return;
-  }
-  await runDocUploads(formData, newId, docFiles);
-};
+    const newId = nextRequestId();
+    const docFiles = formData.docFiles || [];
+    
+    if (!docFiles.length) {
+      finaliseSubmit(formData, newId, []); // Fixed: properly calls finaliseSubmit
+      return;
+    }
+    await runDocUploads(formData, newId, docFiles, finaliseSubmit);
+  };
 
   const handleFinalPriceSubmit = async (formData) => {
     const newId = nextRequestId();
-    // Persist new docs + original reference docs to IndexedDB
-    await Promise.all((formData.docs || []).map(saveDocToIDB));
-    await Promise.all((formData.originalDocs || []).map(saveDocToIDB));
-    const entry = {
-      id: newId,
-      ...formData,
-      status: 'Pending Estimation',
-      date: new Date().toLocaleDateString('en-GB'),
-      estimationFile: null,
-      estimator: null,
-      margin: '',
-      taggedAt: null,
-      reqStatus: 'not-started',
-      directorAction: null,
-      directorNote: '',
+    const docFiles = formData.docFiles || [];
+
+    const finaliseFinalPriceSubmit = (fData, nId, uDocs) => {
+      const entry = {
+        id: nId,
+        ...fData,
+        docs: uDocs,
+        status: 'Pending Estimation',
+        date: new Date().toLocaleDateString('en-GB'),
+        submittedAt: new Date().toISOString(),
+        estimationFile: null, estimator: null, margin: '', taggedAt: null,
+        reqStatus: 'not-started', directorAction: null, directorNote: '',
+        timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Final Price Request Submitted', by: fData.submittedBy||'' }],
+      };
+      setRequests(prev => [entry, ...prev]);
+      setFinalPriceSource(null);
+      setDocUploadProgress(null);
+      setPendingSubmit(null);
+      setView('relax');
     };
-    setRequests(prev => [entry, ...prev]);
-    setFinalPriceSource(null);
-    setView('relax');
+
+    // Added the missing logic and closing brackets
+    if (!docFiles.length) {
+      finaliseFinalPriceSubmit(formData, newId, []);
+      return;
+    }
+    await runDocUploads(formData, newId, docFiles, finaliseFinalPriceSubmit);
   };
 
   const handleRevisedSubmit = async (formData) => {
     const newId = nextRequestId();
-    // Persist new docs + original reference docs to IndexedDB
-    await Promise.all((formData.docs || []).map(saveDocToIDB));
-    await Promise.all((formData.originalDocs || []).map(saveDocToIDB));
-    const entry = {
-      id: newId,
-      ...formData,
-      status: 'Pending Estimation',
-      date: new Date().toLocaleDateString('en-GB'),
-      estimationFile: null,
-      estimator: null,
-      margin: '',
-      taggedAt: null,
-      reqStatus: 'not-started',
-      directorAction: null,
-      directorNote: '',
+    const docFiles = formData.docFiles || [];
+
+    const finaliseRevisedSubmit = (fData, nId, uDocs) => {
+      const entry = {
+        id: nId,
+        ...fData,
+        docs: uDocs,
+        status: 'Pending Estimation',
+        date: new Date().toLocaleDateString('en-GB'),
+        submittedAt: new Date().toISOString(),
+        estimationFile: null, estimator: null, margin: '', taggedAt: null,
+        reqStatus: 'not-started', directorAction: null, directorNote: '',
+        timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Revised Request Submitted', by: fData.submittedBy||'' }],
+      };
+      setRequests(prev => [entry, ...prev]);
+      setRevisedSource(null);
+      setDocUploadProgress(null);
+      setPendingSubmit(null);
+      setView('relax');
     };
-    setRequests(prev => [entry, ...prev]);
-    setRevisedSource(null);
-    setView('relax');
+
+    // Added the missing logic and closing brackets
+    if (!docFiles.length) {
+      finaliseRevisedSubmit(formData, newId, []);
+      return;
+    }
+    await runDocUploads(formData, newId, docFiles, finaliseRevisedSubmit);
   };
 
   const updateRequest = async (id, patch) => { 
@@ -9399,26 +9420,25 @@ const handleSubmit = async (formData) => {
     setRequests(prev => prev.filter((_,i) => i !== idx));
   };
 
-  // ── Retry failed doc uploads ──────────────────────────────────────────────
   const retryDocUploads = async () => {
-    if (!pendingSubmit) return;
-    const { formData, newId, uploadedDocs } = pendingSubmit;
-    const failedIdxs = (docUploadProgress || []).map((p, i) => p.status === 'error' ? i : -1).filter(i => i >= 0);
-    const docFiles = formData.docFiles || [];
-    setDocUploadProgress(prev => prev.map((p, i) => failedIdxs.includes(i) ? { ...p, status: 'pending' } : p));
-    const updatedDocs = [...uploadedDocs];
-    for (const i of failedIdxs) {
-      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
-      const url = await uploadToAzure(docFiles[i], newId);
-      const verified = url ? await verifyAzureBlob(url) : false;
-      const status = verified ? 'done' : 'error';
-      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
-      updatedDocs[i] = { name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified };
-    }
-    const allOk = updatedDocs.every(d => d.verified);
-    setPendingSubmit(prev => ({ ...prev, uploadedDocs: updatedDocs }));
-    if (allOk) setTimeout(() => finaliseSubmit(formData, newId, updatedDocs), 900);
-  };
+  if (!pendingSubmit) return;
+  const { formData, newId, uploadedDocs, completionCallback } = pendingSubmit;
+  const failedIdxs = (docUploadProgress || []).map((p, i) => p.status === 'error' ? i : -1).filter(i => i >= 0);
+  const docFiles = formData.docFiles || [];
+  setDocUploadProgress(prev => prev.map((p, i) => failedIdxs.includes(i) ? { ...p, status: 'pending' } : p));
+  const updatedDocs = [...uploadedDocs];
+  for (const i of failedIdxs) {
+    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
+    const url = await uploadToAzure(docFiles[i], newId);
+    const verified = url ? await verifyAzureBlob(url) : false;
+    const status = verified ? 'done' : 'error';
+    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
+    updatedDocs[i] = { name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified };
+  }
+  const allOk = updatedDocs.every(d => d.verified);
+  setPendingSubmit(prev => ({ ...prev, uploadedDocs: updatedDocs }));
+  if (allOk) setTimeout(() => completionCallback(formData, newId, updatedDocs), 900);
+};
 
   return (
     <div className="root">
@@ -9427,12 +9447,12 @@ const handleSubmit = async (formData) => {
 
       {/* Document upload progress overlay — shown during form submission */}
       {docUploadProgress && (
-        <DocUploadOverlay
-          items={docUploadProgress}
-          onRetry={retryDocUploads}
-          onSkip={() => pendingSubmit && finaliseSubmit(pendingSubmit.formData, pendingSubmit.newId, pendingSubmit.uploadedDocs)}
-        />
-      )}
+  <DocUploadOverlay
+    items={docUploadProgress}
+    onRetry={retryDocUploads}
+    onSkip={() => pendingSubmit && pendingSubmit.completionCallback && pendingSubmit.completionCallback(pendingSubmit.formData, pendingSubmit.newId, pendingSubmit.uploadedDocs)}
+  />
+)}
 
       {/* NN logo — faint watermark across all screens */}
       <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
