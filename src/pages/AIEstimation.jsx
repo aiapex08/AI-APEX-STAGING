@@ -4441,11 +4441,19 @@ const _showDocToast = (msg, isWarn = false) => {
 
 const downloadDoc = async (d) => {
   if (!d) return;
+  
   // Azure URL — fetch as blob so browser triggers Save dialog instead of opening a new tab
   if (d.url) {
     try {
-      const fetchUrl = d.url + (d.url.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+      // Safely append the Azure SAS token if it isn't already present
+      let secureUrl = d.url;
+      if (!secureUrl.includes(AZURE_SAS)) {
+         secureUrl += (secureUrl.includes('?') ? '&' : '?') + AZURE_SAS;
+      }
+      
+      const fetchUrl = secureUrl + '&t=' + new Date().getTime(); // Break cache
       const res = await fetch(fetchUrl, { cache: 'no-store' });
+      
       if (!res.ok) throw new Error('Fetch failed');
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -4458,10 +4466,16 @@ const downloadDoc = async (d) => {
       setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
     } catch(err) {
       console.error('❌ Download failed:', err);
-      window.open(d.url, '_blank'); // fallback
+      // Fallback with SAS token appended
+      let secureUrl = d.url;
+      if (!secureUrl.includes(AZURE_SAS)) {
+         secureUrl += (secureUrl.includes('?') ? '&' : '?') + AZURE_SAS;
+      }
+      window.open(secureUrl, '_blank'); 
     }
     return;
   }
+  
   // Base64 data URL — convert to Blob so browser saves correct binary
   if (d.data) {
     try {
@@ -4484,6 +4498,7 @@ const downloadDoc = async (d) => {
     }
     return;
   }
+  
   // File exists but has no Azure URL and no cached data — uploaded before Azure was added
   if (d.id || d.name) {
     _showDocToast(`"${d.name || 'File'}" needs re-upload — this file was saved before Azure storage was set up. The estimator should remove it and re-upload.`, true);
@@ -4497,40 +4512,57 @@ const AZURE_ACCOUNT = "apexfilestorage2";
 const AZURE_CONTAINER = "estimation-docs";
 const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
 
-// Note we added customFileName to the parameters here!
 const uploadToAzure = async (file, folder, customFileName) => {
-  try {
-    const nameToUse = customFileName || file.name;
-    const safeName = nameToUse.replace(/[#?&=%]/g, '_');
-    const blobName = `${folder}/${safeName}`;
-    const putUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-    console.log('⬆️ Azure upload:', putUrl.split('?')[0]);
-    const res = await fetch(putUrl, {
-      method: 'PUT',
-      headers: {
-        'x-ms-blob-type': 'BlockBlob',
-        'Content-Type': file.type || 'application/octet-stream',
-      },
-      body: file,
-    });
-    if (res.ok) {
-      const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
-      console.log('✅ Azure uploaded:', downloadUrl);
-      return downloadUrl;
-    }
-    const errBody = await res.text().catch(() => '');
-    console.error(`❌ Azure upload HTTP ${res.status} for ${blobName}:`, errBody);
-    return null;
-  } catch(err) {
-    console.error('❌ Azure upload network/CORS error:', err.name, err.message);
-    return null;
-  }
+  try {
+    const nameToUse = customFileName || file.name;
+    const safeName = nameToUse.replace(/[#?&=%]/g, '_');
+    const blobName = `${folder}/${safeName}`;
+    const putUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+    console.log('⬆️ Azure upload:', putUrl.split('?')[0]);
+    const res = await fetch(putUrl, {
+      method: 'PUT',
+      headers: {
+        'x-ms-blob-type': 'BlockBlob',
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+      body: file,
+    });
+    if (res.ok) {
+      const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
+      console.log('✅ Azure uploaded:', downloadUrl);
+      return downloadUrl;
+    }
+    const errBody = await res.text().catch(() => '');
+    console.error(`❌ Azure upload HTTP ${res.status} for ${blobName}:`, errBody);
+    return null;
+  } catch(err) {
+    console.error('❌ Azure upload network/CORS error:', err.name, err.message);
+    return null;
+  }
+};
+
+const verifyAzureBlob = async (url) => {
+  if (!url) return false;
+  try {
+    // Make sure we append the SAS token correctly for verification
+    let secureUrl = url;
+    if (!secureUrl.includes(AZURE_SAS)) {
+       secureUrl += (secureUrl.includes('?') ? '&' : '?') + AZURE_SAS;
+    }
+    const res = await fetch(`${secureUrl}&_cb=${Date.now()}`, { 
+      method: 'HEAD', 
+      cache: 'no-store' 
+    });
+    return res.ok;
+  } catch { return false; }
 };
 
 const deleteAzureBlob = async (url) => {
   if (!url) return;
   try {
-    const blobName = url.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
+    // Strip parameters in case the URL happens to have SAS passed in
+    const baseUrl = url.split('?')[0]; 
+    const blobName = baseUrl.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
     const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
     const res = await fetch(deleteUrl, { method: 'DELETE' });
     if (res.ok) console.log('✅ Azure blob deleted:', blobName);
