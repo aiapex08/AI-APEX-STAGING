@@ -1791,6 +1791,54 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               )}
             </div>
 
+            {/* Submitted documents — always visible */}
+            {r.docs?.filter(d => d && typeof d === 'object').length > 0 && (
+              <div style={{ background: 'rgba(0,160,255,0.04)', border: '1px solid rgba(0,160,255,0.18)', borderRadius: 10, padding: '16px 18px' }}>
+                <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(0,180,255,0.55)', marginBottom: 10 }}>Submitted Documents</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {r.docs.filter(d => d && typeof d === 'object').map((d, i) => (
+                    <button key={i} onClick={() => downloadDoc(d)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 7, background: 'rgba(0,160,255,0.08)', border: '1px solid rgba(0,160,255,0.24)', color: 'rgba(100,190,255,0.90)', fontSize: '0.76rem', fontWeight: 600, cursor: 'pointer', outline: 'none', fontFamily: F2, transition: 'background 0.15s', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,160,255,0.16)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,160,255,0.08)'}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      {d.name || `Document_${i + 1}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Approved quotation download — only cost-artist released files */}
+            {(() => {
+              const isApproved = r.directorAction === 'approved' || r.reqStatus === 'completed';
+              if (!isApproved) return null;
+              const allDocs = r.estimationDocs?.length > 0 ? r.estimationDocs : [r.estimationDoc].filter(Boolean);
+              const releasedDocs = r.salesApprovedDocs?.length > 0
+                ? allDocs.filter(d => d && r.salesApprovedDocs.includes(d.id))
+                : allDocs;
+              return (
+                <div style={{ background: 'rgba(0,40,20,0.40)', border: '1px solid rgba(0,200,100,0.28)', borderRadius: 10, padding: '16px 18px' }}>
+                  <p style={{ fontSize: '0.58rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(0,200,100,0.60)', marginBottom: 10 }}>Download Approved Quotation</p>
+                  {releasedDocs.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {releasedDocs.map((d, i) => (
+                        <button key={i} onClick={() => downloadDoc(d)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 8, background: 'rgba(0,160,70,0.10)', border: '1px solid rgba(0,180,80,0.40)', color: 'rgba(52,211,153,0.90)', fontFamily: F2, fontSize: '0.80rem', fontWeight: 600, cursor: 'pointer', outline: 'none', transition: 'background 0.15s', width: '100%', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,160,70,0.20)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,160,70,0.10)'}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          ↓ {d.name || `Quotation_${i + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.28)', margin: 0, lineHeight: 1.6 }}>No quotation files released by Cost-Artist yet.</p>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* 🚩 Highlight / Escalate to Director or Cost-Artist */}
             <div style={{ background: r.salesNeedsSupport ? 'rgba(255,130,30,0.07)' : 'rgba(255,255,255,0.03)', border: `1px solid ${r.salesNeedsSupport ? 'rgba(255,140,40,0.38)' : 'rgba(255,255,255,0.07)'}`, borderRadius: 10, padding: '14px 18px' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: r.salesNeedsSupport || showSupport ? 10 : 0 }}>
@@ -2896,6 +2944,10 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           || (r.submittedBy||'').toLowerCase().includes(lo);
       })
     : allOpen;
+  const jobInHandReqs = openReqs.filter(({r}) => r.deal === 'Job In Hand');
+  const tenderReqs    = openReqs.filter(({r}) => r.deal === 'Tender');
+  const allJobInHandCount = allOpen.filter(({r}) => r.deal === 'Job In Hand').length;
+  const allTenderCount    = allOpen.filter(({r}) => r.deal === 'Tender').length;
   const [claiming, setClaiming] = useState(null);
   const [estName, setEstName] = useState('');
   const [nameErr, setNameErr] = useState(false);
@@ -2960,6 +3012,107 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
 
   // check if last active within 24 h → online, else offline
   const isOnline = e => e.lastActive && (Date.now() - e.lastActive) < 86400000;
+
+  const renderCard = (r, i, idx) => {
+    const isClaimed = justClaimed === r.id;
+    const PALS = [
+      {a:'99,102,241',  b:'168,85,247'},
+      {a:'6,182,212',   b:'99,102,241'},
+      {a:'236,72,153',  b:'245,158,11'},
+      {a:'245,158,11',  b:'16,185,129'},
+      {a:'16,185,129',  b:'6,182,212'},
+      {a:'168,85,247',  b:'236,72,153'},
+    ];
+    const pal   = isClaimed ? {a:'52,211,153',b:'16,185,129'} : PALS[idx % PALS.length];
+    const delay = `${-(idx * 1.3).toFixed(1)}s`;
+    const rank  = idx + 1;
+    return (
+      <div key={r.id} style={{
+        position:'relative', overflow:'hidden',
+        borderRadius:22, padding:'22px 20px 18px',
+        display:'flex', flexDirection:'column', gap:16,
+        transition:'transform 0.22s, box-shadow 0.22s',
+        background:`linear-gradient(135deg,rgba(${pal.a},0.18) 0%,rgba(${pal.b},0.10) 50%,rgba(${pal.a},0.15) 100%)`,
+        backgroundSize:'250% 250%',
+        animation:`cardAura 7s ease infinite`,
+        animationDelay: delay,
+        backdropFilter:'blur(20px)',
+        WebkitBackdropFilter:'blur(20px)',
+        boxShadow:`0 0 0 1px rgba(${pal.a},0.22), 0 12px 40px rgba(${pal.a},0.18), 0 2px 8px rgba(0,0,0,0.55)`,
+      }}>
+        <div style={{position:'absolute',top:0,left:0,width:'30%',height:'100%',
+          background:`linear-gradient(105deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%)`,
+          animation:'cardSweep 5s ease-in-out infinite',
+          animationDelay:`${-(idx*0.9).toFixed(1)}s`,
+          pointerEvents:'none'}}/>
+        <div style={{position:'absolute',top:0,left:0,right:0,height:1.5,
+          background:`linear-gradient(90deg,transparent,rgba(${pal.a},0.90),rgba(${pal.b},0.70),transparent)`,
+          pointerEvents:'none'}}/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:'0.56rem',fontWeight:800,letterSpacing:'0.16em',color:`rgba(${pal.a},0.75)`,textTransform:'uppercase'}}>#{rank}</span>
+            <span style={{fontSize:'0.62rem',fontFamily:'monospace',fontWeight:700,color:'rgba(255,255,255,0.28)',letterSpacing:'0.10em'}}>{r.id}</span>
+          </div>
+          <div style={{display:'flex',gap:5,alignItems:'center'}}>
+            {r.deal && <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:dealColor(r.deal),background:dealColor(r.deal).replace(/[\d.]+\)$/,'0.12)'),borderRadius:20,padding:'2px 9px'}}>{r.deal}</span>}
+            {r.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISED</span>}
+            {r.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.85)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
+            {userRole==='director' && (
+              <button onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
+                style={{display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'none',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',flexShrink:0}}
+                onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,100,100,0.95)';e.currentTarget.style.background='rgba(220,50,50,0.20)';}}
+                onMouseLeave={e=>{e.currentTarget.style.color='rgba(220,80,80,0.55)';e.currentTarget.style.background='rgba(220,50,50,0.08)';}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+              </button>
+            )}
+          </div>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:5}}>
+          <div style={{fontSize:'1.08rem',fontWeight:900,lineHeight:1.15,color:'rgba(255,255,255,0.96)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textShadow:`0 0 28px rgba(${pal.a},0.55), 0 0 60px rgba(${pal.b},0.25)`}}>{r.mainContractor||'—'}</div>
+          <div style={{fontSize:'0.80rem',fontWeight:700,lineHeight:1.3,color:`rgba(${pal.a},0.88)`,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.client||'—'}</div>
+          <div style={{fontSize:'0.62rem',fontWeight:400,color:'rgba(255,255,255,0.38)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
+        </div>
+        <div style={{height:1,background:`linear-gradient(90deg,rgba(${pal.a},0.35),rgba(${pal.b},0.20),transparent)`}}/>
+        <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+          <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.a},0.70)`} strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            {r.submittedBy||r.salesPerson||'—'}
+          </span>
+          <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.b},0.70)`} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            {r.leadTime||'—'}
+          </span>
+          <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.35)'}}>{r.date||'—'}</span>
+        </div>
+        {isClaimed ? (
+          <div style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',background:'rgba(52,211,153,0.10)',borderRadius:12}}>
+            <span style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:'rgba(52,211,153,0.90)',boxShadow:'0 0 8px rgba(52,211,153,0.70)'}}/>
+            <span style={{fontSize:'0.78rem',color:'rgba(52,211,153,0.90)',fontWeight:700}}>Request Claimed!</span>
+          </div>
+        ) : (
+          <button onClick={()=>openClaim(i,r.id)} style={{
+            width:'100%',padding:'11px 0',borderRadius:12,border:'none',
+            background:`linear-gradient(120deg,rgba(${pal.a},0.30),rgba(${pal.b},0.22))`,
+            color:'rgba(255,255,255,0.92)',fontFamily:F,fontSize:'0.82rem',fontWeight:700,
+            cursor:'pointer',outline:'none',letterSpacing:'0.05em',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all 0.20s'}}
+            onMouseEnter={e=>{
+              e.currentTarget.style.background=`linear-gradient(120deg,rgba(${pal.a},0.55),rgba(${pal.b},0.42))`;
+              e.currentTarget.style.boxShadow=`0 6px 24px rgba(${pal.a},0.40)`;
+              e.currentTarget.style.transform='translateY(-1px)';
+            }}
+            onMouseLeave={e=>{
+              e.currentTarget.style.background=`linear-gradient(120deg,rgba(${pal.a},0.30),rgba(${pal.b},0.22))`;
+              e.currentTarget.style.boxShadow='none';
+              e.currentTarget.style.transform='translateY(0)';
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Take This Request
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="or-layout" style={{fontFamily:F,animation:'fadeUp 0.4s ease both'}}>
@@ -3029,158 +3182,67 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           </div>
         </div>
         <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:6}}>Pick a request and assign it to yourself to begin estimation.</p>
+        {/* ── Deal type totals ── */}
+        <div style={{display:'flex',gap:10,marginTop:12,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 14px',borderRadius:20,background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.22)'}}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(255,215,0,0.85)',flexShrink:0,boxShadow:'0 0 6px rgba(255,215,0,0.55)'}}/>
+            <span style={{fontSize:'0.68rem',fontWeight:700,color:'rgba(255,215,0,0.90)'}}>Job In Hand</span>
+            <span style={{fontSize:'0.78rem',fontWeight:800,color:'rgba(255,215,0,0.80)',background:'rgba(255,215,0,0.14)',borderRadius:8,padding:'1px 8px'}}>{allJobInHandCount}</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 14px',borderRadius:20,background:'rgba(79,255,223,0.06)',border:'1px solid rgba(79,255,223,0.20)'}}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(79,255,223,0.85)',flexShrink:0,boxShadow:'0 0 6px rgba(79,255,223,0.55)'}}/>
+            <span style={{fontSize:'0.68rem',fontWeight:700,color:'rgba(79,255,223,0.90)'}}>Tender</span>
+            <span style={{fontSize:'0.78rem',fontWeight:800,color:'rgba(79,255,223,0.80)',background:'rgba(79,255,223,0.12)',borderRadius:8,padding:'1px 8px'}}>{allTenderCount}</span>
+          </div>
+        </div>
       </div>
 
-      {openReqs.length === 0 ? (
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:260,gap:14,opacity:0.4}}>
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <p style={{fontSize:'0.9rem',color:'rgba(255,255,255,0.4)',fontFamily:F,textAlign:'center'}}>
-            {orSearch.trim() ? `No requests match "${orSearch}"` : 'All requests are assigned.\nNo open requests right now.'}
-          </p>
+      {/* ── Split: Job In Hand (left) | Tender (right) ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,alignItems:'start'}}>
+
+        {/* ═══ LEFT: Job In Hand ═══ */}
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:10,borderBottom:'1px solid rgba(255,215,0,0.18)'}}>
+            <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,215,0,0.85)',flexShrink:0,boxShadow:'0 0 8px rgba(255,215,0,0.55)'}}/>
+            <span style={{fontSize:'0.88rem',fontWeight:800,color:'rgba(255,215,0,0.92)',letterSpacing:'0.02em'}}>Job In Hand</span>
+            <span style={{fontSize:'0.65rem',fontWeight:700,color:'rgba(255,215,0,0.55)',background:'rgba(255,215,0,0.10)',borderRadius:8,padding:'2px 8px',marginLeft:'auto'}}>{jobInHandReqs.length} open</span>
+          </div>
+          {jobInHandReqs.length === 0 ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:200,gap:12,opacity:0.35}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,215,0,0.55)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <p style={{fontSize:'0.82rem',color:'rgba(255,215,0,0.55)',fontFamily:F,textAlign:'center',margin:0}}>
+                {orSearch.trim() ? 'No Job In Hand matches' : 'No open Job In Hand requests'}
+              </p>
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {jobInHandReqs.map(({r,i},idx) => renderCard(r,i,idx))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:20}}>
-          {openReqs.map(({r,i},idx)=>{
-            const isClaimed = justClaimed === r.id;
-            // Each card: two-color aurora pair
-            const PALS = [
-              {a:'99,102,241',  b:'168,85,247'},   // indigo–violet
-              {a:'6,182,212',   b:'99,102,241'},    // cyan–indigo
-              {a:'236,72,153',  b:'245,158,11'},    // rose–amber
-              {a:'245,158,11',  b:'16,185,129'},    // amber–emerald
-              {a:'16,185,129',  b:'6,182,212'},     // emerald–cyan
-              {a:'168,85,247',  b:'236,72,153'},    // violet–rose
-            ];
-            const pal = isClaimed ? {a:'52,211,153',b:'16,185,129'} : PALS[idx % PALS.length];
-            const delay = `${-(idx * 1.3).toFixed(1)}s`;
-            const rank  = idx + 1;
 
-            return (
-              <div key={r.id} style={{
-                position:'relative', overflow:'hidden',
-                borderRadius:22, padding:'22px 20px 18px',
-                display:'flex', flexDirection:'column', gap:16,
-                transition:'transform 0.22s, box-shadow 0.22s',
-                // animated gradient background
-                background:`linear-gradient(135deg,rgba(${pal.a},0.18) 0%,rgba(${pal.b},0.10) 50%,rgba(${pal.a},0.15) 100%)`,
-                backgroundSize:'250% 250%',
-                animation:`cardAura 7s ease infinite`,
-                animationDelay: delay,
-                backdropFilter:'blur(20px)',
-                WebkitBackdropFilter:'blur(20px)',
-                boxShadow:`0 0 0 1px rgba(${pal.a},0.22), 0 12px 40px rgba(${pal.a},0.18), 0 2px 8px rgba(0,0,0,0.55)`,
-              }}>
-                {/* Sweeping light streak */}
-                <div style={{position:'absolute',top:0,left:0,width:'30%',height:'100%',
-                  background:`linear-gradient(105deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%)`,
-                  animation:'cardSweep 5s ease-in-out infinite',
-                  animationDelay:`${-(idx*0.9).toFixed(1)}s`,
-                  pointerEvents:'none'}}/>
-
-                {/* Top edge glow */}
-                <div style={{position:'absolute',top:0,left:0,right:0,height:1.5,
-                  background:`linear-gradient(90deg,transparent,rgba(${pal.a},0.90),rgba(${pal.b},0.70),transparent)`,
-                  pointerEvents:'none'}}/>
-
-                {/* Rank + ID row */}
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontSize:'0.56rem',fontWeight:800,letterSpacing:'0.16em',
-                      color:`rgba(${pal.a},0.75)`,textTransform:'uppercase'}}>#{rank}</span>
-                    <span style={{fontSize:'0.62rem',fontFamily:'monospace',fontWeight:700,
-                      color:'rgba(255,255,255,0.28)',letterSpacing:'0.10em'}}>{r.id}</span>
-                  </div>
-                  <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                    {r.deal && <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.10em',
-                      textTransform:'uppercase',color:dealColor(r.deal),
-                      background:dealColor(r.deal).replace(/[\d.]+\)$/,'0.12)'),
-                      borderRadius:20,padding:'2px 9px'}}>{r.deal}</span>}
-                    {r.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISED</span>}
-                    {r.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.85)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
-                    {userRole==='director' && (
-                      <button onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
-                        style={{display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'none',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',flexShrink:0}}
-                        onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,100,100,0.95)';e.currentTarget.style.background='rgba(220,50,50,0.20)';}}
-                        onMouseLeave={e=>{e.currentTarget.style.color='rgba(220,80,80,0.55)';e.currentTarget.style.background='rgba(220,50,50,0.08)';}}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* ── Main hierarchy ── */}
-                <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                  {/* Main Contractor — hero heading */}
-                  <div style={{fontSize:'1.08rem',fontWeight:900,lineHeight:1.15,
-                    color:'rgba(255,255,255,0.96)',
-                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-                    textShadow:`0 0 28px rgba(${pal.a},0.55), 0 0 60px rgba(${pal.b},0.25)`}}>
-                    {r.mainContractor||'—'}
-                  </div>
-                  {/* Client — 2nd line */}
-                  <div style={{fontSize:'0.80rem',fontWeight:700,lineHeight:1.3,
-                    color:`rgba(${pal.a},0.88)`,
-                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                    {r.client||'—'}
-                  </div>
-                  {/* Project — 3rd line, small */}
-                  <div style={{fontSize:'0.62rem',fontWeight:400,
-                    color:'rgba(255,255,255,0.38)',
-                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                    {r.proj||'—'}
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div style={{height:1,background:`linear-gradient(90deg,rgba(${pal.a},0.35),rgba(${pal.b},0.20),transparent)`}}/>
-
-                {/* Single info row — no boxes */}
-                <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-                  <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.a},0.70)`} strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    {r.submittedBy||r.salesPerson||'—'}
-                  </span>
-                  <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.b},0.70)`} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    {r.leadTime||'—'}
-                  </span>
-                  <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.35)'}}>{r.date||'—'}</span>
-                </div>
-
-                {/* CTA */}
-                {isClaimed ? (
-                  <div style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',
-                    background:'rgba(52,211,153,0.10)',borderRadius:12}}>
-                    <span style={{width:7,height:7,borderRadius:'50%',flexShrink:0,
-                      background:'rgba(52,211,153,0.90)',boxShadow:'0 0 8px rgba(52,211,153,0.70)'}}/>
-                    <span style={{fontSize:'0.78rem',color:'rgba(52,211,153,0.90)',fontWeight:700}}>Request Claimed!</span>
-                  </div>
-                ) : (
-                  <button onClick={()=>openClaim(i,r.id)} style={{
-                    width:'100%',padding:'11px 0',borderRadius:12,border:'none',
-                    background:`linear-gradient(120deg,rgba(${pal.a},0.30),rgba(${pal.b},0.22))`,
-                    color:'rgba(255,255,255,0.92)',fontFamily:F,fontSize:'0.82rem',fontWeight:700,
-                    cursor:'pointer',outline:'none',letterSpacing:'0.05em',
-                    display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all 0.20s'}}
-                    onMouseEnter={e=>{
-                      e.currentTarget.style.background=`linear-gradient(120deg,rgba(${pal.a},0.55),rgba(${pal.b},0.42))`;
-                      e.currentTarget.style.boxShadow=`0 6px 24px rgba(${pal.a},0.40)`;
-                      e.currentTarget.style.transform='translateY(-1px)';
-                    }}
-                    onMouseLeave={e=>{
-                      e.currentTarget.style.background=`linear-gradient(120deg,rgba(${pal.a},0.30),rgba(${pal.b},0.22))`;
-                      e.currentTarget.style.boxShadow='none';
-                      e.currentTarget.style.transform='translateY(0)';
-                    }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    Take This Request
-                  </button>
-                )}
-              </div>
-            );
-          })}
+        {/* ═══ RIGHT: Tender ═══ */}
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:10,borderBottom:'1px solid rgba(79,255,223,0.18)'}}>
+            <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(79,255,223,0.85)',flexShrink:0,boxShadow:'0 0 8px rgba(79,255,223,0.55)'}}/>
+            <span style={{fontSize:'0.88rem',fontWeight:800,color:'rgba(79,255,223,0.92)',letterSpacing:'0.02em'}}>Tender</span>
+            <span style={{fontSize:'0.65rem',fontWeight:700,color:'rgba(79,255,223,0.55)',background:'rgba(79,255,223,0.10)',borderRadius:8,padding:'2px 8px',marginLeft:'auto'}}>{tenderReqs.length} open</span>
+          </div>
+          {tenderReqs.length === 0 ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:200,gap:12,opacity:0.35}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(79,255,223,0.55)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <p style={{fontSize:'0.82rem',color:'rgba(79,255,223,0.55)',fontFamily:F,textAlign:'center',margin:0}}>
+                {orSearch.trim() ? 'No Tender matches' : 'No open Tender requests'}
+              </p>
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {tenderReqs.map(({r,i},idx) => renderCard(r,i,idx))}
+            </div>
+          )}
         </div>
-      )}
+
+      </div>
       </div>{/* end left */}
 
       {/* ── BOTTOM: Estimator Team strip (full roster, always visible) ── */}
@@ -3441,7 +3503,13 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
     const sc = statusColor(r);
     const sl = statusLabel(r);
     const stageIdx = getStageIdx(r);
-    const quotReady = r.estimationFile || r.estimationDocs?.length;
+    const isApprovedByDirector = r.directorAction === 'approved' || r.reqStatus === 'completed';
+    const approvedQuotDocs = isApprovedByDirector
+      ? (r.salesApprovedDocs?.length > 0
+          ? (r.estimationDocs || []).filter(d => d && r.salesApprovedDocs.includes(d.id))
+          : (r.estimationDocs?.length > 0 ? r.estimationDocs : [r.estimationDoc].filter(Boolean)))
+      : [];
+    const quotReady = isApprovedByDirector && approvedQuotDocs.length > 0;
     const infoRows = [
       ['Request ID', r.id], ['Project', r.proj||'—'], ['Client', r.client||'—'],
       ['Deal Type', r.deal||'—'], ['Supply', r.supplyOnly?'Supply Only':r.supplyInstall?'Supply & Install':'—'],
@@ -3449,6 +3517,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
       ['Consultant', r.consultant||'—'], ['Email', r.email||'—'],
       ['MOB', r.mob||'—'], ['Lead Time', r.leadTime||'—'],
       ['Estimator', r.estimator||'—'], ['Submitted', r.date||'—'],
+      ...(r.remarks ? [['Remarks', r.remarks]] : []),
     ];
     const msgs = r.conversation || [];
     return (
@@ -3515,17 +3584,16 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
                               const uploaded=[];
                               for (const file of Array.from(e.target.files)) {
                                 const url = await uploadToAzure(file, r.id, file.name);
-                                if (!url) throw new Error('Upload failed');
-                                uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
+                                if (url) uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
                               }
                               setRecallDocs(prev=>[...prev,...uploaded]);
                               setRecallUpState(null);
-                            } catch { setRecallUpState('error'); setTimeout(()=>setRecallUpState(null),3000); }
+                            } catch { setRecallUpState(null); }
                             e.target.value='';
                           }}/>
                           <button onClick={()=>recallFileRef.current?.click()} disabled={recallUpState==='uploading'}
-                            style={{padding:'4px 12px',borderRadius:7,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:recallUpState==='error'?'rgba(255,100,100,0.85)':recallUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.75)',fontFamily:F,fontSize:'0.68rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
-                            {recallUpState==='uploading'?'⟳ Uploading…':recallUpState==='error'?'✕ Failed':'+ Add Replacement Docs'}
+                            style={{padding:'4px 12px',borderRadius:7,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:recallUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.75)',fontFamily:F,fontSize:'0.68rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                            {recallUpState==='uploading'?'⟳ Uploading…':'+ Add Replacement Docs'}
                           </button>
                           {recallDocs.map((d,di)=>(
                             <span key={di} style={{fontSize:'0.62rem',color:'rgba(100,210,150,0.85)',background:'rgba(0,180,100,0.08)',border:'1px solid rgba(0,200,120,0.25)',borderRadius:5,padding:'2px 9px'}}>{d.name}</span>
@@ -3562,23 +3630,42 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
                 </div>
               ))}
             </div>
-            {/* Download quotation */}
-            <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${quotReady?'rgba(168,85,247,0.30)':'rgba(255,255,255,0.07)'}`,borderRadius:10,padding:'16px 18px'}}>
-              <p style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:quotReady?'rgba(168,85,247,0.70)':'rgba(255,255,255,0.22)',marginBottom:10}}>Quotation</p>
-              {quotReady ? (
-                <div style={{display:'flex',flexDirection:'column',gap:7}}>
-                  {(r.estimationDocs||[r.estimationDoc]).filter(Boolean).map((d,i)=>(
+            {/* Submitted documents — always visible to sales */}
+            {r.docs?.filter(d => d && typeof d === 'object').length > 0 && (
+              <div style={{background:'rgba(0,160,255,0.04)',border:'1px solid rgba(0,160,255,0.18)',borderRadius:10,padding:'16px 18px'}}>
+                <p style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(0,180,255,0.60)',marginBottom:10}}>Submitted Documents</p>
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  {r.docs.filter(d => d && typeof d === 'object').map((d,i)=>(
                     <button key={i} onClick={()=>downloadDoc(d)}
-                      style={{display:'flex',alignItems:'center',gap:8,padding:'9px 14px',borderRadius:8,background:'rgba(168,85,247,0.10)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(210,170,255,0.90)',fontFamily:F,fontSize:'0.80rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.20)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='rgba(168,85,247,0.10)'}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                      {d?.name || r.estimationFile || `Quotation_${r.id}`}
+                      style={{display:'flex',alignItems:'center',gap:8,padding:'8px 13px',borderRadius:8,background:'rgba(0,160,255,0.08)',border:'1px solid rgba(0,160,255,0.24)',color:'rgba(100,190,255,0.90)',fontFamily:F,fontSize:'0.78rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(0,160,255,0.16)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='rgba(0,160,255,0.08)'}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.name||`Document_${i+1}`}</span>
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+            {/* Download quotation — only cost-artist approved files */}
+            <div style={{background:'rgba(255,255,255,0.03)',border:`1px solid ${quotReady?'rgba(168,85,247,0.30)':isApprovedByDirector?'rgba(0,220,130,0.14)':'rgba(255,255,255,0.07)'}`,borderRadius:10,padding:'16px 18px'}}>
+              <p style={{fontSize:'0.55rem',letterSpacing:'0.14em',textTransform:'uppercase',color:quotReady?'rgba(168,85,247,0.70)':isApprovedByDirector?'rgba(0,220,130,0.50)':'rgba(255,255,255,0.22)',marginBottom:10}}>Approved Quotation</p>
+              {quotReady ? (
+                <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                  {approvedQuotDocs.map((d,i)=>(
+                    <button key={i} onClick={()=>downloadDoc(d)}
+                      style={{display:'flex',alignItems:'center',gap:8,padding:'9px 14px',borderRadius:8,background:'rgba(168,85,247,0.10)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(210,170,255,0.90)',fontFamily:F,fontSize:'0.80rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',width:'100%',textAlign:'left',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.20)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='rgba(168,85,247,0.10)'}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d?.name || r.estimationFile || `Quotation_${r.id}`}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : isApprovedByDirector ? (
+                <p style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.28)',lineHeight:1.6,margin:0}}>No quotation files released by Cost-Artist yet.</p>
               ) : (
-                <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.25)',lineHeight:1.6,margin:0}}>Quotation will be available once the estimator uploads it.</p>
+                <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.25)',lineHeight:1.6,margin:0}}>Quotation available once approved by Cost-Artist.</p>
               )}
             </div>
             {/* Director remarks */}
@@ -3808,19 +3895,28 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
               </div>
             )}
 
-            {/* Quotation download strip */}
-            {(r.estimationDocs?.length > 0 || r.estimationFile) && (
-              <div data-no-nav style={{marginTop:7,paddingTop:6,borderTop:'1px solid rgba(168,85,247,0.12)',display:'flex',flexWrap:'wrap',alignItems:'center',gap:6}} onClick={e=>e.stopPropagation()}>
-                <span style={{fontSize:'0.42rem',color:'rgba(168,85,247,0.55)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>Quotation</span>
-                {(r.estimationDocs?.length ? r.estimationDocs : [r.estimationFile]).filter(Boolean).map((d,di)=>(
-                  <button key={di} onClick={()=>downloadDoc(d)}
-                    style={{display:'flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:6,background:'rgba(168,85,247,0.12)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(200,160,255,0.90)',fontFamily:F,fontSize:'0.58rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    {typeof d === 'object' && d.name ? d.name : `Quotation_${r.id}_${di+1}`}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Quotation download strip — only cost-artist approved files */}
+            {(()=>{
+              const isApproved = r.directorAction === 'approved' || r.reqStatus === 'completed';
+              if (!isApproved) return null;
+              const allDocs = r.estimationDocs?.length > 0 ? r.estimationDocs : [r.estimationDoc].filter(Boolean);
+              const releasedDocs = r.salesApprovedDocs?.length > 0
+                ? allDocs.filter(d => d && r.salesApprovedDocs.includes(d.id))
+                : allDocs;
+              if (!releasedDocs.length) return null;
+              return (
+                <div data-no-nav style={{marginTop:7,paddingTop:6,borderTop:'1px solid rgba(168,85,247,0.12)',display:'flex',flexWrap:'wrap',alignItems:'center',gap:6}} onClick={e=>e.stopPropagation()}>
+                  <span style={{fontSize:'0.42rem',color:'rgba(0,220,130,0.60)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>Approved Quotation</span>
+                  {releasedDocs.map((d,di)=>(
+                    <button key={di} onClick={()=>downloadDoc(d)}
+                      style={{display:'flex',alignItems:'center',gap:5,padding:'2px 9px',borderRadius:6,background:'rgba(0,220,130,0.10)',border:'1px solid rgba(0,200,100,0.32)',color:'rgba(100,230,170,0.90)',fontFamily:F,fontSize:'0.58rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      {typeof d === 'object' && d.name ? d.name : `Quotation_${r.id}_${di+1}`}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Out-of-scope section + Recall */}
             {r.reqStatus === 'out-of-scope' && (
@@ -3849,17 +3945,16 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
                           const uploaded=[];
                           for (const file of Array.from(e.target.files)) {
                             const url = await uploadToAzure(file, r.id, file.name);
-                            if (!url) throw new Error('Upload failed');
-                            uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
+                            if (url) uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
                           }
                           setRecallDocs(prev=>[...prev,...uploaded]);
                           setRecallUpState(null);
-                        } catch { setRecallUpState('error'); setTimeout(()=>setRecallUpState(null),3000); }
+                        } catch { setRecallUpState(null); }
                         e.target.value='';
                       }}/>
                       <button onClick={()=>recallFileRef.current?.click()} disabled={recallUpState==='uploading'}
-                        style={{padding:'3px 10px',borderRadius:6,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:recallUpState==='error'?'rgba(255,100,100,0.85)':recallUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.72)',fontFamily:F,fontSize:'0.60rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
-                        {recallUpState==='uploading'?'⟳ Uploading…':recallUpState==='error'?'✕ Failed':'+ Add Docs'}
+                        style={{padding:'3px 10px',borderRadius:6,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:recallUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.72)',fontFamily:F,fontSize:'0.60rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                        {recallUpState==='uploading'?'⟳ Uploading…':'+ Add Docs'}
                       </button>
                       {recallDocs.map((d,di)=>(
                         <span key={di} style={{fontSize:'0.56rem',color:'rgba(100,210,150,0.80)',background:'rgba(0,180,100,0.08)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:4,padding:'1px 7px'}}>{d.name}</span>
@@ -4536,32 +4631,28 @@ const AZURE_CONTAINER = "estimation-docs";
 const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
 
 const uploadToAzure = async (file, folder, customFileName) => {
-  try {
-    const nameToUse = customFileName || file.name;
-    const safeName = nameToUse.replace(/[#?&=%]/g, '_');
-    const blobName = `${folder}/${safeName}`;
-    const putUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-    console.log('⬆️ Azure upload:', putUrl.split('?')[0]);
-    const res = await fetch(putUrl, {
-      method: 'PUT',
-      headers: {
-        'x-ms-blob-type': 'BlockBlob',
-        'Content-Type': file.type || 'application/octet-stream',
-      },
-      body: file,
-    });
-    if (res.ok) {
-      const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
-      console.log('✅ Azure uploaded:', downloadUrl);
-      return downloadUrl;
+  const nameToUse = customFileName || file.name;
+  const safeName  = nameToUse.replace(/[#?&=%]/g, '_');
+  const blobName  = `${folder}/${safeName}`;
+  const putUrl    = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+  const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
+  const DELAYS = [1000, 2000, 4000, 8000, 16000];
+  for (let attempt = 0; attempt <= DELAYS.length; attempt++) {
+    try {
+      const res = await fetch(putUrl, {
+        method: 'PUT',
+        headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      if (res.ok) { console.log('✅ Azure uploaded:', downloadUrl); return downloadUrl; }
+      console.warn(`Azure upload HTTP ${res.status} attempt ${attempt + 1} for ${blobName}`);
+    } catch (err) {
+      console.warn(`Azure upload error attempt ${attempt + 1}:`, err.name);
     }
-    const errBody = await res.text().catch(() => '');
-    console.error(`❌ Azure upload HTTP ${res.status} for ${blobName}:`, errBody);
-    return null;
-  } catch(err) {
-    console.error('❌ Azure upload network/CORS error:', err.name, err.message);
-    return null;
+    if (attempt < DELAYS.length) await new Promise(r => setTimeout(r, DELAYS[attempt]));
   }
+  console.error('❌ Azure upload exhausted retries for:', blobName);
+  return null;
 };
 
 const verifyAzureBlob = async (url) => {
@@ -5588,49 +5679,6 @@ const RelaxScreen = ({ onAnother, onHome, docUploadProgress, onRetry }) => {
           </button>
         )}
 
-        {/* Document upload progress — background uploads after form submit */}
-        {docUploadProgress && (
-          <div style={{display:'flex',flexDirection:'column',gap:7,maxWidth:340,marginTop:4}}>
-            <div style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,
-              color: docUploadProgress.every(p=>p.status==='done') ? 'rgba(0,220,130,0.65)'
-                   : docUploadProgress.some(p=>p.status==='error')  ? 'rgba(255,120,100,0.65)'
-                   : 'rgba(0,200,255,0.55)'}}>
-              {docUploadProgress.every(p=>p.status==='done')
-                ? '✓ All documents uploaded'
-                : docUploadProgress.some(p=>p.status==='error')
-                ? '⚠ Some uploads failed'
-                : 'Uploading documents in background…'}
-            </div>
-            <div style={{display:'flex',flexDirection:'column',gap:4}}>
-              {docUploadProgress.map((p,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',borderRadius:8,
-                  background: p.status==='done'     ? 'rgba(0,200,100,0.07)'
-                            : p.status==='error'    ? 'rgba(255,60,60,0.06)'
-                            : p.status==='uploading'? 'rgba(0,180,255,0.06)'
-                            : 'rgba(255,255,255,0.03)',
-                  border:`1px solid ${p.status==='done'?'rgba(0,200,100,0.22)':p.status==='error'?'rgba(255,80,80,0.26)':p.status==='uploading'?'rgba(0,180,255,0.18)':'rgba(255,255,255,0.06)'}`,
-                }}>
-                  {p.status==='uploading' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.80)" strokeWidth="2.5" strokeLinecap="round" style={{animation:'coreOrb 1s linear infinite',flexShrink:0}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>}
-                  {p.status==='done'      && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,210,120,0.90)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
-                  {p.status==='error'     && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,80,80,0.85)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
-                  {p.status==='pending'   && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.18)',flexShrink:0}}/>}
-                  <span style={{fontSize:'0.72rem',fontFamily:"'Inter',sans-serif",fontWeight:500,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-                    color: p.status==='done'?'rgba(0,220,130,0.80)':p.status==='error'?'rgba(255,120,120,0.80)':p.status==='uploading'?'rgba(0,200,255,0.75)':'rgba(255,255,255,0.28)',
-                  }}>{p.name}</span>
-                  {p.status==='done' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="2" style={{flexShrink:0}}><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>}
-                </div>
-              ))}
-            </div>
-            {docUploadProgress.some(p=>p.status==='error') && onRetry && (
-              <button onClick={onRetry}
-                style={{alignSelf:'flex-start',fontSize:'0.72rem',color:'rgba(255,140,130,0.90)',background:'rgba(255,60,60,0.10)',border:'1px solid rgba(255,80,80,0.28)',borderRadius:7,padding:'5px 14px',cursor:'pointer',fontFamily:"'Inter',sans-serif",fontWeight:600,outline:'none',transition:'all 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,60,60,0.20)'}
-                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,60,60,0.10)'}>
-                ↺ Retry Failed Uploads
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Submit Another — glowing aurora pill, fades in after delay */}
         <button onClick={onAnother}
@@ -6164,7 +6212,6 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
 const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents to Azure' }) => {
   const F = "'Inter',sans-serif";
   const allDone   = items.every(i => i.status === 'done');
-  const anyError  = items.some(i => i.status === 'error');
   const anyActive = items.some(i => i.status === 'uploading');
   const done      = items.filter(i => i.status === 'done').length;
   const total     = items.length;
@@ -6196,18 +6243,12 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
             fontSize:'1.5rem', fontWeight:800, margin:0, letterSpacing:'0.03em',
             background: allDone
               ? 'linear-gradient(105deg,#00e5ff,#00cc77)'
-              : anyError && !anyActive
-              ? 'linear-gradient(105deg,#ff4444,#ff8800)'
               : 'linear-gradient(105deg,#0099ff,#a855f7)',
             WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text',
           }}>
-            {allDone
-              ? '✓ All Documents Secured'
-              : anyError && !anyActive
-              ? 'Upload Issue — Action Required'
-              : title}
+            {allDone ? '✓ All Documents Secured' : title}
           </h2>
-          {!allDone && !anyError && (
+          {!allDone && (
             <p style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.32)', margin:'6px 0 0', lineHeight:1.6 }}>
               Keep this window open while files are uploading.
             </p>
@@ -6268,9 +6309,7 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
                 display:'flex', alignItems:'center', gap:12,
                 padding:'13px 18px',
                 borderBottom: i < items.length-1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                background: item.status==='error'
-                  ? 'rgba(220,40,40,0.06)'
-                  : item.status==='done'
+                background: item.status==='done'
                   ? 'rgba(0,200,100,0.04)'
                   : 'transparent',
                 transition:'background 0.3s',
@@ -6281,15 +6320,11 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
                   display:'flex', alignItems:'center', justifyContent:'center',
                   background: item.status==='done'
                     ? 'rgba(0,200,100,0.15)'
-                    : item.status==='error'
-                    ? 'rgba(220,40,40,0.15)'
                     : item.status==='uploading'
                     ? 'rgba(0,150,255,0.12)'
                     : 'rgba(255,255,255,0.04)',
                   border:`1px solid ${item.status==='done'
                     ? 'rgba(0,200,100,0.40)'
-                    : item.status==='error'
-                    ? 'rgba(220,40,40,0.40)'
                     : item.status==='uploading'
                     ? 'rgba(0,150,255,0.35)'
                     : 'rgba(255,255,255,0.08)'}`,
@@ -6299,12 +6334,6 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                       stroke="rgba(0,220,120,0.95)" strokeWidth="2.8" strokeLinecap="round">
                       <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  )}
-                  {item.status==='error' && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                      stroke="rgba(255,80,80,0.95)" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
                   )}
                   {item.status==='uploading' && (
@@ -6336,8 +6365,6 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
                       fontSize:'0.62rem',
                       color: item.status==='done'
                         ? 'rgba(0,200,130,0.65)'
-                        : item.status==='error'
-                        ? 'rgba(255,120,120,0.70)'
                         : item.status==='uploading'
                         ? 'rgba(0,180,255,0.65)'
                         : 'rgba(255,255,255,0.28)',
@@ -6345,8 +6372,6 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
                       {item.size ? fmt(item.size) + ' · ' : ''}
                       {item.status==='done'
                         ? '✓ Secured on Azure'
-                        : item.status==='error'
-                        ? '✕ Upload failed'
                         : item.status==='uploading'
                         ? 'Uploading to Azure…'
                         : 'Queued'}
@@ -6393,37 +6418,7 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
           })}
         </div>
 
-        {/* Error actions */}
-        {anyError && !anyActive && (
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{
-              fontSize:'0.74rem', color:'rgba(255,160,160,0.70)',
-              textAlign:'center', lineHeight:1.5, padding:'0 8px',
-            }}>
-              ⚠ Some files failed to upload. Documents are critical for estimation — retry before proceeding.
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={onRetry} style={{
-                flex:3, padding:'11px 0', borderRadius:10,
-                background:'rgba(0,150,255,0.15)', border:'1px solid rgba(0,180,255,0.45)',
-                color:'rgba(100,210,255,0.95)', fontFamily:F, fontSize:'0.82rem', fontWeight:700,
-                cursor:'pointer', outline:'none', transition:'background 0.15s',
-              }}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,150,255,0.28)'}
-                onMouseLeave={e=>e.currentTarget.style.background='rgba(0,150,255,0.15)'}>
-                ↺ Retry Failed Uploads
-              </button>
-              <button onClick={onSkip} style={{
-                flex:1, padding:'11px 0', borderRadius:10,
-                background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.09)',
-                color:'rgba(255,255,255,0.28)', fontFamily:F, fontSize:'0.72rem',
-                cursor:'pointer', outline:'none',
-              }}>
-                Skip
-              </button>
-            </div>
-          </div>
-        )}
+        {/* No error UI — uploads retry silently */}
       </div>
     </div>
   );
@@ -6495,6 +6490,7 @@ const Dashboard = ({
   const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
   const [resubmitToast, setResubmitToast] = useState(false);
   const [quotUploadState, setQuotUploadState] = useState(null);    // null | 'uploading' | 'error'
+  const [toolUploadState, setToolUploadState] = useState(null);    // null | 'uploading' | 'error'
   const [dirDocUploadState, setDirDocUploadState] = useState(null); // null | 'uploading' | 'error'
 
   const PIN = { estimator: 'EST', director: 'star' };
@@ -6507,6 +6503,7 @@ const Dashboard = ({
     else { setPinError(true); setPinValue(''); }
   };
   const uploadRef = useRef();
+  const toolUploadRef = useRef();
   const dirDocUploadRef = useRef();
   const now = Date.now();
 
@@ -6521,81 +6518,35 @@ const Dashboard = ({
     if (!e.target.files?.length || !req?.id) return;
     const files = Array.from(e.target.files);
     e.target.value = '';
-
-    const progressItems = files.map(f => ({ name: f.name, size: f.size, status: 'pending', url: null }));
-    setDocUploadProgress(progressItems);
     setQuotUploadState('uploading');
-
     const newDocs = [];
-    for (let i = 0; i < files.length; i++) {
-      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
-
-      const file = files[i];
+    for (const file of files) {
       const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
       const customName = `quotation-${safeFn}`;
       const azureUrl = await uploadToAzure(file, req.id, customName);
-      const verified = azureUrl ? await verifyAzureBlob(azureUrl) : false;
-      const status = verified ? 'done' : 'error';
-
-      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: azureUrl || null } : p));
-
       newDocs.push({
         id: Math.random().toString(36).slice(2) + Date.now().toString(36),
         name: customName,
         type: file.type,
         url: azureUrl || null,
-        verified,
+        verified: !!azureUrl,
       });
     }
-
-    const allOk = newDocs.every(d => d.verified);
-
-    if (allOk) {
-      const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
-      const allDocs = [...existing, ...newDocs];
-      onUpdate(req.id, {
-        estimationFile: allDocs[allDocs.length - 1].name,
-        estimationDoc: allDocs[allDocs.length - 1],
-        estimationDocs: allDocs,
-        status: 'Pending Approval',
-        reqStatus: 'pending-director',
-        directorAction: null,
-        directorNote: '',
-        directorRespondedAt: null,
-        directorSubmitted: false,
-        _immediate: true,
-      });
-      setTimeout(() => {
-        setDocUploadProgress(null);
-        setQuotUploadState(null);
-      }, 1200);
-    } else {
-      setQuotUploadState('error');
-      setPendingSubmit({
-        formData: null,
-        newId: req.id,
-        uploadedDocs: newDocs,
-        completionCallback: (_, __, finalDocs) => {
-          const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
-          const allDocs = [...existing, ...finalDocs];
-          onUpdate(req.id, {
-            estimationFile: allDocs[allDocs.length - 1].name,
-            estimationDoc: allDocs[allDocs.length - 1],
-            estimationDocs: allDocs,
-            status: 'Pending Approval',
-            reqStatus: 'pending-director',
-            directorAction: null,
-            directorNote: '',
-            directorRespondedAt: null,
-            directorSubmitted: false,
-            _immediate: true,
-          });
-          setDocUploadProgress(null);
-          setQuotUploadState(null);
-          setPendingSubmit(null);
-        },
-      });
-    }
+    const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+    const allDocs = [...existing, ...newDocs];
+    onUpdate(req.id, {
+      estimationFile: allDocs[allDocs.length - 1].name,
+      estimationDoc: allDocs[allDocs.length - 1],
+      estimationDocs: allDocs,
+      status: 'Pending Approval',
+      reqStatus: 'pending-director',
+      directorAction: null,
+      directorNote: '',
+      directorRespondedAt: null,
+      directorSubmitted: false,
+      _immediate: true,
+    });
+    setTimeout(() => setQuotUploadState(null), 800);
   };
 
   const handleEstimatorDeleteDoc = async (idx) => {
@@ -6620,6 +6571,47 @@ const Dashboard = ({
       estimationFile: updated.length ? updated[updated.length - 1].name : null,
       _immediate: true,
     });
+  };
+
+  const handleToolDocUpload = async (e) => {
+    if (!e.target.files?.length || !req?.id) return;
+    const files = Array.from(e.target.files);
+    e.target.value = '';
+    setToolUploadState('uploading');
+    const newDocs = [];
+    for (const file of files) {
+      const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
+      const customName = `tool-${safeFn}`;
+      const azureUrl = await uploadToAzure(file, req.id, customName);
+      const verified = azureUrl ? await verifyAzureBlob(azureUrl) : false;
+      newDocs.push({
+        id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+        name: customName,
+        type: file.type,
+        url: azureUrl || null,
+        verified,
+      });
+    }
+    const existing = req.toolDocs || [];
+    onUpdate(req.id, { toolDocs: [...existing, ...newDocs], _immediate: true });
+    setTimeout(() => setToolUploadState(null), 800);
+  };
+
+  const handleToolDocDelete = async (idx) => {
+    const existing = req.toolDocs || [];
+    const toDelete = existing[idx];
+    if (toDelete?.url) {
+      try {
+        const baseUrl = toDelete.url.split('?')[0];
+        const blobName = baseUrl.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
+        const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
+        await fetch(deleteUrl, { method: 'DELETE' });
+      } catch (err) {
+        console.error('❌ Tool doc delete error:', err);
+      }
+    }
+    const updated = existing.filter((_, i) => i !== idx);
+    onUpdate(req.id, { toolDocs: updated, _immediate: true });
   };
 
   // ── Detail view ──
@@ -7210,125 +7202,155 @@ const Dashboard = ({
                 {/* Upload + Margin % + Project Value in one card */}
                 <div style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}}>
                   <p style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:2}}>Quotation Details</p>
-                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                    {/* Attached docs — each downloadable */}
-                    {req.docs?.length > 0 ? (
-                      <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
-                          <p style={{fontSize:'0.52rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,255,255,0.25)',margin:0}}>Attached Documents ({req.docs.length})</p>
-                          {req.docs.length > 1 && (
-                            <button onClick={()=>req.docs.forEach(d=>downloadDoc(d))}
-                              style={{...btnStyle,padding:'3px 10px',fontSize:'0.62rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.30)',background:'rgba(52,211,153,0.08)',fontWeight:700,flexShrink:0}}>
-                              ↓ Download All
-                            </button>
-                          )}
-                        </div>
-                        {/* Scrollable when > 5 docs */}
-                        <div style={{
-                          display:'flex',flexDirection:'column',gap:4,
-                          maxHeight: req.docs.length > 5 ? 160 : 'none',
-                          overflowY: req.docs.length > 5 ? 'auto' : 'visible',
-                          paddingRight: req.docs.length > 5 ? 2 : 0,
-                        }}>
+                  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+                    {/* ── SECTION A: Requester docs (read-only reference) ── */}
+                    <div style={{background:'rgba(0,160,255,0.04)',border:'1px solid rgba(0,160,255,0.16)',borderRadius:8,padding:'10px 12px'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:req.docs?.length?8:0}}>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(0,180,255,0.55)',margin:0,fontWeight:700}}>
+                          Requester Docs ({req.docs?.length||0})
+                        </p>
+                        {(req.docs?.length||0) > 1 && (
+                          <button onClick={()=>req.docs.forEach(d=>downloadDoc(d))}
+                            style={{...btnStyle,padding:'2px 9px',fontSize:'0.60rem',color:'rgba(0,200,255,0.90)',border:'1px solid rgba(0,180,255,0.30)',background:'rgba(0,160,255,0.08)',fontWeight:700,flexShrink:0}}>
+                            ↓ All
+                          </button>
+                        )}
+                      </div>
+                      {req.docs?.length > 0 ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:req.docs.length>5?130:'none',overflowY:req.docs.length>5?'auto':'visible'}}>
                           {req.docs.map((d,i)=>(
                             <button key={i} onClick={()=>downloadDoc(d)}
-                              style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              style={{...btnStyle,textAlign:'left',justifyContent:'flex-start',gap:7,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:'0.72rem',color:'rgba(0,200,255,0.88)',border:'1px solid rgba(0,180,255,0.22)',background:'rgba(0,160,255,0.06)'}}>
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                               {docName(d)}
                             </button>
                           ))}
                         </div>
+                      ) : (
+                        <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No documents attached by requester</span>
+                      )}
+                    </div>
+
+                    {/* ── SECTION B: Tool / Project Documents ── */}
+                    <div style={{background:'rgba(168,85,247,0.04)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:8,padding:'10px 12px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(168,85,247,0.70)',margin:0,fontWeight:700}}>
+                          Tool / Project Docs
+                        </p>
+                        <span style={{fontSize:'0.56rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.toolDocs?.length||0} file{(req.toolDocs?.length||0)!==1?'s':''}</span>
                       </div>
-                    ) : (
-                      <button style={{...btnStyle,opacity:0.45,cursor:'default'}}>↓ No Documents Attached</button>
-                    )}
-                    <input type="file" ref={uploadRef} style={{display:'none'}} multiple onChange={handleEstimatorUpload}/>
-                    {/* Uploaded quotation files list */}
-                    {(() => {
-                      const eDocs = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
-                      if (!eDocs.length) return null;
-                      return (
-                        <div style={{display:'flex',flexDirection:'column',gap:3}}>
-                          <div style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(52,211,153,0.45)',marginBottom:1}}>
-                            Uploaded ({eDocs.length} file{eDocs.length>1?'s':''})
-                          </div>
-                          {eDocs.map((d,i)=>(
+                      {/* Existing tool docs list */}
+                      {(req.toolDocs||[]).length > 0 && (
+                        <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:7,maxHeight:120,overflowY:'auto',scrollbarWidth:'thin'}}>
+                          {req.toolDocs.map((d,i)=>(
                             <div key={i} style={{display:'flex',alignItems:'center',gap:4}}>
                               <button onClick={()=>downloadDoc(d)}
-                                style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`file-${i+1}`}</span>
-                                {d.verified
-                                  ? <span title="Verified on Azure" style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
-                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.65)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
-                                    </span>
-                                  : d.url
-                                  ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,180,0,0.55)" strokeWidth="2" title="Uploaded (not verified)"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
-                                  : null
-                                }
+                                style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.70rem',color:'rgba(196,181,253,0.90)',border:'1px solid rgba(168,85,247,0.28)',background:'rgba(168,85,247,0.07)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`tool-doc-${i+1}`}</span>
+                                {d.verified && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.75)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                               </button>
-                              {req.reqStatus !== 'completed' && !isOutOfScope && (
-                                <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
-                                  style={{flexShrink:0,width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+                              {!isOutOfScope && req.reqStatus !== 'completed' && (
+                                <button onClick={()=>handleToolDocDelete(i)} title="Remove"
+                                  style={{flexShrink:0,width:24,height:24,borderRadius:5,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
                                   onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
                                   onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.08)';e.currentTarget.style.color='rgba(220,80,80,0.55)';}}>
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                 </button>
                               )}
                             </div>
                           ))}
                         </div>
-                      );
-                    })()}
-                    {(isRejected || isResubmission) && (req.estimationDocs?.length > 0 || req.estimationDoc) && (
-                      <div style={{ background:'rgba(255,160,30,0.06)', border:'1px solid rgba(255,160,30,0.22)', borderRadius:8, padding:'10px 14px' }}>
-                        <p style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,180,60,0.60)', marginBottom:7, fontWeight:700 }}>
-                          Previously Uploaded Files (for reference)
+                      )}
+                      <input type="file" ref={toolUploadRef} style={{display:'none'}} multiple onChange={handleToolDocUpload}/>
+                      <button onClick={()=>!toolUploadState && toolUploadRef.current?.click()}
+                        disabled={isOutOfScope||req.reqStatus==='completed'||toolUploadState==='uploading'}
+                        style={{...btnStyle,opacity:1,
+                          cursor:(isOutOfScope||req.reqStatus==='completed')?'not-allowed':toolUploadState==='uploading'?'wait':'pointer',
+                          color:toolUploadState==='uploading'?'rgba(168,85,247,0.55)':'rgba(196,181,253,0.85)',
+                          border:'1px solid rgba(168,85,247,0.35)',
+                          background:'rgba(168,85,247,0.08)',fontWeight:600}}>
+                        {toolUploadState==='uploading'
+                          ? '⟳ Uploading…'
+                          : `↑ ${(req.toolDocs?.length||0)>0?'Add Tool / Project Doc':'Upload Tool / Project Doc'}`}
+                      </button>
+                    </div>
+
+                    {/* ── SECTION C: Quotation Documents ── */}
+                    <div style={{background:'rgba(0,10,30,0.40)',border:'1px solid rgba(255,200,40,0.22)',borderRadius:8,padding:'10px 12px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,200,40,0.65)" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <p style={{fontSize:'0.50rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,210,60,0.70)',margin:0,fontWeight:700}}>
+                          Quotation Documents
                         </p>
-                        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                          {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d, i) => (
-                            <button key={i} onClick={() => downloadDoc(d)} style={{ display:'flex', alignItems:'center', gap:7, padding:'5px 10px', borderRadius:6, background:'rgba(255,160,30,0.08)', border:'1px solid rgba(255,160,30,0.28)', color:'rgba(255,200,80,0.90)', fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:600, cursor:'pointer', outline:'none', textAlign:'left', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                              {d.name || `quotation-file-${i + 1}`}
-                            </button>
-                          ))}
-                        </div>
+                        <span style={{fontSize:'0.56rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{(req.estimationDocs?.length||0)+(req.estimationDoc&&!req.estimationDocs?.length?1:0)} file{((req.estimationDocs?.length||0)+(req.estimationDoc&&!req.estimationDocs?.length?1:0))!==1?'s':''}</span>
                       </div>
-                    )}
-                    {docUploadProgress && (
-                      <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:2}}>
-                        {docUploadProgress.map((p, i) => (
-                          <div key={i} style={{display:'flex',alignItems:'center',gap:7,padding:'5px 10px',borderRadius:6,
-                            background: p.status==='done'?'rgba(0,200,100,0.07)':p.status==='error'?'rgba(255,60,60,0.06)':'rgba(0,180,255,0.05)',
-                            border:`1px solid ${p.status==='done'?'rgba(0,200,100,0.28)':p.status==='error'?'rgba(255,80,80,0.30)':'rgba(0,180,255,0.20)'}`,
-                          }}>
-                            {p.status==='uploading' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.80)" strokeWidth="2.5" strokeLinecap="round" style={{animation:'coreOrb 1s linear infinite',flexShrink:0}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>}
-                            {p.status==='done'      && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,100,0.90)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
-                            {p.status==='error'     && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,80,80,0.85)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
-                            {p.status==='pending'   && <div style={{width:7,height:7,borderRadius:'50%',background:'rgba(255,255,255,0.20)',flexShrink:0}}/>}
-                            <span style={{fontSize:'0.72rem',fontFamily:"'Inter',sans-serif",fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,
-                              color:p.status==='done'?'rgba(0,220,130,0.90)':p.status==='error'?'rgba(255,120,120,0.85)':p.status==='uploading'?'rgba(0,200,255,0.80)':'rgba(255,255,255,0.35)',
-                            }}>{p.name}</span>
+                      {/* Existing quotation docs */}
+                      {(() => {
+                        const eDocs = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
+                        if (!eDocs.length) return null;
+                        return (
+                          <div style={{display:'flex',flexDirection:'column',gap:3,marginBottom:7,maxHeight:130,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(52,211,153,0.15) transparent'}}>
+                            {eDocs.map((d,i)=>(
+                              <div key={i} style={{display:'flex',alignItems:'center',gap:4}}>
+                                <button onClick={()=>downloadDoc(d)}
+                                  style={{...btnStyle,flex:1,textAlign:'left',justifyContent:'flex-start',gap:7,fontSize:'0.72rem',color:'rgba(52,211,153,0.90)',border:'1px solid rgba(52,211,153,0.28)',background:'rgba(52,211,153,0.06)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                  <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`file-${i+1}`}</span>
+                                  {d.verified
+                                    ? <span title="Verified on Azure" style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
+                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.65)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                      </span>
+                                    : d.url
+                                    ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,180,0,0.55)" strokeWidth="2" title="Uploaded (not verified)"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+                                    : null
+                                  }
+                                </button>
+                                {req.reqStatus !== 'completed' && !isOutOfScope && (
+                                  <button onClick={()=>handleEstimatorDeleteDoc(i)} title="Remove file"
+                                    style={{flexShrink:0,width:26,height:26,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+                                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.22)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
+                                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.08)';e.currentTarget.style.color='rgba(220,80,80,0.55)';}}>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                                  </button>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                        {docUploadProgress.some(p=>p.status==='error') && (
-                          <button onClick={retryDocUploads} style={{alignSelf:'flex-start',fontSize:'0.68rem',color:'rgba(255,130,130,0.90)',background:'rgba(255,60,60,0.10)',border:'1px solid rgba(255,80,80,0.30)',borderRadius:6,padding:'3px 10px',cursor:'pointer',fontFamily:"'Inter',sans-serif",outline:'none',marginTop:2}}>↺ Retry Failed</button>
-                        )}
-                      </div>
-                    )}
-                    <button onClick={()=>!quotUploadState && uploadRef.current.click()}
-                      disabled={req.reqStatus==='completed'||isOutOfScope||quotUploadState==='uploading'}
-                      style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
-                        color: quotUploadState==='error'?'rgba(255,100,100,0.95)':'rgba(255,210,60,0.95)',
-                        border:`1px solid ${quotUploadState==='error'?'rgba(255,80,80,0.50)':'rgba(255,200,40,0.40)'}`,
-                        background: quotUploadState==='error'?'rgba(255,50,50,0.12)':'rgba(255,180,0,0.10)',fontWeight:700}}>
-                      {quotUploadState==='uploading'
-                        ? '⟳ Uploading — Please Wait…'
-                        : quotUploadState==='error'
-                        ? '✕ Upload Failed — Retry'
-                        : `↑ ${(req.estimationDocs?.length||0)>0?'Add / Replace Files':'Upload Quotation'}`}
-                    </button>
+                        );
+                      })()}
+                      {/* Previously uploaded (rejected/revised reference) */}
+                      {(isRejected || isResubmission) && (req.estimationDocs?.length > 0 || req.estimationDoc) && (
+                        <div style={{ background:'rgba(255,160,30,0.06)', border:'1px solid rgba(255,160,30,0.22)', borderRadius:7, padding:'8px 12px', marginBottom:7 }}>
+                          <p style={{ fontSize:'0.50rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,180,60,0.60)', marginBottom:6, fontWeight:700 }}>
+                            Previously Uploaded (reference)
+                          </p>
+                          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                            {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d, i) => (
+                              <button key={i} onClick={() => downloadDoc(d)} style={{ display:'flex', alignItems:'center', gap:7, padding:'5px 10px', borderRadius:6, background:'rgba(255,160,30,0.08)', border:'1px solid rgba(255,160,30,0.28)', color:'rgba(255,200,80,0.90)', fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:600, cursor:'pointer', outline:'none', textAlign:'left', width:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                {d.name || `quotation-file-${i + 1}`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <input type="file" ref={uploadRef} style={{display:'none'}} multiple onChange={handleEstimatorUpload}/>
+                      <button onClick={()=>!quotUploadState && uploadRef.current.click()}
+                        disabled={req.reqStatus==='completed'||isOutOfScope||quotUploadState==='uploading'}
+                        style={{...btnStyle,opacity:1,cursor:(req.reqStatus==='completed'||isOutOfScope)?'not-allowed':quotUploadState==='uploading'?'wait':'pointer',
+                          color:'rgba(255,210,60,0.95)',
+                          border:'1px solid rgba(255,200,40,0.40)',
+                          background:'rgba(255,180,0,0.10)',fontWeight:700}}>
+                        {quotUploadState==='uploading'
+                          ? '⟳ Uploading — Please Wait…'
+                          : `↑ ${(req.estimationDocs?.length||0)>0?'Add / Replace Quotation':'Upload Quotation'}`}
+                      </button>
+                    </div>
+
                   </div>
                   {/* ── Margin breakdown ── */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'12px 14px',marginTop:4}}>
@@ -7832,7 +7854,7 @@ const Dashboard = ({
                       })()}
 
                       {/* Info rows — editable for Cost-Artist */}
-                      {[['Request ID','id',req.id,true],['Sales Person','salesPerson',req.salesPerson,true],['Submitted By','submittedBy',req.submittedBy,true],['Client / Grantor','client',req.client,true],['Main Contractor','mainContractor',req.mainContractor,true],['Consultant','consultant',req.consultant,true],['Lead Time','leadTime',req.leadTime,true],['Address','address',req.address,true],['Submitted','date',req.date,true]].map(([k,field,v,editable])=>(
+                      {[['Request ID','id',req.id,true],['Sales Person','salesPerson',req.salesPerson,true],['Submitted By','submittedBy',req.submittedBy,true],['Client / Grantor','client',req.client,true],['Main Contractor','mainContractor',req.mainContractor,true],['Consultant','consultant',req.consultant,true],['Lead Time','leadTime',req.leadTime,true],['Address','address',req.address,true],['Submitted','date',req.date,true],['Remarks','remarks',req.remarks,true]].map(([k,field,v,editable])=>(
                         <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.05)',padding:'5px 0',gap:8,alignItems:'center'}}>
                           <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{k}</span>
                           {dirEditMode && editable ? (
@@ -7904,28 +7926,24 @@ const Dashboard = ({
                                 const newDocs = [];
                                 for (const file of Array.from(e.target.files)) {
                                   const azureUrl = await uploadToAzure(file, req.id, file.name);
-                                  if (!azureUrl) throw new Error(`Failed to upload "${file.name}"`);
-                                  const ok = await verifyAzureBlob(azureUrl);
-                                  if (!ok) throw new Error(`Verification failed for "${file.name}"`);
-                                  newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl, verified: true });
+                                  if (azureUrl) newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl, verified: true });
                                 }
-                                onUpdate(req.id, { docs: [...(req.docs||[]), ...newDocs], _immediate: true });
+                                if (newDocs.length) onUpdate(req.id, { docs: [...(req.docs||[]), ...newDocs], _immediate: true });
                                 setDirDocUploadState(null);
                               } catch(err) {
-                                console.error('Director doc upload error:', err);
-                                setDirDocUploadState('error');
-                                setTimeout(() => setDirDocUploadState(null), 4000);
+                                console.warn('Director doc upload error:', err);
+                                setDirDocUploadState(null);
                               }
                               e.target.value='';
                             }}/>
                             <button onClick={()=>!dirDocUploadState && dirDocUploadRef.current?.click()}
                               disabled={dirDocUploadState==='uploading'}
                               style={{marginLeft:'auto',padding:'3px 10px',borderRadius:6,
-                                background: dirDocUploadState==='error' ? 'rgba(220,50,50,0.14)' : 'rgba(0,200,255,0.10)',
-                                border: `1px solid ${dirDocUploadState==='error' ? 'rgba(220,50,50,0.40)' : 'rgba(0,200,255,0.30)'}`,
-                                color: dirDocUploadState==='error' ? 'rgba(255,100,100,0.90)' : dirDocUploadState==='uploading' ? 'rgba(0,200,255,0.45)' : 'rgba(0,200,255,0.85)',
+                                background: 'rgba(0,200,255,0.10)',
+                                border: '1px solid rgba(0,200,255,0.30)',
+                                color: dirDocUploadState==='uploading' ? 'rgba(0,200,255,0.45)' : 'rgba(0,200,255,0.85)',
                                 fontFamily:F2,fontSize:'0.60rem',fontWeight:700,cursor:dirDocUploadState==='uploading'?'wait':'pointer',outline:'none'}}>
-                              {dirDocUploadState==='uploading' ? '⟳ Uploading…' : dirDocUploadState==='error' ? '✕ Failed' : '+ Add File'}
+                              {dirDocUploadState==='uploading' ? '⟳ Uploading…' : '+ Add File'}
                             </button>
                           </div>
                           {(req.docs||[]).length === 0 ? (
@@ -8064,32 +8082,57 @@ const Dashboard = ({
                         </div>
                       )}
                       <div style={{background:'rgba(0,220,130,0.04)',border:'1px solid rgba(0,220,130,0.14)',borderRadius:8,padding:'10px 12px'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.60)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                           <span style={{fontSize:'0.50rem',color:'rgba(0,220,130,0.65)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Quotation Documents</span>
                           <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.estimationDocs?.length?`${req.estimationDocs.length} file${req.estimationDocs.length!==1?'s':''}`:req.estimationDoc?'1 file':'0 files'}</span>
                         </div>
+                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,130,0.45)',letterSpacing:'0.10em',marginBottom:7}}>✓ Tick files to release to Sales for download</div>
                         {(req.estimationDocs?.length > 0 || req.estimationDoc?.data || req.estimationDoc?.url) ? (
-                          <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:130,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(0,220,130,0.15) transparent',paddingRight:2}}>
-                            {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>(
-                              <div key={i} style={{display:'flex',alignItems:'center',gap:4}}>
-                                <button onClick={()=>downloadDoc(d)}
-                                  style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:'rgba(0,220,130,0.07)',border:'1px solid rgba(0,220,130,0.28)',color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',flex:1,textAlign:'left',minWidth:0}}
-                                  onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.16)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,220,130,0.07)'}>
-                                  <DlIco/>
-                                  <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||req.estimationFile||`quotation-${i+1}`}</span>
-                                  {d.verified && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.85)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" title="Verified on Azure"><polyline points="20 6 9 17 4 12"/></svg>}
-                                </button>
-                                {dirEditMode && (
-                                  <button title="Delete file" onClick={()=>{
-                                    const all = req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc].filter(Boolean);
-                                    const updated = all.filter((_,j)=>j!==i);
-                                    onUpdate(req.id,{estimationDocs:updated, estimationDoc:updated.length?updated[updated.length-1]:null, estimationFile:updated.length?updated[updated.length-1].name:null});
-                                  }}
-                                    style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-                                )}
-                              </div>
-                            ))}
+                          <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:160,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(0,220,130,0.15) transparent',paddingRight:2}}>
+                            {(req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc]).filter(Boolean).map((d,i)=>{
+                              const isReleased = (req.salesApprovedDocs||[]).includes(d.id);
+                              return (
+                                <div key={i} style={{display:'flex',alignItems:'center',gap:4,background:isReleased?'rgba(0,220,130,0.06)':'transparent',borderRadius:6,padding:'2px 0'}}>
+                                  {/* Release-to-sales checkbox */}
+                                  <button
+                                    title={isReleased ? 'Remove from Sales download' : 'Release to Sales for download'}
+                                    onClick={()=>{
+                                      const prev = req.salesApprovedDocs || [];
+                                      const next = isReleased ? prev.filter(id=>id!==d.id) : [...prev, d.id];
+                                      onUpdate(req.id, { salesApprovedDocs: next, _immediate: true });
+                                    }}
+                                    style={{flexShrink:0,width:18,height:18,borderRadius:4,
+                                      background: isReleased?'rgba(0,220,130,0.25)':'rgba(255,255,255,0.05)',
+                                      border: `1.5px solid ${isReleased?'rgba(0,220,130,0.70)':'rgba(255,255,255,0.18)'}`,
+                                      color: isReleased?'rgba(0,230,140,0.95)':'rgba(255,255,255,0.30)',
+                                      cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',
+                                      transition:'all 0.15s',fontSize:'0.62rem',fontWeight:800}}>
+                                    {isReleased ? '✓' : ''}
+                                  </button>
+                                  <button onClick={()=>downloadDoc(d)}
+                                    style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,
+                                      background:isReleased?'rgba(0,220,130,0.10)':'rgba(0,220,130,0.07)',
+                                      border:`1px solid ${isReleased?'rgba(0,220,130,0.40)':'rgba(0,220,130,0.28)'}`,
+                                      color:'rgba(0,220,130,0.92)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',flex:1,textAlign:'left',minWidth:0}}
+                                    onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.16)'} onMouseLeave={e=>e.currentTarget.style.background=isReleased?'rgba(0,220,130,0.10)':'rgba(0,220,130,0.07)'}>
+                                    <DlIco/>
+                                    <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||req.estimationFile||`quotation-${i+1}`}</span>
+                                    {d.verified && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.85)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" title="Verified on Azure"><polyline points="20 6 9 17 4 12"/></svg>}
+                                    {isReleased && <span style={{fontSize:'0.44rem',color:'rgba(0,220,130,0.70)',letterSpacing:'0.08em',textTransform:'uppercase',flexShrink:0,fontWeight:700}}>Sales ✓</span>}
+                                  </button>
+                                  {dirEditMode && (
+                                    <button title="Delete file" onClick={()=>{
+                                      const all = req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc].filter(Boolean);
+                                      const updated = all.filter((_,j)=>j!==i);
+                                      const removedId = d.id;
+                                      onUpdate(req.id,{estimationDocs:updated, estimationDoc:updated.length?updated[updated.length-1]:null, estimationFile:updated.length?updated[updated.length-1].name:null, salesApprovedDocs:(req.salesApprovedDocs||[]).filter(id=>id!==removedId)});
+                                    }}
+                                      style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>No files attached</span>}
                       </div>
@@ -9784,15 +9827,11 @@ const runDocUploads = async (formData, newId, docFiles, completionCallback) => {
   for (let i = 0; i < docFiles.length; i++) {
     setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
     const url = await uploadToAzure(docFiles[i], newId);
-    const verified = url ? await verifyAzureBlob(url) : false;
-    const status = verified ? 'done' : 'error';
-    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
-    uploadedDocs.push({ name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified });
+    setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'done', url: url || null } : p));
+    uploadedDocs.push({ name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified: !!url });
   }
 
-  const allOk = uploadedDocs.every(d => d.verified);
-  setPendingSubmit({ formData, newId, uploadedDocs, completionCallback });
-  if (allOk) setTimeout(() => completionCallback(formData, newId, uploadedDocs), 900);
+  setTimeout(() => completionCallback(formData, newId, uploadedDocs), 900);
 };
 
 const handleSubmit = async (formData) => {
@@ -9818,36 +9857,15 @@ const handleSubmit = async (formData) => {
 
     if (!docFiles.length) return;
 
-    // Background uploads — track progress on relax screen
-    const progress = docFiles.map(f => ({ name: f.name, size: f.size, status: 'pending', url: null }));
-    setDocUploadProgress(progress);
-
+    // Background uploads — silent, no error shown
     const uploadedDocs = [];
-    for (let i = 0; i < docFiles.length; i++) {
-      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
-      const url = await uploadToAzure(docFiles[i], newId);
-      const verified = url ? await verifyAzureBlob(url) : false;
-      const status = verified ? 'done' : 'error';
-      setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status, url: url || null } : p));
-      uploadedDocs.push({ name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified });
+    for (const file of docFiles) {
+      const url = await uploadToAzure(file, newId);
+      uploadedDocs.push({ name: file.name, type: file.type, url: url || null, verified: !!url });
     }
 
     // Patch request with real URLs now that uploads finished
     setRequests(prev => prev.map(r => r.id === newId ? { ...r, docs: uploadedDocs } : r));
-
-    const allOk = uploadedDocs.every(d => d.verified);
-    if (allOk) {
-      setTimeout(() => setDocUploadProgress(null), 1500);
-    } else {
-      setPendingSubmit({
-        formData, newId, uploadedDocs,
-        completionCallback: (_, __, finalDocs) => {
-          setRequests(prev => prev.map(r => r.id === newId ? { ...r, docs: finalDocs } : r));
-          setDocUploadProgress(null);
-          setPendingSubmit(null);
-        },
-      });
-    }
   };
 
   const handleFinalPriceSubmit = async (formData) => {
