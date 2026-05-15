@@ -3011,23 +3011,24 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
         </div>
       )}
 
-      {/* Header */}
-      <div style={{marginBottom:20}}>
-        <p style={{fontSize:'0.55rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(160,130,255,0.55)',marginBottom:6,fontWeight:600}}>NAFFCO · AI SYSTEM</p>
-        <div style={{display:'flex',alignItems:'baseline',gap:14}}>
-          <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.88)',margin:0}}>Open Requests</h2>
-          <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',fontWeight:400}}>{allOpen.length} unassigned</span>
+      {/* Header + inline search */}
+      <div style={{marginBottom:22}}>
+        <p style={{fontSize:'0.55rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(160,130,255,0.55)',marginBottom:8,fontWeight:600}}>NAFFCO · AI SYSTEM</p>
+        <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'baseline',gap:12,flexShrink:0}}>
+            <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.88)',margin:0}}>Open Requests</h2>
+            <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',fontWeight:400}}>{allOpen.length} unassigned</span>
+          </div>
+          {/* Search — inline right of heading */}
+          <div style={{display:'flex',alignItems:'center',flex:1,minWidth:260,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,overflow:'hidden'}}>
+            <span style={{padding:'0 14px',display:'flex',alignItems:'center',flexShrink:0,opacity:0.35}}><Search size={15} color="#fff"/></span>
+            <input value={orSearch} onChange={e=>setOrSearch(e.target.value)}
+              placeholder="Search by project, client, contractor, ID or requester…"
+              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.82)',fontFamily:F,fontSize:'0.86rem',padding:'13px 0'}}/>
+            {orSearch && <button onClick={()=>setOrSearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.40,flexShrink:0}}><X size={13} color="#fff"/></button>}
+          </div>
         </div>
-        <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:4}}>Pick a request and assign it to yourself to begin estimation.</p>
-      </div>
-
-      {/* Search */}
-      <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:10,marginBottom:22,overflow:'hidden',maxWidth:680}}>
-        <span style={{padding:'0 14px',display:'flex',alignItems:'center',flexShrink:0,opacity:0.35}}><Search size={15} color="#fff"/></span>
-        <input value={orSearch} onChange={e=>setOrSearch(e.target.value)}
-          placeholder="Search by project, client, contractor, ID or requester…"
-          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.82)',fontFamily:F,fontSize:'0.86rem',padding:'13px 0'}}/>
-        {orSearch && <button onClick={()=>setOrSearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.40,flexShrink:0}}><X size={13} color="#fff"/></button>}
+        <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:6}}>Pick a request and assign it to yourself to begin estimation.</p>
       </div>
 
       {openReqs.length === 0 ? (
@@ -8407,11 +8408,11 @@ const Dashboard = ({
           )}
 
           {/* Search */}
-          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:8,overflow:'hidden',width:'min(520px,100%)'}}>
-            <span style={{padding:'0 12px',display:'flex',alignItems:'center',opacity:0.30,flexShrink:0}}><Search size={14} color="#fff"/></span>
+          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,overflow:'hidden',flex:1,minWidth:320,maxWidth:760}}>
+            <span style={{padding:'0 14px',display:'flex',alignItems:'center',opacity:0.30,flexShrink:0}}><Search size={15} color="#fff"/></span>
             <input value={dsearch} onChange={e=>setDsearch(e.target.value)} placeholder="Search by project, client, contractor, ID, requester or estimator…"
-              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.82rem',padding:'11px 0'}}/>
-            {dsearch && <button onClick={()=>setDsearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 12px',display:'flex',alignItems:'center',opacity:0.4}}><X size={12} color="#fff"/></button>}
+              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.82)',fontFamily:F,fontSize:'0.84rem',padding:'12px 0'}}/>
+            {dsearch && <button onClick={()=>setDsearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.4}}><X size={13} color="#fff"/></button>}
           </div>
         </div>
       </div>
