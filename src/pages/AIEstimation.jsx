@@ -255,6 +255,80 @@ const S = `
     85%  { opacity: 1; }
     100% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
   }
+  /* ── Arch-tab buttons (AI Tool Direct & Cost-Artist) ── */
+  .arch-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 28px 12px;
+    border-radius: 26px 26px 0 0;
+    border: 1.5px solid rgba(168,85,247,0.40);
+    border-bottom: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    outline: none;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.22s;
+    overflow: visible;
+  }
+  .arch-tab::before,
+  .arch-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+  }
+  .arch-tab::before {
+    left: -14px;
+    border-radius: 0 0 100% 0;
+    box-shadow: 5px 5px 0 5px rgba(168,85,247,0.40);
+    clip-path: inset(0 0 0 5px);
+  }
+  .arch-tab::after {
+    right: -14px;
+    border-radius: 0 0 0 100%;
+    box-shadow: -5px 5px 0 5px rgba(168,85,247,0.40);
+    clip-path: inset(0 5px 0 0);
+  }
+  .arch-tab-tool {
+    background: rgba(10,6,30,0.92);
+    color: rgba(200,160,255,0.95);
+    box-shadow: 0 -4px 20px rgba(168,85,247,0.18), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .arch-tab-tool:hover {
+    background: linear-gradient(135deg,rgba(109,40,217,0.70),rgba(168,85,247,0.60),rgba(236,72,153,0.50));
+    color: #fff;
+    border-color: rgba(168,85,247,0.75);
+    box-shadow: 0 -6px 28px rgba(168,85,247,0.40);
+  }
+  .arch-tab-cost {
+    background: rgba(10,18,40,0.92);
+    color: rgba(120,220,255,0.92);
+    border-color: rgba(0,200,255,0.40);
+    box-shadow: 0 -4px 20px rgba(0,200,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .arch-tab-cost::before {
+    box-shadow: 5px 5px 0 5px rgba(0,200,255,0.40);
+  }
+  .arch-tab-cost::after {
+    box-shadow: -5px 5px 0 5px rgba(0,200,255,0.40);
+  }
+  .arch-tab-cost:hover {
+    background: linear-gradient(135deg,rgba(0,100,180,0.55),rgba(0,200,255,0.40));
+    color: #fff;
+    border-color: rgba(0,200,255,0.75);
+    box-shadow: 0 -6px 28px rgba(0,200,255,0.35);
+  }
+
   .nav-btn {
     background: transparent;
     border: none;
@@ -2948,6 +3022,22 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   const tenderReqs    = openReqs.filter(({r}) => r.deal === 'Tender');
   const allJobInHandCount = allOpen.filter(({r}) => r.deal === 'Job In Hand').length;
   const allTenderCount    = allOpen.filter(({r}) => r.deal === 'Tender').length;
+  const [splitPct, setSplitPct] = useState(50);
+  const splitDragging = useRef(false);
+  const splitContainerRef = useRef(null);
+  const onSplitMouseDown = (e) => {
+    e.preventDefault();
+    splitDragging.current = true;
+    const onMove = (ev) => {
+      if (!splitDragging.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = Math.min(80, Math.max(20, ((ev.clientX - rect.left) / rect.width) * 100));
+      setSplitPct(pct);
+    };
+    const onUp = () => { splitDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
   const [claiming, setClaiming] = useState(null);
   const [estName, setEstName] = useState('');
   const [nameErr, setNameErr] = useState(false);
@@ -3198,10 +3288,10 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
       </div>
 
       {/* ── Split: Job In Hand (left) | Tender (right) ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,alignItems:'start'}}>
+      <div ref={splitContainerRef} style={{display:'flex',alignItems:'start',gap:0,userSelect:'none'}}>
 
         {/* ═══ LEFT: Job In Hand ═══ */}
-        <div>
+        <div style={{width:`${splitPct}%`,flexShrink:0,minWidth:0,overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:10,borderBottom:'1px solid rgba(255,215,0,0.18)'}}>
             <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(255,215,0,0.85)',flexShrink:0,boxShadow:'0 0 8px rgba(255,215,0,0.55)'}}/>
             <span style={{fontSize:'0.88rem',fontWeight:800,color:'rgba(255,215,0,0.92)',letterSpacing:'0.02em'}}>Job In Hand</span>
@@ -3215,14 +3305,23 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
               </p>
             </div>
           ) : (
-            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
               {jobInHandReqs.map(({r,i},idx) => renderCard(r,i,idx))}
             </div>
           )}
         </div>
 
+        {/* ── Draggable divider ── */}
+        <div onMouseDown={onSplitMouseDown}
+          style={{width:8,flexShrink:0,alignSelf:'stretch',cursor:'col-resize',display:'flex',alignItems:'center',justifyContent:'center',zIndex:10,position:'relative',marginTop:0}}
+          title="Drag to resize">
+          <div style={{width:2,height:'100%',minHeight:60,background:'rgba(255,255,255,0.10)',borderRadius:2,transition:'background 0.15s'}}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(99,102,241,0.60)'}
+            onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}/>
+        </div>
+
         {/* ═══ RIGHT: Tender ═══ */}
-        <div>
+        <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:10,borderBottom:'1px solid rgba(79,255,223,0.18)'}}>
             <span style={{width:8,height:8,borderRadius:'50%',background:'rgba(79,255,223,0.85)',flexShrink:0,boxShadow:'0 0 8px rgba(79,255,223,0.55)'}}/>
             <span style={{fontSize:'0.88rem',fontWeight:800,color:'rgba(79,255,223,0.92)',letterSpacing:'0.02em'}}>Tender</span>
@@ -3236,7 +3335,7 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
               </p>
             </div>
           ) : (
-            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
               {tenderReqs.map(({r,i},idx) => renderCard(r,i,idx))}
             </div>
           )}
@@ -6454,9 +6553,14 @@ const Dashboard = ({
   const [oosMode, setOosMode]     = useState(false);   // show OOS remark input
   const [oosRemark, setOosRemark] = useState('');       // draft remark
   const [dashFilter, setDashFilter] = useState('');    // '' | 'pending-estimation' | 'pending-approval' | 'unassigned' | 'out-of-scope'
+  const [estTeamPage, setEstTeamPage] = useState(false);
+  const [estTeamDetail, setEstTeamDetail] = useState(null); // {code,name} | null
+  const [estTeamPin, setEstTeamPin] = useState('');
+  const [estTeamPinErr, setEstTeamPinErr] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // realIdx to delete
   const [deleteCode, setDeleteCode] = useState('');          // must type 'xepa' to confirm
   const [convoInput, setConvoInput] = useState('');
+  const [histOpen, setHistOpen] = useState(false);
   const [convoCollapsed, setConvoCollapsed] = useState(true);
   const [dirConvoOpen, setDirConvoOpen] = useState(false);  // Conversation panel expanded
   const [dirAiOpen, setDirAiOpen] = useState(true);         // AI Suggestions panel expanded
@@ -7690,6 +7794,7 @@ const Dashboard = ({
                 </div>
               ) : (
                 /* Expanded panel */
+                <>
                 <div style={{width:colRightW,flexShrink:0,background:'rgba(109,40,217,0.07)',border:'1px solid rgba(168,85,247,0.35)',borderRadius:14,padding:'18px 18px 14px',display:'flex',flexDirection:'column',gap:12,height:'100%',minHeight:560,position:'sticky',top:62}}>
                   <div style={{display:'flex',alignItems:'center',gap:8,paddingBottom:10,borderBottom:'1px solid rgba(168,85,247,0.18)',position:'relative'}}>
                     <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(168,85,247,0.90)',boxShadow:'0 0 8px rgba(168,85,247,0.70)',flexShrink:0}}/>
@@ -7782,6 +7887,51 @@ const Dashboard = ({
                     </button>
                   </div>
                 </div>
+
+              {/* ── Request History ── */}
+              {(() => {
+                const fmtTs = ms => ms ? new Date(ms).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : null;
+                const subMs = req.submittedAt || (req.date ? new Date(req.date).getTime() : null);
+                const events = [
+                  {label:'Submitted',      ts:subMs,                  c:'rgba(120,180,255,0.90)'},
+                  {label:'Estimator Assigned', ts:req.taggedAt,       c:'rgba(255,200,50,0.90)'},
+                  {label:'Sent to Cost-Artist', ts:req.quotationSubmittedAt ? new Date(req.quotationSubmittedAt).getTime() : null, c:'rgba(168,85,247,0.90)'},
+                  {label:`Cost-Artist ${req.directorAction||'Reviewed'}`, ts:req.directorRespondedAt ? new Date(req.directorRespondedAt).getTime() : null, c:'rgba(0,220,130,0.90)'},
+                ].filter(ev => ev.ts);
+                return (
+                  <div style={{marginTop:8,background:'rgba(0,10,30,0.40)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:10,overflow:'hidden',flexShrink:0}}>
+                    <button onClick={()=>setHistOpen(v=>!v)}
+                      style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'9px 13px',background:'transparent',border:'none',cursor:'pointer',outline:'none',color:'rgba(255,255,255,0.60)'}}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(100,180,255,0.70)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <span style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(100,180,255,0.70)',fontWeight:700,flex:1,textAlign:'left'}}>Request History</span>
+                      <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.25)'}}>{events.length} events</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="2.5">
+                        {histOpen ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
+                      </svg>
+                    </button>
+                    {histOpen && (
+                      <div style={{padding:'4px 13px 12px',display:'flex',flexDirection:'column',gap:0}}>
+                        {events.length === 0 ? (
+                          <p style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic',margin:'8px 0'}}>No history yet.</p>
+                        ) : events.map((ev,i)=>(
+                          <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,position:'relative'}}>
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                              <div style={{width:8,height:8,borderRadius:'50%',background:ev.c,marginTop:11,boxShadow:`0 0 6px ${ev.c}`}}/>
+                              {i < events.length - 1 && <div style={{width:1.5,height:28,background:'rgba(255,255,255,0.08)',marginTop:2}}/>}
+                            </div>
+                            <div style={{paddingTop:7,paddingBottom:4}}>
+                              <div style={{fontSize:'0.72rem',fontWeight:600,color:'rgba(255,255,255,0.80)'}}>{ev.label}</div>
+                              <div style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.30)',marginTop:2}}>{fmtTs(ev.ts)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              </>
               )}
             </>)}
           </div>
@@ -7826,8 +7976,18 @@ const Dashboard = ({
                       </div>
 
                       {/* Badges */}
-                      <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
-                        <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(255,255,255,0.70)',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:20,padding:'2px 8px'}}>{req.deal}</span>
+                      <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
+                        {dirEditMode ? (
+                          <select value={req.deal||''} onChange={e=>onUpdate(req.id,{deal:e.target.value})}
+                            style={{fontSize:'0.60rem',fontWeight:700,color:req.deal==='Job In Hand'?'rgba(255,215,0,0.90)':req.deal==='Tender'?'rgba(79,255,223,0.90)':'rgba(160,130,255,0.80)',background:'rgba(0,0,0,0.55)',border:`1px solid ${req.deal==='Job In Hand'?'rgba(255,215,0,0.40)':req.deal==='Tender'?'rgba(79,255,223,0.40)':'rgba(160,130,255,0.35)'}`,borderRadius:20,padding:'3px 10px',outline:'none',cursor:'pointer',fontFamily:F2,letterSpacing:'0.06em',appearance:'none',WebkitAppearance:'none'}}>
+                            <option value="">— Select Deal Type —</option>
+                            <option value="Job In Hand">Job In Hand</option>
+                            <option value="Tender">Tender</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        ) : (
+                          <span style={{fontSize:'0.60rem',fontWeight:600,color:req.deal==='Job In Hand'?'rgba(255,215,0,0.85)':req.deal==='Tender'?'rgba(79,255,223,0.85)':'rgba(255,255,255,0.70)',background:req.deal==='Job In Hand'?'rgba(255,215,0,0.10)':req.deal==='Tender'?'rgba(79,255,223,0.10)':'rgba(255,255,255,0.07)',border:`1px solid ${req.deal==='Job In Hand'?'rgba(255,215,0,0.28)':req.deal==='Tender'?'rgba(79,255,223,0.28)':'rgba(255,255,255,0.15)'}`,borderRadius:20,padding:'2px 8px'}}>{req.deal||'—'}</span>
+                        )}
                         {req.supplyOnly && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.08)',border:'1px solid rgba(0,200,255,0.20)',borderRadius:20,padding:'2px 8px'}}>Supply Only</span>}
                         {req.supplyInstall && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.20)',borderRadius:20,padding:'2px 8px'}}>S + I</span>}
                       </div>
@@ -8081,6 +8241,29 @@ const Dashboard = ({
                           </div>
                         </div>
                       )}
+                      {/* ── Tool / Project Docs (read-only for cost-artist) ── */}
+                      {(req.toolDocs||[]).length > 0 && (
+                        <div style={{background:'rgba(168,85,247,0.04)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:8,padding:'10px 12px',marginBottom:8}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+                            <span style={{fontSize:'0.50rem',color:'rgba(168,85,247,0.75)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>Tool / Project Docs</span>
+                            <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginLeft:'auto'}}>{req.toolDocs.length} file{req.toolDocs.length!==1?'s':''}</span>
+                          </div>
+                          <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:140,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.15) transparent'}}>
+                            {req.toolDocs.map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:6,background:'rgba(168,85,247,0.07)',border:'1px solid rgba(168,85,247,0.28)',color:'rgba(196,181,253,0.90)',fontFamily:F2,fontSize:'0.72rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',textAlign:'left',width:'100%',minWidth:0}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.16)'}
+                                onMouseLeave={e=>e.currentTarget.style.background='rgba(168,85,247,0.07)'}>
+                                <DlIco/>
+                                <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`tool-doc-${i+1}`}</span>
+                                {d.verified && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.75)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div style={{background:'rgba(0,220,130,0.04)',border:'1px solid rgba(0,220,130,0.14)',borderRadius:8,padding:'10px 12px'}}>
                         <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.60)" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -8427,19 +8610,53 @@ const Dashboard = ({
 
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',flex:1,justifyContent:'flex-end'}}>
           {/* View mode toggle — hidden when role is set externally */}
-          {!lockViewMode && <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:3,gap:2,flexShrink:0}}>
-            {(['requester','estimator','director','kpi']).map(vm=>{
-              const vc = VIEW_COLORS[vm];
-              const active = viewMode === vm;
-              return (
-                <button key={vm} onClick={()=>requestViewSwitch(vm)}
-                  style={{padding:'6px 14px',borderRadius:6,border:active?`1px solid ${vc.bd}`:'1px solid transparent',background:active?vc.bg:'transparent',color:active?vc.act:'rgba(255,255,255,0.35)',fontFamily:F,fontSize:'0.75rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>
-                  {VIEW_LABELS[vm]}
-                  {(vm==='estimator'||vm==='director') && <span style={{fontSize:'0.55rem',opacity:0.55,marginLeft:5}}>🔒</span>}
-                </button>
-              );
-            })}
-          </div>}
+          {!lockViewMode && (
+            <div style={{display:'flex',alignItems:'flex-end',gap:4,flexShrink:0}}>
+              {/* Requester / Estimator / KPI — regular pills */}
+              <div style={{display:'flex',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:8,padding:3,gap:2}}>
+                {(['requester','estimator','kpi']).map(vm=>{
+                  const vc = VIEW_COLORS[vm];
+                  const active = viewMode === vm;
+                  return (
+                    <button key={vm} onClick={()=>requestViewSwitch(vm)}
+                      style={{padding:'6px 14px',borderRadius:6,border:active?`1px solid ${vc.bd}`:'1px solid transparent',background:active?vc.bg:'transparent',color:active?vc.act:'rgba(255,255,255,0.35)',fontFamily:F,fontSize:'0.75rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>
+                      {VIEW_LABELS[vm]}
+                      {vm==='estimator' && <span style={{fontSize:'0.55rem',opacity:0.55,marginLeft:5}}>🔒</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Cost-Artist — arch-tab style */}
+              <button onClick={()=>requestViewSwitch('director')}
+                className={`arch-tab arch-tab-cost${viewMode==='director'?' arch-tab-cost-active':''}`}
+                style={{
+                  fontFamily:F,
+                  opacity: viewMode==='director' ? 1 : 0.72,
+                  ...(viewMode==='director' ? {
+                    background:'linear-gradient(135deg,rgba(0,100,180,0.55),rgba(0,200,255,0.35))',
+                    color:'rgba(140,240,255,1)',
+                    borderColor:'rgba(0,200,255,0.70)',
+                    boxShadow:'0 -6px 24px rgba(0,200,255,0.28), inset 0 1px 0 rgba(255,255,255,0.10)',
+                  } : {}),
+                }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                Cost-Artist 🔒
+              </button>
+            </div>
+          )}
+
+          {/* Team page toggle — estimator mode only */}
+          {viewMode === 'estimator' && (
+            <button onClick={()=>setEstTeamPage(v=>!v)}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'7px 16px',borderRadius:8,
+                border:`1px solid ${estTeamPage?'rgba(160,255,180,0.45)':'rgba(255,255,255,0.12)'}`,
+                background:estTeamPage?'rgba(0,200,100,0.12)':'rgba(255,255,255,0.04)',
+                color:estTeamPage?'rgba(160,255,180,0.95)':'rgba(255,255,255,0.45)',
+                fontFamily:F,fontSize:'0.75rem',fontWeight:estTeamPage?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',flexShrink:0}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              {estTeamPage ? 'My Requests' : 'Team'}
+            </button>
+          )}
 
           {/* Requester name filter (only in requester mode) */}
           {viewMode === 'requester' && (
@@ -8501,6 +8718,267 @@ const Dashboard = ({
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export Excel
             </button>
+          </div>
+        );
+      })()}
+
+      {viewMode === 'estimator' && estTeamPage && (() => {
+        const fmtDur = ms => {
+          if (!ms) return '—';
+          const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
+          if (d > 0) return `${d}d ${h}h`; if (h > 0) return `${h}h ${m}m`; return `${m}m`;
+        };
+
+        // Build scored roster
+        const scored = EST_ROSTER.map(e => {
+          const rqs       = requests.filter(r => r.estimator === e.name);
+          const inHand    = rqs.filter(r => r.reqStatus === 'inprogress' || r.reqStatus === 'pending-director');
+          const closed    = rqs.filter(r => r.reqStatus === 'completed');
+          const converted = rqs.filter(r => r.reqStatus === 'completed' && (r.status === 'Won' || r.directorAction === 'approved'));
+          const won       = rqs.filter(r => (r.status||'').toLowerCase() === 'won');
+          const lost      = rqs.filter(r => (r.status||'').toLowerCase() === 'lost');
+          const followUp  = rqs.filter(r => /follow.?up|follow/i.test(r.status||''));
+          const risk      = rqs.filter(r => /risk|at.?risk/i.test(r.status||'') || r.reqStatus === 'out-of-scope');
+          const timings   = closed.filter(r => r.taggedAt && r.quotationSubmittedAt).map(r => new Date(r.quotationSubmittedAt).getTime() - r.taggedAt);
+          const avgMs     = timings.length ? timings.reduce((a,b)=>a+b,0)/timings.length : null;
+          const score     = closed.length * 3 + converted.length * 2 + inHand.length;
+          return { e, rqs, inHand, closed, converted, won, lost, followUp, risk, timings, avgMs, score, isActive: inHand.length > 0 };
+        }).sort((a,b) => b.score - a.score);
+
+        const MEDALS = [
+          {rank:1, emoji:'🥇', label:'Top Performer',  c:'rgba(255,215,0,1)',    bg:'rgba(255,200,0,0.14)',  bd:'rgba(255,200,0,0.55)',  gift:'rgba(255,200,0,0.90)'},
+          {rank:2, emoji:'🥈', label:'2nd Place',       c:'rgba(192,192,192,1)', bg:'rgba(180,180,180,0.10)',bd:'rgba(192,192,192,0.50)',gift:'rgba(200,210,220,0.90)'},
+          {rank:3, emoji:'🥉', label:'3rd Place',       c:'rgba(205,127,50,1)',  bg:'rgba(180,100,30,0.12)', bd:'rgba(200,120,50,0.50)', gift:'rgba(205,140,60,0.90)'},
+        ];
+
+        // Detail page modal
+        if (estTeamDetail) {
+          const entry = scored.find(s => s.e.code === estTeamDetail.code);
+          const e = entry?.e;
+          const pic = e ? PROFILE_PICS[e.code] : null;
+          const medal = MEDALS.find(m => m.rank === scored.indexOf(entry)+1);
+          const unlocked = estTeamDetail.unlocked;
+          const allRqs = entry?.rqs || [];
+          return (
+            <div style={{position:'fixed',inset:0,zIndex:9800,background:'rgba(0,0,0,0.85)',backdropFilter:'blur(24px)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:F}} onClick={()=>{setEstTeamDetail(null);setEstTeamPin('');setEstTeamPinErr(false);}}>
+              <div style={{width:'min(860px,96vw)',maxHeight:'92vh',overflowY:'auto',background:'rgba(4,2,18,0.98)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:24,boxShadow:'0 40px 100px rgba(0,0,0,0.80)',animation:'fadeUp 0.20s ease both'}} onClick={e=>e.stopPropagation()}>
+                {/* Hero */}
+                <div style={{position:'relative',height:300,overflow:'hidden',borderRadius:'24px 24px 0 0'}}>
+                  {pic
+                    ? <img src={pic} alt={e?.name} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',filter:'brightness(0.75) saturate(1.1)'}}/>
+                    : <div style={{width:'100%',height:'100%',background:'radial-gradient(circle at 50% 40%,rgba(99,102,241,0.30),rgba(4,2,18,0.95))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'6rem',color:'rgba(196,181,253,0.35)'}}>{e?.name.charAt(0)}</div>
+                  }
+                  <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(4,2,18,1) 0%,rgba(4,2,18,0.30) 55%,transparent 100%)'}}/>
+                  {medal && <div style={{position:'absolute',top:18,left:22,display:'flex',alignItems:'center',gap:8,background:'rgba(0,0,0,0.65)',borderRadius:20,padding:'5px 14px',backdropFilter:'blur(8px)'}}>
+                    <span style={{fontSize:'1.1rem'}}>{medal.emoji}</span>
+                    <span style={{fontSize:'0.58rem',fontWeight:800,letterSpacing:'0.12em',textTransform:'uppercase',color:medal.c}}>{medal.label}</span>
+                  </div>}
+                  <button onClick={()=>{setEstTeamDetail(null);setEstTeamPin('');setEstTeamPinErr(false);}} style={{position:'absolute',top:14,right:14,width:32,height:32,borderRadius:'50%',background:'rgba(0,0,0,0.60)',border:'1px solid rgba(255,255,255,0.15)',color:'rgba(255,255,255,0.70)',fontSize:'1rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                  <div style={{position:'absolute',bottom:20,left:24}}>
+                    <div style={{fontSize:'1.60rem',fontWeight:800,color:'#fff',textShadow:'0 2px 20px rgba(0,0,0,0.90)',lineHeight:1.15}}>{e?.name}</div>
+                    <div style={{fontSize:'0.55rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(100,200,255,0.75)',marginTop:4}}>{e?.code} · Estimator</div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div style={{padding:'24px 28px 32px',display:'flex',flexDirection:'column',gap:20}}>
+                  {/* Stats grid */}
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+                    {[
+                      {val:entry?.inHand.length,   label:'In Hand',      c:'rgba(100,200,255,0.95)',bg:'rgba(0,180,255,0.07)',bd:'rgba(0,180,255,0.22)'},
+                      {val:entry?.closed.length,   label:'Closed',       c:'rgba(0,220,130,0.95)', bg:'rgba(0,200,100,0.07)',bd:'rgba(0,200,100,0.22)'},
+                      {val:entry?.converted.length,label:'To Sales',     c:'rgba(255,200,60,0.95)',bg:'rgba(220,150,0,0.07)', bd:'rgba(220,150,0,0.22)'},
+                      {val:fmtDur(entry?.avgMs),   label:'Avg. to Quote',c:'rgba(255,160,80,0.95)',bg:'rgba(200,100,0,0.07)', bd:'rgba(200,100,0,0.22)'},
+                    ].map(s=>(
+                      <div key={s.label} style={{background:s.bg,border:`1px solid ${s.bd}`,borderRadius:12,padding:'14px 8px',textAlign:'center'}}>
+                        <div style={{fontSize:'1.8rem',fontWeight:800,color:s.c,lineHeight:1,fontFamily:F}}>{s.val}</div>
+                        <div style={{fontSize:'0.44rem',letterSpacing:'0.10em',textTransform:'uppercase',color:s.c,opacity:0.60,marginTop:5,fontWeight:700}}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Access-code gated section */}
+                  {!unlocked ? (
+                    <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:14,padding:'20px 22px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,200,60,0.80)" strokeWidth="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                        <span style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,200,60,0.80)',fontWeight:700}}>Confidential Profile — Enter Access Code</span>
+                      </div>
+                      <div style={{display:'flex',gap:10}}>
+                        <input autoFocus value={estTeamPin} onChange={ev=>{setEstTeamPin(ev.target.value);setEstTeamPinErr(false);}}
+                          onKeyDown={ev=>{ if(ev.key==='Enter'){ if(estTeamPin.trim().toUpperCase()===e?.code.toUpperCase()){setEstTeamDetail({...estTeamDetail,unlocked:true});setEstTeamPin('');}else setEstTeamPinErr(true); }}}
+                          type="password" placeholder="Your personal access code…"
+                          style={{flex:1,background:'rgba(255,255,255,0.05)',border:`1px solid ${estTeamPinErr?'rgba(255,80,80,0.55)':'rgba(255,255,255,0.14)'}`,borderRadius:9,color:'rgba(255,255,255,0.88)',fontFamily:F,fontSize:'0.92rem',padding:'10px 14px',outline:'none',letterSpacing:'0.20em',transition:'border-color 0.15s'}}/>
+                        <button onClick={()=>{ if(estTeamPin.trim().toUpperCase()===e?.code.toUpperCase()){setEstTeamDetail({...estTeamDetail,unlocked:true});setEstTeamPin('');}else setEstTeamPinErr(true); }}
+                          style={{padding:'10px 22px',borderRadius:9,background:'rgba(255,200,60,0.14)',border:'1px solid rgba(255,200,60,0.40)',color:'rgba(255,200,60,0.95)',fontFamily:F,fontSize:'0.80rem',fontWeight:700,cursor:'pointer',outline:'none',whiteSpace:'nowrap'}}>Unlock</button>
+                      </div>
+                      {estTeamPinErr && <div style={{fontSize:'0.72rem',color:'rgba(255,90,90,0.85)',marginTop:8}}>Incorrect code — try your estimator code (e.g. EX552)</div>}
+                      {/* Blurred preview */}
+                      <div style={{marginTop:16,filter:'blur(6px)',pointerEvents:'none',opacity:0.55,display:'flex',flexDirection:'column',gap:10}}>
+                        {[['Salary (Monthly)','AED ••,•••'],['Department','Estimation'],['Join Date','•• ••• ••••'],['Performance Score','••/100']].map(([k,v])=>(
+                          <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,0.06)',paddingBottom:8}}>
+                            <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.45)'}}>{k}</span>
+                            <span style={{fontSize:'0.76rem',fontWeight:700,color:'rgba(255,255,255,0.55)'}}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{background:'rgba(0,220,130,0.04)',border:'1px solid rgba(0,220,130,0.22)',borderRadius:14,padding:'20px 22px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(0,220,130,0.80)" strokeWidth="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span style={{fontSize:'0.58rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(0,220,130,0.80)',fontWeight:700}}>Profile Unlocked</span>
+                      </div>
+                      {[['Salary (Monthly)','AED — (Configure in Admin)'],['Department','Estimation Division'],['Estimator Code',e?.code],['Total Requests',allRqs.length],['Success Rate',allRqs.length?`${Math.round((entry?.converted.length/Math.max(entry?.closed.length,1))*100)}%`:'—'],['Performance Score',`${entry?.score} pts`]].map(([k,v])=>(
+                        <div key={k} style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(0,220,130,0.08)',padding:'9px 0'}}>
+                          <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.45)'}}>{k}</span>
+                          <span style={{fontSize:'0.78rem',fontWeight:700,color:'rgba(255,255,255,0.88)'}}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Request history */}
+                  {allRqs.length > 0 && (
+                    <div>
+                      <div style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700,marginBottom:10}}>Request History ({allRqs.length})</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:200,overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'rgba(255,255,255,0.08) transparent'}}>
+                        {allRqs.map(r=>(
+                          <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:8}}>
+                            <span style={{fontSize:'0.68rem',color:'rgba(100,200,255,0.80)',fontFamily:'monospace',fontWeight:700,flexShrink:0}}>{r.id}</span>
+                            <span style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.55)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</span>
+                            <span style={{fontSize:'0.58rem',color:r.reqStatus==='completed'?'rgba(0,220,130,0.80)':'rgba(255,200,60,0.70)',fontWeight:600,flexShrink:0}}>{r.reqStatus==='completed'?'Closed':'Active'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // ── Top 3 gift-box podium ──
+        const top3 = scored.slice(0,3);
+        return (
+          <div style={{display:'flex',flexDirection:'column',gap:32}}>
+
+            {/* Podium / gift-box section */}
+            <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                <span style={{fontSize:'0.90rem'}}>🏆</span>
+                <span style={{fontSize:'0.50rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(255,200,60,0.80)',fontWeight:800}}>Top Performers</span>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                {top3.map((s,idx)=>{
+                  const m = MEDALS[idx];
+                  const pic = PROFILE_PICS[s.e.code];
+                  return (
+                    <div key={s.e.code} onClick={()=>{setEstTeamDetail({code:s.e.code,name:s.e.name,unlocked:false});setEstTeamPin('');setEstTeamPinErr(false);}}
+                      style={{background:m.bg,border:`1.5px solid ${m.bd}`,borderRadius:12,padding:'10px 10px',display:'flex',flexDirection:'row',alignItems:'center',gap:10,cursor:'pointer',transition:'transform 0.18s,box-shadow 0.18s',position:'relative',overflow:'hidden',boxShadow:`0 2px 14px ${m.bg}`}}
+                      onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 6px 22px ${m.bd}`;}}
+                      onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=`0 2px 14px ${m.bg}`;}}>
+                      {/* Gift box SVG */}
+                      <div style={{position:'absolute',top:-4,right:-4,opacity:0.14,pointerEvents:'none'}}>
+                        <svg width="38" height="38" viewBox="0 0 24 24" fill={m.c} stroke="none"><path d="M20 12v10H4V12"/><path d="M22 7H2v5h20V7z"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+                      </div>
+                      {/* Photo + rank badge */}
+                      <div style={{position:'relative',flexShrink:0}}>
+                        <div style={{width:44,height:44,borderRadius:'50%',overflow:'hidden',border:`2px solid ${m.bd}`,boxShadow:`0 0 10px ${m.bd}`}}>
+                          {pic
+                            ? <img src={pic} alt={s.e.name} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top'}}/>
+                            : <div style={{width:'100%',height:'100%',background:'rgba(99,102,241,0.20)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.1rem',fontWeight:700,color:m.c}}>{s.e.name.charAt(0)}</div>
+                          }
+                        </div>
+                        <div style={{position:'absolute',bottom:-4,right:-4,width:18,height:18,borderRadius:'50%',background:`linear-gradient(135deg,${m.c},${m.c}88)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.70rem',boxShadow:`0 0 8px ${m.bd}`}}>
+                          {m.emoji}
+                        </div>
+                      </div>
+                      {/* Info */}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'0.72rem',fontWeight:800,color:'rgba(255,255,255,0.95)',fontFamily:F,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.e.name}</div>
+                        <div style={{fontSize:'0.42rem',letterSpacing:'0.12em',textTransform:'uppercase',color:m.c,fontWeight:700,marginTop:1}}>{m.label}</div>
+                        <div style={{display:'flex',gap:4,marginTop:5,flexWrap:'wrap'}}>
+                          <span style={{fontSize:'0.46rem',fontWeight:700,color:m.c,background:`${m.bg}`,border:`1px solid ${m.bd}`,borderRadius:20,padding:'1px 6px'}}>{s.closed.length} Closed</span>
+                          <span style={{fontSize:'0.46rem',fontWeight:700,color:'rgba(255,220,80,0.90)',background:'rgba(220,150,0,0.10)',border:'1px solid rgba(220,150,0,0.30)',borderRadius:20,padding:'1px 6px'}}>{s.converted.length} Sales</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Full grid */}
+            <div style={{fontSize:'0.50rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700}}>All Estimators</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:22,marginTop:-16}}>
+              {scored.map(({e,inHand,closed,converted,won,lost,followUp,risk,avgMs,isActive},idx) => {
+                const medal = MEDALS[idx];
+                const pic   = PROFILE_PICS[e.code];
+                const borderC = medal ? medal.bd : isActive?'rgba(34,197,94,0.40)':'rgba(255,255,255,0.08)';
+                return (
+                  <div key={e.code}
+                    onClick={()=>{setEstTeamDetail({code:e.code,name:e.name,unlocked:false});setEstTeamPin('');setEstTeamPinErr(false);}}
+                    style={{background:'rgba(255,255,255,0.03)',border:`1.5px solid ${borderC}`,borderRadius:20,overflow:'hidden',display:'flex',flexDirection:'column',cursor:'pointer',boxShadow:medal?`0 0 30px ${medal.bg}`:isActive?'0 0 24px rgba(34,197,94,0.08)':'none',transition:'transform 0.18s,box-shadow 0.18s'}}
+                    onMouseEnter={ev=>{ev.currentTarget.style.transform='translateY(-3px)';}}
+                    onMouseLeave={ev=>{ev.currentTarget.style.transform='translateY(0)';}}>
+                    {/* Full portrait photo */}
+                    <div style={{position:'relative',height:320,background:'rgba(10,8,30,0.80)',overflow:'hidden',flexShrink:0}}>
+                      {pic
+                        ? <img src={pic} alt={e.name} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',filter:'brightness(0.92) saturate(1.15)'}}/>
+                        : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'5rem',fontWeight:700,color:'rgba(196,181,253,0.35)',fontFamily:F,background:'radial-gradient(circle at 50% 40%,rgba(99,102,241,0.18),transparent 70%)'}}>{e.name.charAt(0)}</div>
+                      }
+                      <div style={{position:'absolute',bottom:0,left:0,right:0,height:120,background:'linear-gradient(to top,rgba(4,2,18,0.95),transparent)',pointerEvents:'none'}}/>
+                      <div style={{position:'absolute',bottom:14,left:18,right:14}}>
+                        <div style={{fontSize:'1.05rem',fontWeight:800,color:'rgba(255,255,255,0.96)',fontFamily:F,textShadow:'0 2px 12px rgba(0,0,0,0.80)',lineHeight:1.2}}>{e.name}</div>
+                        <div style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(100,200,255,0.65)',marginTop:3,fontFamily:F}}>{e.code} · Estimator</div>
+                      </div>
+                      {/* Medal / active badge */}
+                      <div style={{position:'absolute',top:12,right:12,display:'flex',alignItems:'center',gap:5,background:'rgba(0,0,0,0.65)',borderRadius:20,padding:'4px 10px',backdropFilter:'blur(8px)'}}>
+                        {medal
+                          ? <><span style={{fontSize:'0.90rem'}}>{medal.emoji}</span><span style={{fontSize:'0.50rem',color:medal.c,fontWeight:800,letterSpacing:'0.10em',textTransform:'uppercase'}}>{medal.label}</span></>
+                          : <><div style={{width:7,height:7,borderRadius:'50%',background:isActive?'#22c55e':'rgba(255,255,255,0.30)',boxShadow:isActive?'0 0 8px rgba(34,197,94,0.90)':'none'}}/><span style={{fontSize:'0.52rem',color:'rgba(255,255,255,0.80)',fontFamily:F,fontWeight:700}}>{isActive?'Active':'Available'}</span></>
+                        }
+                      </div>
+                    </div>
+                    {/* Info */}
+                    <div style={{padding:'14px 16px 18px',display:'flex',flexDirection:'column',gap:10}}>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7}}>
+                        {[
+                          {val:inHand.length, label:'In Hand', c:'rgba(100,200,255,0.95)',bg:'rgba(0,180,255,0.07)',bd:'rgba(0,180,255,0.20)'},
+                          {val:closed.length, label:'Closed',  c:'rgba(0,220,130,0.95)', bg:'rgba(0,200,100,0.07)',bd:'rgba(0,200,100,0.20)'},
+                        ].map(s=>(
+                          <div key={s.label} style={{background:s.bg,border:`1px solid ${s.bd}`,borderRadius:9,padding:'8px 4px',textAlign:'center'}}>
+                            <div style={{fontSize:'1.4rem',fontWeight:800,color:s.c,lineHeight:1,fontFamily:F}}>{s.val}</div>
+                            <div style={{fontSize:'0.40rem',letterSpacing:'0.09em',textTransform:'uppercase',color:s.c,opacity:0.65,marginTop:3,fontWeight:700}}>{s.label}</div>
+                          </div>
+                        ))}
+                        {/* Sales breakdown box */}
+                        <div style={{background:'rgba(255,180,60,0.05)',border:'1px solid rgba(255,180,60,0.18)',borderRadius:9,padding:'6px 6px',display:'flex',flexDirection:'column',gap:3}}>
+                          {[
+                            {val:won.length,     label:'Won',       c:'rgba(52,211,153,0.90)'},
+                            {val:lost.length,    label:'Lost',      c:'rgba(255,90,90,0.85)'},
+                            {val:followUp.length,label:'Follow-up', c:'rgba(100,200,255,0.80)'},
+                            {val:risk.length,    label:'Risk',      c:'rgba(255,160,30,0.85)'},
+                          ].map(s=>(
+                            <div key={s.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:3}}>
+                              <span style={{fontSize:'0.38rem',letterSpacing:'0.07em',textTransform:'uppercase',color:s.c,opacity:0.70,fontWeight:700,whiteSpace:'nowrap'}}>{s.label}</span>
+                              <span style={{fontSize:'0.68rem',fontWeight:800,color:s.c,fontFamily:F,lineHeight:1}}>{s.val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(255,180,50,0.05)',border:'1px solid rgba(255,180,50,0.18)',borderRadius:9,padding:'7px 12px'}}>
+                        <span style={{fontSize:'0.46rem',letterSpacing:'0.09em',textTransform:'uppercase',color:'rgba(255,180,50,0.55)',fontWeight:700}}>Avg. Time to Quote</span>
+                        <span style={{fontSize:'0.88rem',fontWeight:700,color:avgMs?'rgba(255,205,70,0.95)':'rgba(255,255,255,0.22)',fontFamily:F}}>{fmtDur(avgMs)}</span>
+                      </div>
+                      <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.22)',textAlign:'center',letterSpacing:'0.08em'}}>Tap to view full profile</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })()}
@@ -8602,7 +9080,7 @@ const Dashboard = ({
             </div>
           </div>
         );
-      })() : requests.length === 0 ? (
+      })() : (viewMode === 'estimator' && estTeamPage) ? null : requests.length === 0 ? (
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No requests submitted yet.</p>
       ) : filtered.length === 0 ? (
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No results match your filter.</p>
@@ -8640,7 +9118,10 @@ const Dashboard = ({
                 onMouseLeave={e=>{e.currentTarget.style.background=rowBg;e.currentTarget.style.borderColor=rowBd;}}>
 
                 {/* Req # */}
-                <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:5}}>{r.id||'—'}{dashUnread>0&&<span style={{fontSize:'0.48rem',background:'rgba(168,85,247,0.80)',color:'#fff',borderRadius:100,padding:'1px 6px',fontFamily:"'Inter',sans-serif",fontWeight:700,flexShrink:0}}>{dashUnread}</span>}</span>
+                <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                  <span style={{fontSize:'0.72rem',color:'rgba(100,180,255,0.85)',fontWeight:600,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:5}}>{r.id||'—'}{dashUnread>0&&<span style={{fontSize:'0.48rem',background:'rgba(168,85,247,0.80)',color:'#fff',borderRadius:100,padding:'1px 6px',fontFamily:"'Inter',sans-serif",fontWeight:700,flexShrink:0}}>{dashUnread}</span>}</span>
+                  {r.deal && <span style={{fontSize:'0.42rem',fontWeight:700,letterSpacing:'0.09em',textTransform:'uppercase',color:r.deal==='Job In Hand'?'rgba(255,215,0,0.70)':r.deal==='Tender'?'rgba(79,255,223,0.70)':'rgba(160,130,255,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.deal}</span>}
+                </div>
 
                 {/* Status */}
                 <div style={{display:'flex',flexDirection:'column',gap:3,overflow:'hidden',minWidth:0}}>
@@ -10042,21 +10523,11 @@ const handleSubmit = async (formData) => {
   <a href="/estimation/AIapextool"
     target="_blank"
     rel="noopener noreferrer"
+    className="arch-tab arch-tab-tool"
     style={{
-      position:'fixed', top:10, right:265, zIndex:9501,
-      display:'inline-flex', alignItems:'center', gap:6,
-      background:'rgba(10,6,30,0.82)',
-      border:'1px solid rgba(168,85,247,0.48)',
-      borderRadius:'100px',
-      padding:'7px 16px',
-      color:'rgba(200,160,255,0.90)',
-      fontFamily:"'Inter',sans-serif", fontSize:'0.72rem', fontWeight:700, letterSpacing:'0.07em',
-      cursor:'pointer', outline:'none', textDecoration:'none',
-      boxShadow:'0 2px 16px rgba(168,85,247,0.25)',
-      backdropFilter:'blur(16px)', transition:'all 0.2s', whiteSpace:'nowrap',
+      position:'fixed', top:0, right:220, zIndex:9501,
+      backdropFilter:'blur(20px)',
     }}
-    onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#a855f7,#ec4899,#f97316)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 4px 22px rgba(168,85,247,0.55)';}}
-    onMouseLeave={e=>{e.currentTarget.style.background='rgba(10,6,30,0.82)';e.currentTarget.style.color='rgba(200,160,255,0.90)';e.currentTarget.style.boxShadow='0 2px 16px rgba(168,85,247,0.25)';}}
   >
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
     ✦ AI Tool Direct
