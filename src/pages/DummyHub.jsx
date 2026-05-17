@@ -142,7 +142,7 @@ export default function DummyHub() {
 
   // ── Arc constants ──
   const N       = depts.length;   // 6
-  const ARC     = 110;              // total spread in degrees
+  const ARC     = 80;              // total spread in degrees
   const RADIUS  = 890;            // px — distance from viewer to each panel
   const PW      = 200;            // panel width  px
   const PH      = 430;            // panel height px
@@ -299,7 +299,7 @@ export default function DummyHub() {
                     originX:'50%', originY:'50%',
                     borderRadius:'18px 18px 0 0',
                     cursor:'pointer', overflow:'hidden',
-                    backdropFilter:'blur(22px)',
+                    backdropFilter: isExpanded ? 'blur(52px) saturate(180%) brightness(1.1)' : 'blur(22px)',
                     zIndex: isExpanded ? 15 : 9,
                   }}
                   initial={false}
@@ -307,9 +307,9 @@ export default function DummyHub() {
                     x: -440, rotateY: 15, z: 150,
                     width: 800, height: 500,
                     opacity: 1,
-                    background:`linear-gradient(160deg,rgba(${dept.a},0.32) 0%,rgba(0,2,18,0.92) 60%)`,
-                    border:`1px solid rgba(${dept.a},0.32)`,
-                    boxShadow:`0 0 0 1px rgba(${dept.a},0.18), inset 0 0 20px rgba(${dept.a},0.06)`,
+                    background:`linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(${dept.a},0.06) 40%, rgba(0,4,24,0.32) 100%)`,
+                    border:`1px solid rgba(255,255,255,0.20)`,
+                    boxShadow:`0 16px 56px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.32), inset 0 -1px 0 rgba(255,255,255,0.06), inset 0 0 80px rgba(${dept.a},0.04), 0 0 100px rgba(${dept.a},0.16)`,
 } : {
   x:'-50%', rotateY: -angle,
   z: -RADIUS,
@@ -331,18 +331,44 @@ boxShadow:`0 0 0 1px rgba(255,255,255,0.06), inset 0 0 20px rgba(255,255,255,0.0
                     animation:'cardSweep 6s ease-in-out infinite',
                     animationDelay:`${-(idx*0.75).toFixed(2)}s`, pointerEvents:'none',
                   }}/>
-                  {/* top edge glow */}
+                  {/* top edge glow — brighter on expand */}
                   <div style={{
-                    position:'absolute', top:0, left:0, right:0, height:2,
-                    background:`linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent)`,
+                    position:'absolute', top:0, left:0, right:0, height: isExpanded ? 1 : 2,
+                    background: isExpanded
+                      ? `linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.55) 25%,rgba(255,255,255,0.80) 50%,rgba(255,255,255,0.55) 75%,transparent 100%)`
+                      : `linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent)`,
                     pointerEvents:'none',
                   }}/>
                   {/* left edge accent */}
                   <div style={{
                     position:'absolute', top:0, left:0, bottom:0, width:1.5,
-                    background:`linear-gradient(to bottom,rgba(255,255,255,0.12),transparent)`,
+                    background:`linear-gradient(to bottom,rgba(255,255,255,0.18),rgba(255,255,255,0.04),transparent)`,
                     pointerEvents:'none',
                   }}/>
+                  {/* right edge accent (glass refraction) */}
+                  {isExpanded && (
+                    <div style={{
+                      position:'absolute', top:0, right:0, bottom:0, width:1,
+                      background:`linear-gradient(to bottom,rgba(255,255,255,0.10),transparent 60%)`,
+                      pointerEvents:'none',
+                    }}/>
+                  )}
+                  {/* glass inner top highlight */}
+                  {isExpanded && (
+                    <div style={{
+                      position:'absolute', top:0, left:0, right:0, height:80,
+                      background:`linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 100%)`,
+                      pointerEvents:'none',
+                    }}/>
+                  )}
+                  {/* glass color tint vignette */}
+                  {isExpanded && (
+                    <div style={{
+                      position:'absolute', inset:0,
+                      background:`radial-gradient(ellipse at 30% 20%, rgba(${dept.a},0.10) 0%, transparent 60%)`,
+                      pointerEvents:'none',
+                    }}/>
+                  )}
 
                   {/* ── NORMAL content (hidden when expanded) ── */}
                   <AnimatePresence>
