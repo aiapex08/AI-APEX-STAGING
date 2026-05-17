@@ -1422,7 +1422,7 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
         }
 
         /* page title */
-        .hs-title { font-size:clamp(2.1rem,4vw,4rem);font-weight:800;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;
+        .hs-title { font-size:clamp(2.1rem,4vw,4rem);font-weight:400;letter-spacing:0.06em;text-transform:uppercase;line-height:1.1;margin-bottom:10px;margin-top:-24px;
           background:linear-gradient(105deg,#1e1b6e 0%,#3730a3 18%,#6d28d9 36%,#a855f7 50%,#ec4899 66%,#f97316 82%,#fbbf24 100%);
           background-size:220% 220%;
           -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;

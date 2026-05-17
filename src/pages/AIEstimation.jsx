@@ -30,6 +30,10 @@ const S = `
   @keyframes dashFlyUp    { 0%{opacity:0;transform:translateY(-100px) scale(0.72) rotate(-6deg)} 70%{transform:translateY(6px) scale(1.02) rotate(0.3deg)} 100%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)} }
   @keyframes dashFlyDown  { 0%{opacity:0;transform:translateY(110px) scale(0.72) rotate(5deg)}  70%{transform:translateY(-6px) scale(1.02) rotate(-0.3deg)} 100%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)} }
   @keyframes dashHdrIn    { 0%{opacity:0;transform:translateY(-28px) scale(0.92)} 70%{transform:translateY(4px) scale(1.01)} 100%{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes tlProgressIn { from{width:0} }
+  @keyframes tlShimmer    { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  @keyframes tlNodePop    { 0%{transform:scale(0.4);opacity:0} 65%{transform:scale(1.18)} 100%{transform:scale(1);opacity:1} }
+  @keyframes tlRipple     { 0%{transform:scale(1);opacity:0.65} 100%{transform:scale(2.6);opacity:0} }
 
   .root {
     position:fixed; inset:0; width:100vw; height:100vh; z-index:100;
@@ -74,7 +78,7 @@ const S = `
     filter: drop-shadow(0 1px 8px rgba(109,40,217,0.55));
     animation: auroraShift 6s ease infinite; }
 
-  .page-title { font-size:clamp(2.4rem,4.5vw,4.2rem); font-weight:800; letter-spacing:0.06em; text-transform:uppercase; line-height:1.1; margin-bottom:10px;
+  .page-title { font-size:clamp(2.4rem,4.5vw,4.2rem); font-weight:400; font-family:'Georgia','Times New Roman',serif; letter-spacing:0.04em; text-transform:uppercase; line-height:1.1; margin-bottom:10px; margin-top:-14px;
     background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(210,228,255,0.90) 25%, rgba(255,255,255,0.65) 50%, rgba(190,215,255,0.92) 75%, rgba(255,255,255,0.80) 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     filter: drop-shadow(0 2px 12px rgba(160,200,255,0.45)); }
@@ -208,10 +212,8 @@ const S = `
     align-items: center;
     gap: 0;
     padding: 0 28px;
-    background: rgba(0,2,6,0.42);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    background: transparent;
+    border-bottom: none;
     z-index: 500;
   }
   .nav-brand {
@@ -1368,7 +1370,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
     setLoginError(false);
   };
 
-  // For sales: show approved + out-of-scope + cost-artist-rejected requests
+  // For sales: show only approved requests (director approved or completed)
   const myRequests = showAll
     ? requests
     : loggedIn
@@ -1376,9 +1378,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
           const isMine = (r.salesPerson || '').toLowerCase() === spName.toLowerCase() ||
                          (r.salesPerson || '').toUpperCase() === spName.toUpperCase();
           if (!isMine) return false;
-          return r.directorAction === 'approved' ||
-                 r.reqStatus === 'out-of-scope' ||
-                 r.directorAction === 'rejected';
+          return r.directorAction === 'approved' || r.reqStatus === 'completed';
         })
       : [];
 
@@ -1989,17 +1989,25 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
   return (
     <div className="ss-page">
       {/* Header */}
-      <div className="ss-hdr">
-        <div>
-          <span className="ss-title">{showAll ? 'Sales Overview' : 'Quoted Request'}</span>
-          <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
-            {showAll
-              ? <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>All Sales Requests</span>
-              : <>Logged in as <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>{spName}</span></>
-            }
+      <div className="ss-hdr" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', flex: 1 }}>
+          <div style={{ flexShrink: 0 }}>
+            <span className="ss-title">{showAll ? 'Sales Overview' : 'Quoted Request'}</span>
+            <div style={{ fontSize: '0.70rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.08em' }}>
+              {showAll
+                ? <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>All Sales Requests</span>
+                : <>Logged in as <span style={{ color: 'rgba(200,220,255,0.70)', fontWeight: 600 }}>{spName}</span></>
+              }
+            </div>
+          </div>
+          {/* Search — inline next to title */}
+          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 8, overflow: 'hidden', minWidth: 200, maxWidth: 340, flex: 1 }}>
+            <span style={{ padding: '8px 12px', display: 'flex', alignItems: 'center' }}><Search size={13} color="rgba(255,255,255,0.35)" /></span>
+            <input value={dsearch} onChange={e => setDsearch(e.target.value)} placeholder="Search by ID, project or client..."
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'rgba(255,255,255,0.85)', fontFamily: F2, fontSize: '0.82rem', padding: '8px 0' }} />
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {/* Summary chips */}
           {[
             { label: 'Won',       count: wonCount,      c: '#4ade80', bg: 'rgba(34,197,94,0.10)',  bd: 'rgba(34,197,94,0.25)'  },
@@ -2023,13 +2031,6 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
         </div>
       </div>
 
-      {/* Search */}
-      <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 8, marginBottom: 16, maxWidth: 440, overflow: 'hidden', flexShrink: 0 }}>
-        <span style={{ padding: '10px 13px', display: 'flex', alignItems: 'center' }}><Search size={14} color="rgba(255,255,255,0.35)" /></span>
-        <input value={dsearch} onChange={e => setDsearch(e.target.value)} placeholder="Search by ID, project or client..."
-          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'rgba(255,255,255,0.85)', fontFamily: F2, fontSize: '0.86rem', padding: '10px 0' }} />
-      </div>
-
       {myRequests.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.22)', fontSize: '0.88rem', letterSpacing: '0.08em' }}>
           No requests assigned to you yet.
@@ -2038,7 +2039,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
         <div style={{ display:'flex', flexDirection:'column', gap:10, overflowY:'auto', flex:1 }}>
           {/* Column headers */}
           <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 150px 150px 140px 36px', gap:10, padding:'0 14px', alignItems:'center' }}>
-            {['Request #','Project · Customer','Est. Status','Ageing TAT','Sales Status',''].map(h=>(
+            {['Request #','Project · Customer','Est. Status','Ageing TAT','Update Status',''].map(h=>(
               <span key={h} style={{ fontSize:'0.52rem', letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', fontWeight:700 }}>{h}</span>
             ))}
           </div>
@@ -2128,17 +2129,24 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                     )}
                   </div>
 
-                  {/* Sales Status — read-only badge */}
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  {/* Sales Status — inline editable select */}
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }} data-no-nav onClick={e=>e.stopPropagation()}>
                     {(() => {
                       const col = scol[curSales] || scol.Pending;
                       return (
-                        <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', borderRadius:50,
-                          background: col.bg, border:`1px solid ${col.bd}`,
-                          fontSize:'0.65rem', fontWeight:700, color: col.c, letterSpacing:'0.06em' }}>
-                          <span style={{ width:5, height:5, borderRadius:'50%', background:col.c, flexShrink:0 }}/>
-                          {curSales}
-                        </span>
+                        <select
+                          value={curSales}
+                          onChange={e => { if (e.target.value !== curSales) handleStatusChange(globalIdx, e.target.value, `Updated to ${e.target.value}`); }}
+                          style={{
+                            appearance:'none', background: col.bg, border:`1px solid ${col.bd}`,
+                            borderRadius:50, padding:'4px 28px 4px 12px', color: col.c,
+                            fontFamily: F2, fontSize:'0.65rem', fontWeight:700, letterSpacing:'0.06em',
+                            cursor:'pointer', outline:'none',
+                            backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='${encodeURIComponent(col.c)}' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                            backgroundRepeat:'no-repeat', backgroundPosition:'right 10px center',
+                          }}>
+                          {SALES_STATUSES.map(s => <option key={s} value={s} style={{background:'#0d1117',color:'#e2e8f0'}}>{s}</option>)}
+                        </select>
                       );
                     })()}
                   </div>
@@ -3272,19 +3280,6 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           </div>
         </div>
         <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:6}}>Pick a request and assign it to yourself to begin estimation.</p>
-        {/* ── Deal type totals ── */}
-        <div style={{display:'flex',gap:10,marginTop:12,flexWrap:'wrap'}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 14px',borderRadius:20,background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.22)'}}>
-            <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(255,215,0,0.85)',flexShrink:0,boxShadow:'0 0 6px rgba(255,215,0,0.55)'}}/>
-            <span style={{fontSize:'0.68rem',fontWeight:700,color:'rgba(255,215,0,0.90)'}}>Job In Hand</span>
-            <span style={{fontSize:'0.78rem',fontWeight:800,color:'rgba(255,215,0,0.80)',background:'rgba(255,215,0,0.14)',borderRadius:8,padding:'1px 8px'}}>{allJobInHandCount}</span>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 14px',borderRadius:20,background:'rgba(79,255,223,0.06)',border:'1px solid rgba(79,255,223,0.20)'}}>
-            <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(79,255,223,0.85)',flexShrink:0,boxShadow:'0 0 6px rgba(79,255,223,0.55)'}}/>
-            <span style={{fontSize:'0.68rem',fontWeight:700,color:'rgba(79,255,223,0.90)'}}>Tender</span>
-            <span style={{fontSize:'0.78rem',fontWeight:800,color:'rgba(79,255,223,0.80)',background:'rgba(79,255,223,0.12)',borderRadius:8,padding:'1px 8px'}}>{allTenderCount}</span>
-          </div>
-        </div>
       </div>
 
       {/* ── Split: Job In Hand (left) | Tender (right) ── */}
@@ -3313,11 +3308,11 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
 
         {/* ── Draggable divider ── */}
         <div onMouseDown={onSplitMouseDown}
-          style={{width:8,flexShrink:0,alignSelf:'stretch',cursor:'col-resize',display:'flex',alignItems:'center',justifyContent:'center',zIndex:10,position:'relative',marginTop:0}}
+          style={{width:32,flexShrink:0,alignSelf:'stretch',cursor:'col-resize',display:'flex',alignItems:'center',justifyContent:'center',zIndex:10,position:'relative',marginTop:0}}
           title="Drag to resize">
-          <div style={{width:2,height:'100%',minHeight:60,background:'rgba(255,255,255,0.10)',borderRadius:2,transition:'background 0.15s'}}
+          <div style={{width:1.5,height:'100%',minHeight:60,background:'rgba(255,255,255,0.08)',borderRadius:2,transition:'background 0.15s'}}
             onMouseEnter={e=>e.currentTarget.style.background='rgba(99,102,241,0.60)'}
-            onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}/>
+            onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}/>
         </div>
 
         {/* ═══ RIGHT: Tender ═══ */}
@@ -3576,7 +3571,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
     return 'rgba(100,180,255,0.90)';
   };
   const statusLabel = r => {
-    if (r.reqStatus === 'out-of-scope') return 'Cancelled by Estimator';
+    if (r.reqStatus === 'out-of-scope') return 'Rejected';
     if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'Approved';
     if (r.directorAction === 'rejected') return 'Rejected';
     if (r.directorAction === 'revised')  return 'Revision Required';
@@ -3868,16 +3863,24 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   return (
     <div style={{position:'relative',width:'100%',height:'100%',padding:'66px 20px 16px',fontFamily:F,color:'#e2e8f0',overflowY:'auto'}}>
       {/* Header */}
-      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:12,flexWrap:'wrap'}}>
-        <div>
-          <p style={{fontSize:'0.52rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',marginBottom:3,fontWeight:700}}>NAFFCO · AI SYSTEM</p>
-          <h2 style={{fontSize:'1.2rem',fontWeight:800,color:'rgba(255,255,255,0.92)',margin:0}}>Track your Quotation</h2>
+      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:16,flexWrap:'wrap'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,flex:1,flexWrap:'wrap'}}>
+          <div style={{flexShrink:0}}>
+            <p style={{fontSize:'0.52rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',marginBottom:3,fontWeight:700}}>NAFFCO · AI SYSTEM</p>
+            <h2 style={{fontSize:'1.2rem',fontWeight:800,color:'rgba(255,255,255,0.92)',margin:0}}>Track your Quotation</h2>
+          </div>
+          {/* Search — inline next to title */}
+          <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'7px 14px',minWidth:220,maxWidth:320,flex:1}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by ID, project or client…"
+              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.80rem'}}/>
+          </div>
         </div>
         {/* Summary chips */}
         {(()=>{
-          const all=myReqs.length,approved=myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length,pending=myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length,rejected=myReqs.filter(r=>r.directorAction==='rejected').length;
+          const all=myReqs.length,approved=myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length,pending=myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length,rejected=myReqs.filter(r=>r.directorAction==='rejected'||r.reqStatus==='out-of-scope').length;
           return (
-            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginLeft:'auto'}}>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
               {[['Total',all,'rgba(100,160,255,0.80)','rgba(80,120,255,0.12)'],['Approved',approved,'rgba(0,220,130,0.90)','rgba(0,180,100,0.10)'],['In Progress',pending,'rgba(255,200,50,0.90)','rgba(220,160,0,0.10)'],['Rejected',rejected,'rgba(255,80,80,0.90)','rgba(200,40,40,0.10)']].map(([lbl,cnt,c,bg])=>(
                 <div key={lbl} style={{background:bg,border:`1px solid ${c}30`,borderRadius:7,padding:'5px 14px',display:'flex',alignItems:'center',gap:7}}>
                   <span style={{fontSize:'0.52rem',letterSpacing:'0.12em',textTransform:'uppercase',color:c,fontWeight:700}}>{lbl}</span>
@@ -3887,12 +3890,6 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
             </div>
           );
         })()}
-      </div>
-      {/* Search */}
-      <div style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'7px 14px',marginBottom:14,maxWidth:340}}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by ID, project or client…"
-          style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.80rem'}}/>
       </div>
       {/* Cards */}
       {myReqs.length === 0 ? (
@@ -3910,7 +3907,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
               background: r.reqStatus==='out-of-scope' ? 'rgba(80,10,10,0.55)' : unread>0 ? 'rgba(20,50,80,0.55)' : 'rgba(18,10,42,0.55)',
               backdropFilter:'blur(14px)', WebkitBackdropFilter:'blur(14px)',
               border: r.reqStatus==='out-of-scope' ? '1px solid rgba(220,60,60,0.32)' : unread>0 ? '1px solid rgba(100,210,255,0.28)' : '1px solid rgba(168,85,247,0.16)',
-              borderRadius:14, padding:'9px 14px', marginBottom:16, cursor:'pointer',
+              borderRadius:14, padding:'12px 16px', marginBottom:26, cursor:'pointer',
               transition:'all 0.18s',
               boxShadow: r.reqStatus==='out-of-scope' ? '0 4px 20px rgba(180,20,20,0.10)' : '0 4px 20px rgba(0,0,0,0.22)',
             }}
@@ -3925,66 +3922,133 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
               e.currentTarget.style.boxShadow=r.reqStatus==='out-of-scope'?'0 4px 20px rgba(180,20,20,0.10)':'0 4px 20px rgba(0,0,0,0.22)';
             }}>
 
-            {/* Row 1: ID · status · unread · Open → */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
-              <div style={{display:'flex',alignItems:'center',gap:7}}>
-                <span style={{fontFamily:'monospace',fontSize:'0.78rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
-                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'1px 7px',borderRadius:50,background:`${sc}15`,border:`1px solid ${sc}35`}}>
-                  <span style={{width:4,height:4,borderRadius:'50%',background:sc,flexShrink:0}}/>
-                  <span style={{fontSize:'0.55rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
-                </span>
-                {unread > 0 && <span style={{fontSize:'0.55rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.12)',borderRadius:50,padding:'1px 7px'}}>💬 {unread}</span>}
-              </div>
-              <span style={{fontSize:'0.56rem',color:'rgba(168,85,247,0.45)',fontWeight:600,flexShrink:0}}>Open →</span>
-            </div>
+            {/* ── Two-column body ── */}
+            <div style={{display:'flex',alignItems:'stretch',gap:0}}>
 
-            {/* Row 2: Main Contractor · Project — right: Estimator */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
-              <div style={{display:'flex',alignItems:'baseline',gap:7,minWidth:0,overflow:'hidden'}}>
-                <span style={{fontSize:'0.95rem',fontWeight:800,color:'rgba(255,255,255,0.92)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'45vw'}}>{r.mainContractor||'—'}</span>
-                {r.proj && <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.32)',fontWeight:400,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{r.proj}</span>}
-              </div>
-              {r.estimator ? (
-                <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-                  <EstAvatar name={r.estimator} size={24}/>
-                  <span style={{fontSize:'0.80rem',fontWeight:700,color:'rgba(255,255,255,0.80)',whiteSpace:'nowrap'}}>{r.estimator}</span>
-                </div>
-              ) : (
-                <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic',flexShrink:0}}>Unassigned</span>
-              )}
-            </div>
+              {/* LEFT: Project Details (58%) */}
+              <div style={{flex:'0 0 58%',paddingRight:14,borderRight:'1px solid rgba(255,255,255,0.06)'}}>
 
-            {/* Fields: Client, Consultant, Deal, Supply, Lead Time */}
-            {(()=>{
-              const supplyLabel = r.supplyInstall ? 'Supply & Install' : r.supplyOnly ? 'Supply Only' : r.deal||'—';
-              return (
-                <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'2px 10px',marginBottom:7,paddingBottom:7,borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                  {[['Client',r.client],['Consultant',r.consultant],['Deal',r.deal],['Supply',supplyLabel],['Lead Time',r.leadTime]].map(([lbl,val])=>(
-                    <div key={lbl} style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
-                      <span style={{fontSize:'0.42rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700}}>{lbl}</span>
-                      <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.72)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
-            {/* Stage timeline */}
-            <div style={{display:'flex',alignItems:'center',gap:0}}>
-              {STAGES.map((st,si)=>{
-                const done=si<=stageIdx,active=si===stageIdx && r.reqStatus!=='out-of-scope';
-                const frozen=r.reqStatus==='out-of-scope';
-                return (
-                  <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
-                      <div style={{width:'100%',height:2,background:frozen&&si>stageIdx?'rgba(255,255,255,0.04)':done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
-                      <div style={{width:6,height:6,borderRadius:'50%',marginTop:-4,background:frozen&&si===stageIdx?'rgba(255,70,70,0.80)':done?st.color:'rgba(255,255,255,0.10)',boxShadow:active?`0 0 7px ${st.color}`:frozen&&si===stageIdx?'0 0 7px rgba(255,70,70,0.60)':undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
-                      <div style={{fontSize:'0.44rem',color:frozen&&si===stageIdx?'rgba(255,70,70,0.85)':done?st.color:'rgba(255,255,255,0.18)',marginTop:3,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
-                    </div>
-                    {si<STAGES.length-1&&<div style={{width:5,flexShrink:0}}/>}
+                {/* Row 1: ID · status · unread · Open → */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}>
+                  <div style={{display:'flex',alignItems:'center',gap:7}}>
+                    <span style={{fontFamily:'monospace',fontSize:'0.78rem',fontWeight:700,color:'rgba(220,165,0,0.90)'}}>{r.id}</span>
+                    <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'1px 7px',borderRadius:50,background:`${sc}15`,border:`1px solid ${sc}35`}}>
+                      <span style={{width:4,height:4,borderRadius:'50%',background:sc,flexShrink:0}}/>
+                      <span style={{fontSize:'0.55rem',color:sc,fontWeight:700,letterSpacing:'0.04em'}}>{sl}</span>
+                    </span>
+                    {unread > 0 && <span style={{fontSize:'0.55rem',color:'rgba(100,210,255,0.95)',fontWeight:700,background:'rgba(100,210,255,0.12)',borderRadius:50,padding:'1px 7px'}}>💬 {unread}</span>}
                   </div>
-                );
-              })}
+                  <span style={{fontSize:'0.56rem',color:'rgba(168,85,247,0.45)',fontWeight:600,flexShrink:0}}>Open →</span>
+                </div>
+
+                {/* Row 2: Main Contractor · Project — right: Estimator */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:7}}>
+                  <div style={{display:'flex',alignItems:'baseline',gap:7,minWidth:0,overflow:'hidden'}}>
+                    <span style={{fontSize:'0.95rem',fontWeight:800,color:'rgba(255,255,255,0.92)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'32vw'}}>{r.mainContractor||'—'}</span>
+                    {r.proj && <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.32)',fontWeight:400,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{r.proj}</span>}
+                  </div>
+                  {r.estimator ? (
+                    <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                      <EstAvatar name={r.estimator} size={22}/>
+                      <span style={{fontSize:'0.78rem',fontWeight:700,color:'rgba(255,255,255,0.80)',whiteSpace:'nowrap'}}>{r.estimator}</span>
+                    </div>
+                  ) : (
+                    <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.18)',fontStyle:'italic',flexShrink:0}}>Unassigned</span>
+                  )}
+                </div>
+
+                {/* Fields: Client, Consultant, Deal, Supply, Lead Time */}
+                {(()=>{
+                  const supplyLabel = r.supplyInstall ? 'Supply & Install' : r.supplyOnly ? 'Supply Only' : r.deal||'—';
+                  return (
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'2px 10px'}}>
+                      {[['Client',r.client],['Consultant',r.consultant],['Deal',r.deal],['Supply',supplyLabel],['Lead Time',r.leadTime]].map(([lbl,val])=>(
+                        <div key={lbl} style={{display:'flex',flexDirection:'column',gap:1,minWidth:0}}>
+                          <span style={{fontSize:'0.42rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700}}>{lbl}</span>
+                          <span style={{fontSize:'0.64rem',color:'rgba(255,255,255,0.72)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{val||'—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* RIGHT: Horizontal Animated Timeline (42%) */}
+              <div style={{flex:1,paddingLeft:16,display:'flex',flexDirection:'column',justifyContent:'center'}}>
+                {(()=>{
+                  const frozen=r.reqStatus==='out-of-scope';
+                  const N=STAGES.length;
+                  // Progress bar spans between node centres: left=1/N/2*100%, width=(N-1)/N*100%
+                  const trackLeft=`${100/(N*2)}%`;
+                  const trackWidth=`${(N-1)/N*100}%`;
+                  const fillPct=stageIdx>0?stageIdx/(N-1)*100:0;
+                  const fillWidth=`${fillPct*(N-1)/N}%`;
+                  const activeColor=frozen?'rgba(255,70,70,0.85)':STAGES[Math.min(stageIdx,N-1)].color;
+                  return (
+                    <div style={{position:'relative',paddingBottom:2}}>
+                      {/* Background track */}
+                      <div style={{position:'absolute',left:trackLeft,width:trackWidth,top:10,height:2,background:'rgba(255,255,255,0.07)',borderRadius:2,zIndex:0}}/>
+                      {/* Animated progress fill */}
+                      {stageIdx>0&&(
+                        <div style={{
+                          position:'absolute',left:trackLeft,top:10,height:2,
+                          width:fillWidth,
+                          background:`linear-gradient(90deg,${STAGES[0].color},${activeColor})`,
+                          borderRadius:2,zIndex:1,overflow:'hidden',
+                          animation:'tlProgressIn 0.9s cubic-bezier(0.22,1,0.36,1) both',
+                        }}>
+                          {/* shimmer overlay */}
+                          <div style={{position:'absolute',inset:0,background:'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.55) 50%,transparent 100%)',backgroundSize:'200% 100%',animation:'tlShimmer 2.2s ease-in-out 0.9s infinite'}}/>
+                        </div>
+                      )}
+                      {/* Nodes row */}
+                      <div style={{display:'flex',alignItems:'flex-start',position:'relative',zIndex:2}}>
+                        {STAGES.map((st,si)=>{
+                          const done=si<=stageIdx,active=si===stageIdx&&!frozen;
+                          const nodeCol=frozen&&si===stageIdx?'rgba(255,70,70,0.85)':done?st.color:'rgba(255,255,255,0.14)';
+                          return (
+                            <div key={st.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+                              {/* Node with optional ripple */}
+                              <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center',width:22,height:22}}>
+                                {active&&(
+                                  <div style={{position:'absolute',width:22,height:22,borderRadius:'50%',border:`1.5px solid ${st.color}`,animation:'tlRipple 1.8s ease-out infinite',pointerEvents:'none'}}/>
+                                )}
+                                <div style={{
+                                  width:active?14:12,height:active?14:12,
+                                  borderRadius:'50%',
+                                  background:done?nodeCol:'transparent',
+                                  border:`1.5px solid ${nodeCol}`,
+                                  display:'flex',alignItems:'center',justifyContent:'center',
+                                  boxShadow:active?`0 0 10px ${st.color},0 0 22px ${st.color}55`:done?`0 0 5px ${nodeCol}70`:'none',
+                                  animation:`tlNodePop 0.45s ${si*70}ms cubic-bezier(0.34,1.56,0.64,1) both`,
+                                  position:'relative',zIndex:1,
+                                  transition:'width 0.3s,height 0.3s',
+                                }}>
+                                  {done&&!active?(
+                                    <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
+                                      <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  ):active?(
+                                    <div style={{width:4,height:4,borderRadius:'50%',background:'#fff'}}/>
+                                  ):null}
+                                </div>
+                              </div>
+                              {/* Label */}
+                              <div style={{
+                                fontSize:'0.44rem',letterSpacing:'0.05em',textAlign:'center',
+                                fontWeight:done?700:400,lineHeight:1.2,
+                                color:frozen&&si===stageIdx?'rgba(255,90,90,0.90)':done?st.color:'rgba(255,255,255,0.20)',
+                                whiteSpace:'nowrap',
+                                animation:`tlNodePop 0.45s ${si*70+120}ms cubic-bezier(0.34,1.56,0.64,1) both`,
+                              }}>{st.label}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Director note */}
@@ -4515,10 +4579,11 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo,onDirectTool,userRole
   const isSales = userRole === 'sales';
   return (
     <div className="land" style={{position:'relative'}}>
+      <TopSB v={q} set={setQ} go={onGo}/>
       <div className="left-col">
         <div style={{display:'flex', flexDirection:'column'}}>
           <p className="brand">NAFFCO · AI SYSTEM</p>
-          <h1 className="page-title">{isSales ? <>SALES &amp;<br/>MARKETING</> : <>AI APEX<br/>ESTIMATION</>}</h1>
+          <h1 className="page-title">{isSales ? <>SALES &amp;<br/>MARKETING</> : <>AI APEX<br/>HUB</>}</h1>
           {!isSales && (
             <p className="page-sub">Intelligent quotation generation powered<br/>by advanced AI analysis.</p>
           )}
@@ -8561,6 +8626,7 @@ const Dashboard = ({
     else if (dashFilter === 'pending-approval') { if (r.reqStatus !== 'pending-director') return false; }
     else if (dashFilter === 'unassigned') { if (r.estimator) return false; }
     else if (dashFilter === 'out-of-scope') { if (r.reqStatus !== 'out-of-scope') return false; }
+    else if (dashFilter === 'approved') { if (r.directorAction !== 'approved' && r.reqStatus !== 'completed') return false; }
     return true;
   });
 
@@ -8683,11 +8749,13 @@ const Dashboard = ({
         const pendingApprCount = requests.filter(r => r.reqStatus === 'pending-director').length;
         const unassignedCount  = requests.filter(r => !r.estimator).length;
         const oosCount         = requests.filter(r => r.reqStatus === 'out-of-scope').length;
+        const approvedDashCount= requests.filter(r => r.directorAction === 'approved' || r.reqStatus === 'completed').length;
         const chips = [
-          { key:'pending-estimation', label:'Pending Estimation', count:pendingEstCount, c:'rgba(220,165,0,0.90)',  bg:'rgba(220,165,0,0.10)',  bd:'rgba(220,165,0,0.30)'  },
-          { key:'pending-approval',   label:'Pending Approval',   count:pendingApprCount,c:'rgba(180,130,255,0.90)',bg:'rgba(140,80,255,0.10)', bd:'rgba(180,130,255,0.30)'},
-          { key:'unassigned',         label:'Unassigned',         count:unassignedCount, c:'rgba(150,190,255,0.85)',bg:'rgba(60,100,200,0.10)', bd:'rgba(100,160,255,0.28)'},
-          { key:'out-of-scope',       label:'Out of Scope',       count:oosCount,        c:'rgba(255,80,80,0.90)',  bg:'rgba(200,40,40,0.09)',  bd:'rgba(220,60,60,0.35)'  },
+          { key:'pending-estimation', label:'Pending Estimation', count:pendingEstCount,  c:'rgba(220,165,0,0.90)',  bg:'rgba(220,165,0,0.10)',  bd:'rgba(220,165,0,0.30)'  },
+          { key:'pending-approval',   label:'Pending Approval',   count:pendingApprCount, c:'rgba(180,130,255,0.90)',bg:'rgba(140,80,255,0.10)', bd:'rgba(180,130,255,0.30)'},
+          { key:'unassigned',         label:'Unassigned',         count:unassignedCount,  c:'rgba(150,190,255,0.85)',bg:'rgba(60,100,200,0.10)', bd:'rgba(100,160,255,0.28)'},
+          { key:'out-of-scope',       label:'Out of Scope',       count:oosCount,         c:'rgba(255,80,80,0.90)',  bg:'rgba(200,40,40,0.09)',  bd:'rgba(220,60,60,0.35)'  },
+          { key:'approved',           label:'Approved',           count:approvedDashCount,c:'rgba(0,220,130,0.90)', bg:'rgba(0,180,100,0.09)',  bd:'rgba(0,200,120,0.35)'  },
         ];
         const exportCsv = () => {
           const headers = ['ID','Status','Req Status','Project','Client','Main Contractor','Consultant','Estimator','Deal','Value (AED)','Lead Time','Submitted By','Date'];
@@ -9740,7 +9808,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://aiest88-338841056432.us-west1.run.app"
+        src="https://apex09-338841056432.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -9767,8 +9835,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://aiest88-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://aiest88-338841056432.us-west1.run.app';
+    ? `https://apex09-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://apex09-338841056432.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
