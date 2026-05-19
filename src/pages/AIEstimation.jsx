@@ -9796,7 +9796,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://apex09-338841056432.us-west1.run.app"
+        src="https://apex91-253545847030.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -9823,8 +9823,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://apex09-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://apex09-338841056432.us-west1.run.app';
+    ? `https://apex91-253545847030.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://apex91-253545847030.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
@@ -9991,26 +9991,11 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const location = useLocation();
 
   const [intro,setIntro] = useState(true);
-  const [userRole, setUserRole] = useState(() => {
-    if (initialRole) return initialRole;
-    try { return localStorage.getItem('apex_user_role') || null; } catch { return null; }
-  });
-  const [userCode, setUserCode] = useState(() => {
-    if (initialCode) return initialCode;
-    try { return localStorage.getItem('apex_user_code') || ''; } catch { return ''; }
-  });
+  const [userRole, setUserRole] = useState(initialRole || null);
+  const [userCode, setUserCode] = useState(initialCode || '');
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
   const [directOpen,  setDirectOpen]  = useState(initialView === 'directTool');
-
-  // Sync role/code from props (set after home-screen login) into state + localStorage
-  useEffect(() => {
-    if (initialRole) {
-      setUserRole(initialRole);
-      setUserCode(initialCode || '');
-      try { localStorage.setItem('apex_user_role', initialRole); localStorage.setItem('apex_user_code', initialCode || ''); } catch {}
-    }
-  }, [initialRole, initialCode]);
 
   // 1. Read the current URL to figure out which view to show
   const currentPath = location.pathname.split('/').pop();
@@ -10077,13 +10062,13 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const handleRoleLogin = (role, code) => {
     setUserRole(role);
     setUserCode(code);
-    try { localStorage.setItem('apex_user_role', role); localStorage.setItem('apex_user_code', code); } catch {}
-    if (role === 'estimator') setView('dashboard');
-    else setView('landing');
+    if (role === 'estimator' || role === 'director') {
+      setView('dashboard');
+    }
+    // Sales: stay on the current view (e.g. /sales/track) — don't redirect
   };
 
   const handleLogout = () => {
-    try { localStorage.removeItem('apex_user_role'); localStorage.removeItem('apex_user_code'); } catch {}
     onBack();
   };
 
@@ -10639,7 +10624,7 @@ const handleSubmit = async (formData) => {
           diaryEntries={diaryEntries}/>}
       {view==='trackQuotation' && <TrackQuotation requests={requests}
           spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
-          showAll={true}
+          showAll={userRole==='director'}
           onUpdate={updateRequest}
           userCode={userRole==='sales'?userCode:''}/>}
       {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}
