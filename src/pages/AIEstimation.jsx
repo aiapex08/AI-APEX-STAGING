@@ -3482,7 +3482,7 @@ const NotifToast = ({ toasts, onDismiss }) => (
 );
 
 // ─── TRACK YOUR QUOTATION ────────────────────────────────────────────────────
-const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
+const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) => {
   const F = "'Inter',sans-serif";
   const [search, setSearch]     = useState('');
   const [openIdx, setOpenIdx]   = useState(null);
@@ -3540,10 +3540,21 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate }) => {
   }, [showAddPpl]);
 
   const myReqs = requests.filter(r => {
-    const matchSP = showAll || (r.salesPerson || '').toLowerCase() === (spName || '').toLowerCase() || (r.submittedBy || '').toLowerCase() === (spName || '').toLowerCase();
+    if (!r) return false;
+    const spL = (spName || '').toLowerCase();
+    const codeU = (userCode || '').toUpperCase();
+    const matchSP = showAll ||
+      (spL && (r.salesPerson || '').toLowerCase() === spL) ||
+      (spL && (r.submittedBy || '').toLowerCase() === spL) ||
+      (codeU && (r.salesPerson || '').toUpperCase() === codeU) ||
+      (codeU && (r.submittedBy || '').toUpperCase() === codeU);
     const matchSearch = !search || r.id?.toLowerCase().includes(search.toLowerCase()) || (r.proj||'').toLowerCase().includes(search.toLowerCase()) || (r.client||'').toLowerCase().includes(search.toLowerCase());
     return matchSP && matchSearch;
-  }).sort((a,b) => (b.submittedAt||b.date||'').localeCompare(a.submittedAt||a.date||''));
+  }).sort((a,b) => {
+    const av = +(new Date(a.submittedAt||a.date||0));
+    const bv = +(new Date(b.submittedAt||b.date||0));
+    return bv - av;
+  });
 
   const STAGES = [
     { key:'submitted',  label:'Submitted',         color:'rgba(100,180,255,0.90)' },
@@ -7521,53 +7532,6 @@ const Dashboard = ({
                     </div>
 
                   </div>
-                  {/* ── Margin breakdown ── */}
-                  <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,255,0.22)',borderRadius:8,padding:'12px 14px',marginTop:4}}>
-                    <style>{`input[type=number].no-spin::-webkit-inner-spin-button,input[type=number].no-spin::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number].no-spin{-moz-appearance:textfield}`}</style>
-                    <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,255,0.45)',marginBottom:10}}>Margin Breakdown</p>
-
-                    {/* 4 sub-fields row */}
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:0,borderBottom:'1px solid rgba(0,200,255,0.10)',paddingBottom:10,marginBottom:10}}>
-                      {/* Overhead % */}
-                      <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingRight:10}}>
-                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Overhead %</p>
-                        <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                          <input className="no-spin" type="number" value={req.overhead||''} onChange={e=>{const oh=e.target.value;onUpdate(req.id,{overhead:oh,margin:(parseFloat(oh||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
-                          <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
-                        </div>
-                      </div>
-                      {/* Profit % */}
-                      <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
-                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Profit %</p>
-                        <div style={{display:'flex',alignItems:'baseline',gap:2}}>
-                          <input className="no-spin" type="number" value={req.profit||''} onChange={e=>{const pr=e.target.value;onUpdate(req.id,{profit:pr,margin:(parseFloat(req.overhead||0)+parseFloat(pr||0)+parseFloat(req.warrantyPct||0)).toFixed(1)});}} placeholder="0" min="0" max="100" step="0.5" disabled={isRejected}
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
-                          <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
-                        </div>
-                      </div>
-                      {/* Warranty: yr | % */}
-                      <div style={{borderRight:'1px solid rgba(0,200,255,0.10)',paddingLeft:10,paddingRight:10}}>
-                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Warranty</p>
-                        <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                          <input className="no-spin" type="number" value={req.warrantyYr||''} onChange={e=>onUpdate(req.id,{warrantyYr:e.target.value})} placeholder="0" min="0" max="20" step="1" disabled={isRejected}
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
-                          <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.35)',fontFamily:'monospace'}}>yr</span>
-                          <span style={{fontSize:'0.60rem',color:'rgba(0,200,255,0.20)',fontFamily:'monospace'}}>|</span>
-                          <input className="no-spin" type="number" value={req.warrantyPct||''} onChange={e=>{const wp=e.target.value;onUpdate(req.id,{warrantyPct:wp,margin:(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(wp||0)).toFixed(1)});}} placeholder="0" min="0" max="50" step="0.5" disabled={isRejected}
-                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'1.15rem',fontWeight:700,width:'36px',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
-                          <span style={{fontSize:'0.70rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
-                        </div>
-                      </div>
-                      {/* Total */}
-                      <div style={{paddingLeft:10}}>
-                        <p style={{fontSize:'0.50rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(0,200,255,0.38)',marginBottom:5}}>Total</p>
-                        <span style={{fontFamily:'monospace',fontSize:'1.55rem',fontWeight:800,color:'rgba(0,210,255,0.95)',lineHeight:1}}>
-                          {(() => { const t=(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1); return t==='0.0'?'—':t+'%'; })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
                   {/* Project Value */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
                     <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
@@ -8057,14 +8021,38 @@ const Dashboard = ({
                         {req.supplyInstall && <span style={{fontSize:'0.60rem',fontWeight:600,color:'rgba(160,100,255,0.85)',background:'rgba(140,80,255,0.08)',border:'1px solid rgba(160,100,255,0.20)',borderRadius:20,padding:'2px 8px'}}>S + I</span>}
                       </div>
 
-                      {/* Margin + Value */}
+                      {/* Margin Breakdown (Cost-Artist only) + Value */}
+                      <style>{`input[type=number].no-spin::-webkit-inner-spin-button,input[type=number].no-spin::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number].no-spin{-moz-appearance:textfield}`}</style>
                       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,0.07)'}}>
+                        {/* Margin — editable in edit mode */}
                         <div style={{background:'rgba(0,200,255,0.05)',border:'1px solid rgba(0,200,255,0.16)',borderRadius:7,padding:'7px 10px'}}>
-                          <div style={{fontSize:'0.42rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Margin</div>
-                          <div style={{display:'flex',alignItems:'baseline',gap:1}}>
-                            <span style={{fontSize:'1.1rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>{req.margin||'—'}</span>
-                            {req.margin && <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace'}}>%</span>}
-                          </div>
+                          <div style={{fontSize:'0.42rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:5}}>Margin</div>
+                          {dirEditMode ? (
+                            <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                              {[['Overhead','overhead',100,0.5],['Profit','profit',100,0.5],['Warranty %','warrantyPct',50,0.5]].map(([lbl,field,max,step])=>(
+                                <div key={field} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
+                                  <span style={{fontSize:'0.44rem',color:'rgba(0,200,255,0.38)',letterSpacing:'0.08em',textTransform:'uppercase',whiteSpace:'nowrap'}}>{lbl}</span>
+                                  <div style={{display:'flex',alignItems:'baseline',gap:1}}>
+                                    <input className="no-spin" type="number" value={req[field]||''} placeholder="0" min="0" max={max} step={step}
+                                      onChange={e=>{const v=e.target.value;const oh=field==='overhead'?v:req.overhead||0;const pr=field==='profit'?v:req.profit||0;const wp=field==='warrantyPct'?v:req.warrantyPct||0;onUpdate(req.id,{[field]:v,margin:(parseFloat(oh)+parseFloat(pr)+parseFloat(wp)).toFixed(1)});}}
+                                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,210,255,0.92)',fontFamily:'monospace',fontSize:'0.88rem',fontWeight:700,width:'36px',textAlign:'right'}}/>
+                                    <span style={{fontSize:'0.58rem',color:'rgba(0,200,255,0.40)',fontFamily:'monospace'}}>%</span>
+                                  </div>
+                                </div>
+                              ))}
+                              <div style={{borderTop:'1px solid rgba(0,200,255,0.12)',paddingTop:3,display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                                <span style={{fontSize:'0.44rem',color:'rgba(0,200,255,0.55)',letterSpacing:'0.08em',textTransform:'uppercase'}}>Total</span>
+                                <span style={{fontFamily:'monospace',fontSize:'1.0rem',fontWeight:800,background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>
+                                  {(()=>{const t=(parseFloat(req.overhead||0)+parseFloat(req.profit||0)+parseFloat(req.warrantyPct||0)).toFixed(1);return t==='0.0'?'—':t+'%';})()}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{display:'flex',alignItems:'baseline',gap:1}}>
+                              <span style={{fontSize:'1.1rem',fontWeight:900,fontFamily:'monospace',background:'linear-gradient(135deg,rgba(0,230,255,1) 0%,rgba(100,180,255,0.85) 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',lineHeight:1}}>{req.margin||'—'}</span>
+                              {req.margin && <span style={{fontSize:'0.68rem',color:'rgba(0,200,255,0.50)',fontFamily:'monospace'}}>%</span>}
+                            </div>
+                          )}
                         </div>
                         <div style={{background:'rgba(0,220,130,0.05)',border:'1px solid rgba(0,220,130,0.16)',borderRadius:7,padding:'7px 10px'}}>
                           <div style={{fontSize:'0.42rem',color:'rgba(0,220,130,0.50)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:3}}>Value (AED)</div>
@@ -10003,11 +9991,26 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const location = useLocation();
 
   const [intro,setIntro] = useState(true);
-  const [userRole, setUserRole] = useState(initialRole || null);
-  const [userCode, setUserCode] = useState(initialCode || '');
+  const [userRole, setUserRole] = useState(() => {
+    if (initialRole) return initialRole;
+    try { return localStorage.getItem('apex_user_role') || null; } catch { return null; }
+  });
+  const [userCode, setUserCode] = useState(() => {
+    if (initialCode) return initialCode;
+    try { return localStorage.getItem('apex_user_code') || ''; } catch { return ''; }
+  });
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
   const [directOpen,  setDirectOpen]  = useState(initialView === 'directTool');
+
+  // Sync role/code from props (set after home-screen login) into state + localStorage
+  useEffect(() => {
+    if (initialRole) {
+      setUserRole(initialRole);
+      setUserCode(initialCode || '');
+      try { localStorage.setItem('apex_user_role', initialRole); localStorage.setItem('apex_user_code', initialCode || ''); } catch {}
+    }
+  }, [initialRole, initialCode]);
 
   // 1. Read the current URL to figure out which view to show
   const currentPath = location.pathname.split('/').pop();
@@ -10074,11 +10077,13 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const handleRoleLogin = (role, code) => {
     setUserRole(role);
     setUserCode(code);
+    try { localStorage.setItem('apex_user_role', role); localStorage.setItem('apex_user_code', code); } catch {}
     if (role === 'estimator') setView('dashboard');
     else setView('landing');
   };
 
   const handleLogout = () => {
+    try { localStorage.removeItem('apex_user_role'); localStorage.removeItem('apex_user_code'); } catch {}
     onBack();
   };
 
@@ -10634,8 +10639,9 @@ const handleSubmit = async (formData) => {
           diaryEntries={diaryEntries}/>}
       {view==='trackQuotation' && <TrackQuotation requests={requests}
           spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
-          showAll={userRole==='director'}
-          onUpdate={updateRequest}/>}
+          showAll={true}
+          onUpdate={updateRequest}
+          userCode={userRole==='sales'?userCode:''}/>}
       {view==='salesStatus'  && <SalesStatusView requests={requests} onUpdate={updateRequest}
           autoSpName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):undefined}
           showAll={userRole==='director'}/>}
