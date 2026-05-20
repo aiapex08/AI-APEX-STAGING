@@ -35,6 +35,11 @@ const S = `
   @keyframes tlShimmer    { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
   @keyframes tlNodePop    { 0%{transform:scale(0.4);opacity:0} 65%{transform:scale(1.18)} 100%{transform:scale(1);opacity:1} }
   @keyframes tlRipple     { 0%{transform:scale(1);opacity:0.65} 100%{transform:scale(2.6);opacity:0} }
+  @keyframes tileGlow   { 0%,100%{opacity:0.28} 50%{opacity:0.55} }
+  @keyframes drawRect   { from{stroke-dashoffset:220;opacity:0} to{stroke-dashoffset:0;opacity:1} }
+  @keyframes drawLine   { from{stroke-dashoffset:80;opacity:0}  to{stroke-dashoffset:0;opacity:1} }
+  @keyframes spinIn     { from{transform:rotate(-90deg) scale(0.4);opacity:0} 75%{transform:rotate(5deg) scale(1.06)} to{transform:rotate(0deg) scale(1);opacity:1} }
+  @keyframes tileIconIn { 0%{opacity:0;transform:scale(0.72) rotate(-8deg)} 72%{transform:scale(1.06) rotate(1deg)} 100%{opacity:1;transform:scale(1) rotate(0deg)} }
 
   .root {
     position:fixed; inset:0; width:100vw; height:100vh; z-index:100;
@@ -1681,6 +1686,12 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                 <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.60)', lineHeight: 1.6 }}>{r.remarks}</p>
               </div>
             )}
+            {r.estimatorComments && (
+              <div style={{ paddingTop: 10, borderTop: '1px solid rgba(255,200,80,0.12)', background:'rgba(255,200,80,0.04)', borderRadius:8, padding:'10px 12px', marginTop:10 }}>
+                <p style={{ fontSize: '0.58rem', color: 'rgba(255,200,80,0.55)', marginBottom: 5, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight:700 }}>Estimator Comments</p>
+                <p style={{ fontSize: '0.80rem', color: 'rgba(255,230,140,0.82)', lineHeight: 1.6, margin:0 }}>{r.estimatorComments}</p>
+              </div>
+            )}
           </div>
 
           {/* Right — update sales status */}
@@ -2228,11 +2239,11 @@ const RoleLogin = ({ onLogin }) => {
       <div style={{
         position:'relative', zIndex:1,
         width:'min(460px,94vw)',
-        background:'rgba(0,4,16,0.82)',
-        border:'1px solid rgba(255,255,255,0.09)',
+        background:'rgba(255,255,255,0.06)',
         borderRadius:20, padding:'44px 40px 40px',
-        backdropFilter:'blur(24px)',
-        boxShadow:'0 24px 80px rgba(0,0,0,0.60), 0 0 0 1px rgba(255,255,255,0.04) inset',
+        backdropFilter:'blur(32px) saturate(1.4) brightness(1.05)',
+        WebkitBackdropFilter:'blur(32px) saturate(1.4) brightness(1.05)',
+        boxShadow:'0 24px 80px rgba(0,0,0,0.55), inset 0 1.5px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.10)',
         display:'flex', flexDirection:'column', gap:26,
       }}>
         {/* Header */}
@@ -4364,7 +4375,7 @@ const SalesDashboard = ({ requests, spName, showAll, setView, diaryEntries=[] })
 };
 
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout, onDirectTool, onDirectorAccess }) => {
+const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCode='', onLogout, onDirectTool, onDirectorAccess }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
@@ -4474,14 +4485,17 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
 
         {/* ── Estimator View ── */}
         {userRole === 'estimator' && <>
-          <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
-            New Request
-          </button>
           <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
             Estimator Dashboard
           </button>
-          <button className={`nav-btn${view==='estOverview'?' active':''}`} onClick={()=>setView('estOverview')}>
+          <button className={`nav-btn${view==='openRequests'?' active':''}`} onClick={()=>setView('openRequests')}>
+            Open Requests
+          </button>
+          <button className={`nav-btn${view==='estOverview'?' active':''}`} onClick={()=>navProtected('estOverview')}>
             Request Overview
+          </button>
+          <button className={`nav-btn${view==='myTeam'?' active':''}`} onClick={()=>navProtected('myTeam')}>
+            My Team
           </button>
         </>}
 
@@ -4496,8 +4510,11 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
           <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>setView('dashboard')}>
             Estimation Team Dashboard
           </button>
-          <button className={`nav-btn${view==='estOverview'?' active':''}`} onClick={()=>setView('estOverview')}>
+          <button className={`nav-btn${view==='estOverview'?' active':''}`} onClick={()=>navProtected('estOverview')}>
             Request Overview
+          </button>
+          <button className={`nav-btn${view==='myTeam'?' active':''}`} onClick={()=>navProtected('myTeam')}>
+            My Team
           </button>
           <button className={`nav-btn${analyseActive?' active':''}`} onClick={()=>setView('analyse')}>
             Analysis
@@ -4592,9 +4609,341 @@ const NavBar = ({ view, setView, onHome, onBack, userRole, userCode='', onLogout
   );
 };
 
+// ─── TSE ACCESS CODE MODAL ───────────────────────────────────────────────────
+const TseAccessModal = ({ pendingView, onSuccess, onCancel }) => {
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState(false);
+  const F = "'Inter',sans-serif";
+  const labels = { estOverview:'Request Overview', myTeam:'My Team' };
+
+  const submit = () => {
+    if (code.trim().toUpperCase() === 'TSE') { onSuccess(); }
+    else { setErr(true); setTimeout(() => setErr(false), 1400); setCode(''); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:9100, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,0.72)', backdropFilter:'blur(18px)', fontFamily:F }}
+      onClick={onCancel}>
+      <div style={{ width:'min(360px,92vw)', background:'rgba(255,255,255,0.07)',
+        backdropFilter:'blur(40px) saturate(1.4) brightness(1.08)',
+        WebkitBackdropFilter:'blur(40px) saturate(1.4) brightness(1.08)',
+        borderRadius:20, padding:'36px 32px 30px',
+        boxShadow:'0 24px 80px rgba(0,0,0,0.55), inset 0 1.5px 0 rgba(255,255,255,0.18)',
+        display:'flex', flexDirection:'column', gap:18 }}
+        onClick={e => e.stopPropagation()}>
+        <div>
+          <div style={{ fontSize:'0.52rem', letterSpacing:'0.22em', textTransform:'uppercase',
+            color:'rgba(20,184,166,0.75)', fontWeight:700, marginBottom:8 }}>Restricted Access</div>
+          <div style={{ fontSize:'1.1rem', fontWeight:800, color:'rgba(255,255,255,0.92)', lineHeight:1.2, marginBottom:6 }}>
+            {labels[pendingView] || 'Protected Page'}
+          </div>
+          <div style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.38)', lineHeight:1.5 }}>
+            Enter the access code to continue.
+          </div>
+        </div>
+        <input autoFocus type="password" value={code}
+          onChange={e => { setCode(e.target.value); setErr(false); }}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          placeholder="Access code…"
+          style={{ background:'rgba(255,255,255,0.08)', border:`1px solid ${err?'rgba(255,80,80,0.60)':'rgba(255,255,255,0.18)'}`,
+            borderRadius:10, padding:'13px 16px', color:'#fff', fontFamily:F, fontSize:'1rem',
+            outline:'none', letterSpacing:'0.16em', textTransform:'uppercase', transition:'border-color 0.18s' }}
+        />
+        {err && <div style={{ fontSize:'0.72rem', color:'rgba(255,100,100,0.90)', marginTop:-8 }}>Invalid code — try again.</div>}
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={onCancel}
+            style={{ flex:1, padding:'11px 0', borderRadius:10, background:'rgba(255,255,255,0.05)',
+              color:'rgba(255,255,255,0.38)', fontFamily:F, fontSize:'0.84rem', border:'none', cursor:'pointer', outline:'none' }}>
+            Cancel
+          </button>
+          <button onClick={submit}
+            style={{ flex:2, padding:'11px 0', borderRadius:10,
+              background:'rgba(20,184,166,0.18)', color:'rgba(94,234,212,0.95)',
+              fontFamily:F, fontSize:'0.88rem', fontWeight:700, border:'none', cursor:'pointer', outline:'none',
+              transition:'background 0.18s' }}
+            onMouseEnter={e => e.currentTarget.style.background='rgba(20,184,166,0.34)'}
+            onMouseLeave={e => e.currentTarget.style.background='rgba(20,184,166,0.18)'}>
+            Confirm →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── ESTIMATION TEAM VIEW (standalone page) ──────────────────────────────────
+const EstimationTeamView = ({ requests }) => {
+  const F = "'Inter',sans-serif";
+  const [detail, setDetail] = useState(null);
+
+  const scored = EST_ROSTER.map(e => {
+    const rqs       = (requests||[]).filter(r => r.estimator === e.name);
+    const inHand    = rqs.filter(r => r.reqStatus === 'inprogress' || r.reqStatus === 'pending-director');
+    const closed    = rqs.filter(r => r.reqStatus === 'completed' || r.directorAction === 'approved');
+    const total     = rqs.length;
+    const timings   = rqs.filter(r => r.taggedAt && r.quotationSubmittedAt)
+                        .map(r => new Date(r.quotationSubmittedAt).getTime() - r.taggedAt);
+    const avgMs     = timings.length ? timings.reduce((a,b)=>a+b,0)/timings.length : null;
+    const score     = closed.length * 3 + inHand.length;
+    return { e, rqs, inHand, closed, total, avgMs, score };
+  }).sort((a,b) => b.score - a.score);
+
+  const fmtDur = ms => {
+    if (!ms) return '—';
+    const d = Math.floor(ms/86400000), h = Math.floor((ms%86400000)/3600000), m = Math.floor((ms%3600000)/60000);
+    return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const MEDALS = ['🥇','🥈','🥉'];
+
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', padding:'72px 28px 28px', fontFamily:F, color:'#e2e8f0', overflowY:'auto' }}>
+      <div style={{ marginBottom:28 }}>
+        <p style={{ fontSize:'0.52rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(20,184,166,0.65)', marginBottom:4, fontWeight:700 }}>NAFFCO · AI SYSTEM</p>
+        <h2 style={{ fontSize:'1.3rem', fontWeight:800, color:'rgba(255,255,255,0.92)', margin:0 }}>Estimation Team</h2>
+        <p style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.32)', marginTop:4 }}>
+          {EST_ROSTER.length} team members · {(requests||[]).filter(r=>r.estimator && (r.reqStatus==='inprogress'||r.reqStatus==='pending-director')).length} active requests
+        </p>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))', gap:16 }}>
+        {scored.map(({ e, inHand, closed, total, avgMs, score }, idx) => {
+          const isAvail = inHand.length === 0;
+          const statusC = isAvail ? 'rgba(52,211,153,0.90)' : inHand.length <= 2 ? 'rgba(251,191,36,0.90)' : 'rgba(239,68,68,0.90)';
+          const avatar = AVATAR_URLS[e.code];
+          const isSelected = detail?.code === e.code;
+          return (
+            <div key={e.code} onClick={() => setDetail(isSelected ? null : e)}
+              style={{ borderRadius:16, padding:'20px 22px', cursor:'pointer',
+                background: isSelected ? 'rgba(20,184,166,0.10)' : 'rgba(255,255,255,0.04)',
+                border:`1px solid ${isSelected?'rgba(20,184,166,0.45)':'rgba(255,255,255,0.10)'}`,
+                transition:'all 0.22s', backdropFilter:'blur(14px)' }}
+              onMouseEnter={e2 => { if(!isSelected) { e2.currentTarget.style.background='rgba(255,255,255,0.07)'; e2.currentTarget.style.borderColor='rgba(255,255,255,0.20)'; } }}
+              onMouseLeave={e2 => { if(!isSelected) { e2.currentTarget.style.background='rgba(255,255,255,0.04)'; e2.currentTarget.style.borderColor='rgba(255,255,255,0.10)'; } }}>
+              <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
+                <div style={{ position:'relative', flexShrink:0 }}>
+                  {avatar
+                    ? <img src={avatar} alt={e.name} style={{ width:46, height:46, borderRadius:'50%', objectFit:'cover', border:'2px solid rgba(20,184,166,0.40)' }}/>
+                    : <div style={{ width:46, height:46, borderRadius:'50%', background:'rgba(20,184,166,0.14)', border:'2px solid rgba(20,184,166,0.35)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', fontWeight:800, color:'rgba(94,234,212,0.90)' }}>{e.name.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)}</div>
+                  }
+                  <div style={{ position:'absolute', bottom:1, right:1, width:10, height:10, borderRadius:'50%', background:statusC, border:'2px solid rgba(6,3,18,0.95)', boxShadow:`0 0 6px ${statusC}` }}/>
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    {idx < 3 && <span style={{ fontSize:'0.9rem' }}>{MEDALS[idx]}</span>}
+                    <span style={{ fontSize:'0.86rem', fontWeight:700, color:'rgba(255,255,255,0.90)', lineHeight:1.2 }}>{e.name}</span>
+                  </div>
+                  <div style={{ fontSize:'0.62rem', color:'rgba(255,255,255,0.32)', marginTop:3, fontFamily:'monospace' }}>{e.code}</div>
+                </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+                {[
+                  { label:'In Hand', value:inHand.length, c:'rgba(251,191,36,0.90)' },
+                  { label:'Closed', value:closed.length, c:'rgba(52,211,153,0.90)' },
+                  { label:'Total', value:total, c:'rgba(148,163,184,0.80)' },
+                ].map(({label,value,c}) => (
+                  <div key={label} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:8, padding:'8px 0', textAlign:'center' }}>
+                    <div style={{ fontSize:'1.0rem', fontWeight:800, color:c, lineHeight:1 }}>{value}</div>
+                    <div style={{ fontSize:'0.52rem', color:'rgba(255,255,255,0.28)', textTransform:'uppercase', letterSpacing:'0.10em', marginTop:3 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:'0.64rem', color:'rgba(255,255,255,0.28)' }}>Avg. TAT: <span style={{ color:'rgba(255,255,255,0.60)', fontFamily:'monospace' }}>{fmtDur(avgMs)}</span></span>
+                <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:statusC, boxShadow:`0 0 5px ${statusC}`, flexShrink:0 }}/>
+                  <span style={{ fontSize:'0.62rem', fontWeight:700, color:statusC }}>
+                    {isAvail ? 'Available' : `${inHand.length} In Hand`}
+                  </span>
+                </div>
+              </div>
+              {isSelected && (
+                <div style={{ marginTop:14, paddingTop:12, borderTop:'1px solid rgba(20,184,166,0.18)' }}>
+                  {inHand.length > 0 ? inHand.slice(0,5).map(r => (
+                    <div key={r.id} style={{ display:'flex', justifyContent:'space-between', fontSize:'0.68rem', color:'rgba(255,255,255,0.55)', padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontFamily:'monospace', color:'rgba(20,184,166,0.75)', marginRight:8 }}>{r.id}</span>
+                      <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.proj||r.client||'—'}</span>
+                    </div>
+                  )) : <div style={{ fontSize:'0.70rem', color:'rgba(52,211,153,0.70)', fontStyle:'italic' }}>No active requests — available.</div>}
+                  {inHand.length > 5 && <div style={{ fontSize:'0.62rem', color:'rgba(255,255,255,0.28)', marginTop:4 }}>+{inHand.length-5} more</div>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── ESTIMATOR HUB ─────────────────────────────────────────────────────────────
+// Stable tile — module scope, each tile gets its own colour shine
+const HubTile = ({ tile, hov, setHov }) => {
+  const F = "'Inter',sans-serif";
+  const isHov = hov === tile.id;
+  const isLarge = tile.gridRow.includes('span');
+  const isWide  = tile.gridColumn.includes('span');
+  return (
+    <div
+      onClick={tile.onClick}
+      onMouseEnter={() => setHov(tile.id)}
+      onMouseLeave={() => setHov(null)}
+      style={{
+        gridColumn: tile.gridColumn, gridRow: tile.gridRow,
+        position: 'relative', overflow: 'hidden', borderRadius: 18,
+        border: `1px solid ${isHov ? tile.shine.border1 : tile.shine.border0}`,
+        background: isHov ? tile.shine.bg1 : tile.shine.bg0,
+        backdropFilter: 'blur(36px) saturate(1.3) brightness(1.08)',
+        WebkitBackdropFilter: 'blur(36px) saturate(1.3) brightness(1.08)',
+        boxShadow: isHov
+          ? `0 20px 56px rgba(0,0,0,0.42), inset 0 1.5px 0 ${tile.shine.rim1}, inset 0 -1px 0 rgba(0,0,0,0.10), 0 0 36px ${tile.shine.glow}`
+          : `inset 0 1.5px 0 ${tile.shine.rim0}, inset 0 -1px 0 rgba(0,0,0,0.07), 0 4px 18px rgba(0,0,0,0.30)`,
+        cursor: 'pointer',
+        transition: 'all 0.26s cubic-bezier(0.34,1.08,0.64,1)',
+        transform: isHov ? 'translateY(-5px) scale(1.016)' : 'none',
+        display: 'flex', flexDirection: 'column',
+        justifyContent: (isLarge || isWide) ? 'flex-end' : 'space-between',
+        padding: isLarge ? '28px 28px 22px' : isWide ? '20px 24px 18px' : '18px 20px 16px',
+        fontFamily: F,
+      }}
+    >
+      {/* Per-tile colour shine blob */}
+      <div style={{ position:'absolute', top:-50, left:-50, width:220, height:220, background:`radial-gradient(circle,${tile.shine.glow} 0%,transparent 62%)`, pointerEvents:'none', opacity: isHov ? 0.75 : 0.28, transition:'opacity 0.26s' }}/>
+      {/* Frosted top-edge streak tinted with tile colour */}
+      <div style={{ position:'absolute', top:0, left:'8%', right:'8%', height:1, background:`linear-gradient(90deg,transparent,${tile.shine.streak} 35%,${tile.shine.streak} 65%,transparent)`, pointerEvents:'none' }}/>
+      {/* Corner gloss */}
+      <div style={{ position:'absolute', top:0, right:0, width:110, height:110, background:`linear-gradient(225deg,${tile.shine.corner} 0%,transparent 52%)`, borderRadius:'0 18px 0 0', pointerEvents:'none' }}/>
+      {/* Tag badge */}
+      <div style={{ position:'absolute', top: isLarge?17:11, right: isLarge?17:11, padding:'2px 8px', borderRadius:20, background:tile.shine.tagBg, border:`1px solid ${tile.shine.tagBd}`, fontSize:'0.49rem', fontWeight:700, letterSpacing:'0.12em', color:tile.shine.accent, textTransform:'uppercase', pointerEvents:'none' }}>{tile.tag}</div>
+      {/* Icon box */}
+      <div style={{ display:'flex', alignItems: isWide?'center':'flex-start', zIndex:1, flexDirection: isWide?'row':'column', gap: isWide?14:0 }}>
+        <div style={{ width: isLarge?50:38, height: isLarge?50:38, borderRadius:10, background:tile.shine.iconBg, border:`1px solid ${tile.shine.iconBd}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          {tile.icon}
+        </div>
+        {isWide && (
+          <div style={{ zIndex:1 }}>
+            <div style={{ fontSize:'1.05rem', fontWeight:800, color:'rgba(255,255,255,0.90)', lineHeight:1.18, letterSpacing:'-0.01em', marginBottom:3 }}>{tile.label}</div>
+            <div style={{ fontSize:'0.65rem', color:'rgba(255,255,255,0.40)', lineHeight:1.5 }}>{tile.sub}</div>
+          </div>
+        )}
+      </div>
+      {/* Label + subtitle (non-wide tiles) */}
+      {!isWide && (
+        <div style={{ zIndex:1, marginTop: isLarge ? 'auto' : 10 }}>
+          <div style={{ fontSize: isLarge?'1.38rem':'0.90rem', fontWeight:800, color:'rgba(255,255,255,0.90)', lineHeight:1.18, letterSpacing:'-0.01em', marginBottom: isLarge?6:4 }}>{tile.label}</div>
+          <div style={{ fontSize: isLarge?'0.71rem':'0.63rem', color:'rgba(255,255,255,0.38)', lineHeight:1.5 }}>{tile.sub}</div>
+        </div>
+      )}
+      {/* Footer arrow */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', marginTop: isLarge?13:9, paddingTop: isLarge?10:8, borderTop:`1px solid ${tile.shine.divider}`, zIndex:1 }}>
+        <div style={{ width:22, height:22, borderRadius:7, background:tile.shine.iconBg, border:`1px solid ${tile.shine.iconBd}`, display:'flex', alignItems:'center', justifyContent:'center', transition:'transform 0.16s', transform: isHov?'translateX(3px)':'none' }}>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={tile.shine.accent} strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper — builds a shine palette from a single hue (rgb string like "80,160,255")
+const hubShine = (r,g,b) => ({
+  bg0:    `rgba(${r},${g},${b},0.06)`,
+  bg1:    `rgba(${r},${g},${b},0.14)`,
+  border0:`rgba(${r},${g},${b},0.22)`,
+  border1:`rgba(${r},${g},${b},0.50)`,
+  rim0:   `rgba(${r},${g},${b},0.28)`,
+  rim1:   `rgba(${r},${g},${b},0.50)`,
+  glow:   `rgba(${r},${g},${b},0.35)`,
+  streak: `rgba(${r},${g},${b},0.55)`,
+  corner: `rgba(${r},${g},${b},0.09)`,
+  accent: `rgba(${r},${g},${b},0.95)`,
+  tagBg:  `rgba(${r},${g},${b},0.10)`,
+  tagBd:  `rgba(${r},${g},${b},0.28)`,
+  iconBg: `rgba(${r},${g},${b},0.10)`,
+  iconBd: `rgba(${r},${g},${b},0.26)`,
+  divider:`rgba(${r},${g},${b},0.14)`,
+});
+
+// Icons — coloured to match each tile's shine
+const HubIconDash = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><rect x="4" y="4" width="18" height="18" rx="3" fill="rgba(80,160,255,0.18)" stroke="rgba(80,160,255,0.80)" strokeWidth="1.6"/><rect x="26" y="4" width="18" height="8" rx="3" fill="rgba(80,160,255,0.10)" stroke="rgba(80,160,255,0.55)" strokeWidth="1.6"/><rect x="26" y="16" width="18" height="6" rx="3" fill="rgba(80,160,255,0.07)" stroke="rgba(80,160,255,0.38)" strokeWidth="1.6"/><rect x="4" y="26" width="40" height="18" rx="3" fill="rgba(80,160,255,0.12)" stroke="rgba(80,160,255,0.62)" strokeWidth="1.6"/><line x1="10" y1="34" x2="38" y2="34" stroke="rgba(160,210,255,0.30)" strokeWidth="1"/><line x1="10" y1="39" x2="28" y2="39" stroke="rgba(160,210,255,0.18)" strokeWidth="1"/></svg>);
+const HubIconNew  = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.42)" strokeWidth="1.6" strokeDasharray="5 3"/><line x1="24" y1="13" x2="24" y2="35" stroke="rgba(196,150,255,0.90)" strokeWidth="2.8" strokeLinecap="round"/><line x1="13" y1="24" x2="35" y2="24" stroke="rgba(196,150,255,0.90)" strokeWidth="2.8" strokeLinecap="round"/></svg>);
+const HubIconOpen = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><rect x="5" y="10" width="38" height="28" rx="4" fill="rgba(52,211,153,0.08)" stroke="rgba(52,211,153,0.48)" strokeWidth="1.6"/><line x1="12" y1="19" x2="36" y2="19" stroke="rgba(110,230,180,0.70)" strokeWidth="1.7" strokeLinecap="round"/><line x1="12" y1="25" x2="30" y2="25" stroke="rgba(110,230,180,0.48)" strokeWidth="1.7" strokeLinecap="round"/><line x1="12" y1="31" x2="24" y2="31" stroke="rgba(110,230,180,0.28)" strokeWidth="1.7" strokeLinecap="round"/><circle cx="37" cy="11" r="5" fill="rgba(255,100,80,0.72)"/></svg>);
+const HubIconOv   = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="18" fill="rgba(251,191,36,0.07)" stroke="rgba(251,191,36,0.38)" strokeWidth="1.6"/><path d="M12 28 L18 20 L24 24 L32 15 L38 19" stroke="rgba(255,220,90,0.88)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="18" cy="20" r="2.2" fill="rgba(255,220,90,0.85)"/><circle cx="24" cy="24" r="2.2" fill="rgba(255,220,90,0.85)"/><circle cx="32" cy="15" r="2.2" fill="rgba(255,220,90,0.85)"/></svg>);
+const HubIconKPI  = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><rect x="7" y="30" width="7" height="11" rx="2" fill="rgba(249,115,22,0.55)"/><rect x="18" y="22" width="7" height="19" rx="2" fill="rgba(249,115,22,0.72)"/><rect x="29" y="12" width="7" height="29" rx="2" fill="rgba(249,115,22,0.92)"/><line x1="4" y1="42" x2="44" y2="42" stroke="rgba(255,160,80,0.30)" strokeWidth="1.2" strokeLinecap="round"/></svg>);
+const HubIconRev  = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><path d="M10 24 A14 14 0 1 1 24 38" stroke="rgba(236,72,153,0.78)" strokeWidth="2.2" fill="none" strokeLinecap="round"/><polyline points="8,31 10,24 17,26" stroke="rgba(236,72,153,0.90)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><line x1="19" y1="23" x2="35" y2="23" stroke="rgba(255,130,190,0.48)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 3"/><line x1="19" y1="29" x2="29" y2="29" stroke="rgba(255,130,190,0.30)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 3"/></svg>);
+const HubIconTeam = (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><circle cx="16" cy="18" r="7" fill="rgba(20,184,166,0.12)" stroke="rgba(20,184,166,0.60)" strokeWidth="1.6"/><circle cx="32" cy="18" r="7" fill="rgba(20,184,166,0.09)" stroke="rgba(20,184,166,0.45)" strokeWidth="1.6"/><path d="M4 38 Q4 28 16 28 Q24 28 24 28 Q24 28 32 28 Q44 28 44 38" stroke="rgba(94,234,212,0.75)" strokeWidth="1.7" fill="none" strokeLinecap="round"/></svg>);
+const HubIconScore= (<svg width={30} height={30} viewBox="0 0 48 48" fill="none"><path d="M24 4 L29 17 H43 L32 26 L36 40 L24 32 L12 40 L16 26 L5 17 H19 Z" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.75)" strokeWidth="1.6" strokeLinejoin="round"/><path d="M24 11 L27.5 20 H37 L29 26 L32 36 L24 30.5 L16 36 L19 26 L11 20 H20.5 Z" fill="rgba(234,179,8,0.28)"/></svg>);
+
+const HUB_TILES = (onNew, onDashboard, onOverview, onOpenReqs, onAnalyse, onRevised, onTeam, onScore) => [
+  { id:'dash',  label:'Estimator Dashboard', sub:'Live queue · assignments · TAT',    gridColumn:'1',          gridRow:'1 / span 2', icon:HubIconDash,  onClick:onDashboard, tag:'LIVE',    shine:hubShine('80','160','255')  },
+  { id:'new',   label:'New Request',          sub:'Submit a quotation request',        gridColumn:'2',          gridRow:'1',          icon:HubIconNew,   onClick:onNew,       tag:'CREATE',  shine:hubShine('168','85','247')  },
+  { id:'open',  label:'Open Requests',        sub:'Pending · unassigned queue',        gridColumn:'3',          gridRow:'1',          icon:HubIconOpen,  onClick:onOpenReqs,  tag:'QUEUE',   shine:hubShine('52','211','153')  },
+  { id:'ov',    label:'Request Overview',     sub:'Browse all active requests',        gridColumn:'2 / span 2', gridRow:'2',          icon:HubIconOv,    onClick:onOverview,  tag:'ALL',     shine:hubShine('251','191','36')  },
+  { id:'kpi',   label:'Analytics & KPI',      sub:'Performance · margins · trends',    gridColumn:'1',          gridRow:'3',          icon:HubIconKPI,   onClick:onAnalyse,   tag:'METRICS', shine:hubShine('249','115','22')  },
+  { id:'team',  label:'Estimation Team',      sub:'Team members · workload · status',  gridColumn:'2',          gridRow:'3',          icon:HubIconTeam,  onClick:onTeam,      tag:'TEAM',    shine:hubShine('20','184','166')  },
+  { id:'rev',   label:'Revise Quotation',       sub:'Revision · final price submission', gridColumn:'3',          gridRow:'3',          icon:HubIconRev,   onClick:onRevised,   tag:'REVISE',  shine:hubShine('236','72','153')  },
+  { id:'score', label:'My Score Card',        sub:'My KPIs · win rate · efficiency',   gridColumn:'1 / span 3', gridRow:'4',          icon:HubIconScore, onClick:onScore,     tag:'MY KPIs', shine:hubShine('234','179','8')   },
+];
+
+const EstimatorHub = ({ onNew, onDashboard, onOverview, onOpenReqs, onAnalyse, onRevised, q, setQ, onGo }) => {
+  const F = "'Inter',sans-serif";
+  const [hov, setHov] = useState(null);
+  // Team and Score currently route to analyse/overview as placeholders
+  const tiles = HUB_TILES(onNew, onDashboard, onOverview, onOpenReqs, onAnalyse, onRevised, onDashboard, onAnalyse);
+
+  return (
+    <div style={{ position:'fixed', inset:0, fontFamily:F, overflow:'hidden', zIndex:600 }}>
+      {/* Dark neutral background */}
+      <div style={{ position:'absolute', inset:0, background:'linear-gradient(160deg,#0c0c0e 0%,#101013 50%,#090909 100%)' }}/>
+      {/* Faint ambient colour pools matching tile palette */}
+      <div style={{ position:'absolute', top:'5%',   left:'10%',  width:480, height:480, background:'radial-gradient(circle,rgba(80,160,255,0.04) 0%,transparent 65%)', pointerEvents:'none' }}/>
+      <div style={{ position:'absolute', bottom:'12%',right:'8%', width:380, height:380, background:'radial-gradient(circle,rgba(234,179,8,0.04) 0%,transparent 65%)', pointerEvents:'none' }}/>
+      <div style={{ position:'absolute', top:'55%',  left:'38%',  width:320, height:320, background:'radial-gradient(circle,rgba(236,72,153,0.03) 0%,transparent 65%)', pointerEvents:'none' }}/>
+
+      {/* Header */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:2, padding:'16px 34px 0', display:'flex', alignItems:'center', gap:14 }}>
+        <div style={{ width:3, height:32, borderRadius:2, background:'linear-gradient(180deg,rgba(255,255,255,0.55) 0%,transparent 100%)', flexShrink:0 }}/>
+        <div>
+          <div style={{ fontSize:'0.37rem', letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(255,255,255,0.26)', fontWeight:700, marginBottom:3 }}>NAFFCO · AI ESTIMATION SYSTEM</div>
+          <div style={{ fontSize:'1.50rem', fontWeight:900, letterSpacing:'-0.02em', lineHeight:1, color:'rgba(255,255,255,0.88)' }}>AI APEX HUB</div>
+        </div>
+        <div style={{ marginLeft:'auto', fontSize:'0.52rem', color:'rgba(255,255,255,0.13)', letterSpacing:'0.10em', textTransform:'uppercase' }}>Estimator Portal</div>
+      </div>
+
+      {/* 8-tile mosaic — 3 cols, 4 rows */}
+      <div style={{
+        position:'absolute', top:72, left:0, right:0, bottom:58,
+        display:'grid',
+        gridTemplateColumns:'minmax(0,1.7fr) minmax(0,1fr) minmax(0,1fr)',
+        gridTemplateRows:'1fr 0.58fr 0.58fr 0.40fr',
+        gap:9, padding:'8px 32px 6px', boxSizing:'border-box', zIndex:2,
+      }}>
+        {tiles.map(tile => <HubTile key={tile.id} tile={tile} hov={hov} setHov={setHov}/>)}
+      </div>
+
+      {/* Search bar */}
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:2, padding:'0 34px 12px', display:'flex', gap:10, alignItems:'center' }}>
+        <div style={{ flex:1, display:'flex', alignItems:'center', gap:9, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.10)', borderRadius:50, padding:'8px 18px', backdropFilter:'blur(20px)' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onGo()}
+            placeholder="Search request by name, project or number…"
+            style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'rgba(255,255,255,0.65)', fontFamily:F, fontSize:'0.79rem' }}/>
+        </div>
+        <button onClick={onGo}
+          style={{ padding:'8px 20px', borderRadius:50, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.16)', color:'rgba(255,255,255,0.82)', fontFamily:F, fontSize:'0.77rem', fontWeight:700, cursor:'pointer', outline:'none', backdropFilter:'blur(16px)', transition:'background .15s', whiteSpace:'nowrap' }}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.14)'}
+          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}>Search</button>
+      </div>
+    </div>
+  );
+};
+
 // ─── VIEWS ──────────────────────────────────────────────────────────────────────────────
-const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo,onDirectTool,userRole}) => {
+const Landing = ({onNew,onRevised,onFinalPrice,onDashboard,onOverview,onOpenReqs,onAnalyse,q,setQ,onGo,onDirectTool,userRole}) => {
   const isSales = userRole === 'sales';
+  if (userRole === 'estimator') {
+    return <EstimatorHub onNew={onNew} onDashboard={onDashboard} onOverview={onOverview} onOpenReqs={onOpenReqs} onAnalyse={onAnalyse} onRevised={onRevised} q={q} setQ={setQ} onGo={onGo}/>;
+  }
   return (
     <div className="land" style={{position:'relative'}}>
       <TopSB v={q} set={setQ} go={onGo}/>
@@ -4611,7 +4960,7 @@ const Landing = ({onNew,onRevised,onFinalPrice,q,setQ,onGo,onDirectTool,userRole
           <div className="land-btns">
             {[
               {label:'Request a New Quote', onClick:onNew},
-              {label:'Revised Request',          onClick:onRevised},
+              {label:'Revise Quotation',          onClick:onRevised},
               {label:'Final Price Request',       onClick:onFinalPrice},
             ].map(({label,onClick})=>(
               <button key={label} onClick={onClick}
@@ -5161,7 +5510,7 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
       <div style={{marginBottom:32}}>
         <p style={{fontSize:'0.6rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(0,200,255,0.55)',marginBottom:8,fontWeight:600}}>NAFFCO · AI SYSTEM</p>
         <h2 style={{fontSize:'clamp(1.6rem,2.4vw,2.2rem)',fontWeight:800,background:'linear-gradient(135deg,#fff 0%,rgba(200,220,255,0.85) 50%,#fff 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',marginBottom:8}}>
-          Revised Request
+          Revise Quotation
         </h2>
         <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.45)',lineHeight:1.6,maxWidth:480}}>
           {isSales
@@ -5238,7 +5587,7 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
         {/* REVISED badge */}
         <div style={{display:'inline-flex',alignItems:'center',gap:7,padding:'5px 12px',borderRadius:50,background:'rgba(0,150,255,0.12)',border:'1px solid rgba(0,180,255,0.30)',marginBottom:14,alignSelf:'flex-start'}}>
           <span style={{width:6,height:6,borderRadius:'50%',background:'rgba(0,200,255,0.9)',boxShadow:'0 0 6px rgba(0,200,255,0.7)',flexShrink:0}}/>
-          <span style={{fontSize:'0.62rem',fontWeight:700,letterSpacing:'0.12em',color:'rgba(0,200,255,0.90)',textTransform:'uppercase'}}>Revised Request</span>
+          <span style={{fontSize:'0.62rem',fontWeight:700,letterSpacing:'0.12em',color:'rgba(0,200,255,0.90)',textTransform:'uppercase'}}>Revise Quotation</span>
         </div>
 
         <h2 style={{fontSize:'clamp(1.2rem,2vw,1.7rem)',fontWeight:800,color:'rgba(255,255,255,0.88)',marginBottom:4,lineHeight:1.3}}>Original<br/>Request Details</h2>
@@ -5276,7 +5625,7 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
       {/* ── RIGHT — revision input panel ── */}
       <div className="form-right">
         <div className="form-right-hdr">
-          <span className="fr-label"><span className="brand-text-glow">NAFFCO APEX · Revised Request</span></span>
+          <span className="fr-label"><span className="brand-text-glow">NAFFCO APEX · Revise Quotation</span></span>
           <h3>Submit Revision</h3>
           <p>Add updated documents and describe your revision below. The estimator will receive the original reference along with your new submission.</p>
         </div>
@@ -5373,7 +5722,7 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
               remarks: revRemarks,
             });
           }}>
-          <span className="btn-text-glow">Submit Revised Request &nbsp;↗</span>
+          <span className="btn-text-glow">Submit Revise Quotation &nbsp;↗</span>
         </button>
       </div>
     </div>
@@ -6928,6 +7277,8 @@ const Dashboard = ({
   };
   const [dirEditMode, setDirEditMode] = useState(false);    // Cost-Artist editable fields
   const [dirConvoMsg, setDirConvoMsg] = useState('');       // Cost-Artist message input
+  const [reassignField, setReassignField] = useState(null); // 'estimator' | 'salesPerson' | null
+  const [reassignValue, setReassignValue] = useState('');
   const [resubmitToast, setResubmitToast] = useState(false);
   const [quotUploadState, setQuotUploadState] = useState(null);    // null | 'uploading' | 'error'
   const [toolUploadState, setToolUploadState] = useState(null);    // null | 'uploading' | 'error'
@@ -7218,23 +7569,59 @@ const Dashboard = ({
               <SEP/>
 
               {/* PERSON: Estimator or Sales */}
-              <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:8}}>
-                {req.estimator && (viewMode==='estimator' || viewMode==='director') && (
-                  <>
-                    <EstAvatar name={req.estimator} size={30}/>
+              <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                {(req.estimator || viewMode==='director') && (viewMode==='estimator' || viewMode==='director') && (
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    {req.estimator && <EstAvatar name={req.estimator} size={30}/>}
                     <div>
                       <LBL color='rgba(99,200,255,0.50)'>Estimator</LBL>
-                      <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.estimator}</div>
+                      {viewMode==='director' && reassignField==='estimator' ? (
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <select value={reassignValue} onChange={e=>setReassignValue(e.target.value)}
+                            style={{background:'rgba(0,10,30,0.80)',border:'1px solid rgba(99,200,255,0.45)',borderRadius:6,color:'rgba(140,220,255,0.90)',fontFamily:"'Inter',sans-serif",fontSize:'0.74rem',padding:'4px 8px',outline:'none',cursor:'pointer'}}>
+                            <option value="">— select —</option>
+                            {EST_ROSTER.map(e=><option key={e.code} value={e.name}>{e.name}</option>)}
+                          </select>
+                          <button onClick={()=>{if(!reassignValue)return; const nowMs=Date.now(); onUpdate(req.id,{estimator:reassignValue,taggedAt:req.taggedAt||nowMs,timeline:[...(req.timeline||[]),{event:'reassigned',ts:new Date(nowMs).toISOString(),tsMs:nowMs,label:`Reassigned to ${reassignValue}`,by:'Cost-Artist'}],_immediate:true}); setReassignField(null); setReassignValue('');}}
+                            style={{padding:'3px 8px',borderRadius:6,background:'rgba(99,200,255,0.14)',border:'1px solid rgba(99,200,255,0.40)',color:'rgba(140,220,255,0.90)',fontSize:'0.70rem',fontWeight:700,cursor:'pointer',outline:'none'}}>Save</button>
+                          <button onClick={()=>{setReassignField(null);setReassignValue('');}}
+                            style={{padding:'3px 7px',borderRadius:6,background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.35)',fontSize:'0.70rem',cursor:'pointer',outline:'none'}}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.estimator||'Unassigned'}</div>
+                          {viewMode==='director' && <button onClick={()=>{setReassignField('estimator');setReassignValue(req.estimator||'');}}
+                            style={{fontSize:'0.58rem',padding:'2px 7px',borderRadius:5,background:'rgba(99,200,255,0.08)',border:'1px solid rgba(99,200,255,0.22)',color:'rgba(99,200,255,0.70)',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>Reassign</button>}
+                        </div>
+                      )}
                     </div>
-                  </>
+                  </div>
                 )}
                 {req.salesPerson && (
                   <>
-                    {req.estimator && (viewMode==='estimator' || viewMode==='director') && <div style={{width:1,height:28,background:'rgba(255,255,255,0.08)',margin:'0 10px'}}/>}
+                    {(req.estimator||viewMode==='director') && (viewMode==='estimator' || viewMode==='director') && <div style={{width:1,height:28,background:'rgba(255,255,255,0.08)',margin:'0 10px'}}/>}
                     <EstAvatar name={req.salesPerson} size={30}/>
                     <div>
                       <LBL color='rgba(168,85,247,0.55)'>Sales</LBL>
-                      <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.salesPerson}</div>
+                      {viewMode==='director' && reassignField==='salesPerson' ? (
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <select value={reassignValue} onChange={e=>setReassignValue(e.target.value)}
+                            style={{background:'rgba(20,10,40,0.80)',border:'1px solid rgba(168,85,247,0.45)',borderRadius:6,color:'rgba(200,160,255,0.90)',fontFamily:"'Inter',sans-serif",fontSize:'0.74rem',padding:'4px 8px',outline:'none',cursor:'pointer'}}>
+                            <option value="">— select —</option>
+                            {Object.entries(STAFF_NAMES).filter(([k])=>ROLE_CODES[k]==='sales').map(([code,name])=><option key={code} value={name}>{name}</option>)}
+                          </select>
+                          <button onClick={()=>{if(!reassignValue)return; const nowMs=Date.now(); onUpdate(req.id,{salesPerson:reassignValue,timeline:[...(req.timeline||[]),{event:'reassigned-sales',ts:new Date(nowMs).toISOString(),tsMs:nowMs,label:`Sales reassigned to ${reassignValue}`,by:'Cost-Artist'}],_immediate:true}); setReassignField(null); setReassignValue('');}}
+                            style={{padding:'3px 8px',borderRadius:6,background:'rgba(168,85,247,0.14)',border:'1px solid rgba(168,85,247,0.40)',color:'rgba(200,160,255,0.90)',fontSize:'0.70rem',fontWeight:700,cursor:'pointer',outline:'none'}}>Save</button>
+                          <button onClick={()=>{setReassignField(null);setReassignValue('');}}
+                            style={{padding:'3px 7px',borderRadius:6,background:'transparent',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.35)',fontSize:'0.70rem',cursor:'pointer',outline:'none'}}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.salesPerson}</div>
+                          {viewMode==='director' && <button onClick={()=>{setReassignField('salesPerson');setReassignValue(req.salesPerson||'');}}
+                            style={{fontSize:'0.58rem',padding:'2px 7px',borderRadius:5,background:'rgba(168,85,247,0.08)',border:'1px solid rgba(168,85,247,0.22)',color:'rgba(168,85,247,0.70)',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>Reassign</button>}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -7579,7 +7966,7 @@ const Dashboard = ({
                       <div style={{display:'flex',alignItems:'center',gap:7}}>
                         <span style={{width:6,height:6,borderRadius:'50%',background:dotC,boxShadow:`0 0 6px ${dotSh}`,flexShrink:0}}/>
                         <span style={{fontSize:'0.58rem',fontWeight:700,letterSpacing:'0.13em',textTransform:'uppercase',color:lblC}}>
-                          {isFinal?'Final Price Request':'Revised Request'}
+                          {isFinal?'Final Price Request':'Revise Quotation'}
                         </span>
                         {req.originalId && <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',marginLeft:2}}>— original ref: <span style={{fontFamily:'monospace',color:'rgba(220,165,0,0.75)'}}>{req.originalId}</span></span>}
                       </div>
@@ -8666,6 +9053,14 @@ const Dashboard = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* ── ESTIMATOR COMMENTS — read-only for Cost-Artist ── */}
+                  {req.estimatorComments && (
+                    <div style={{background:'rgba(255,200,80,0.05)',border:'1px solid rgba(255,200,80,0.18)',borderRadius:10,padding:'12px 14px',flexShrink:0}}>
+                      <div style={{fontSize:'0.46rem',color:'rgba(255,200,80,0.60)',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,marginBottom:7}}>Estimator Comments</div>
+                      <p style={{fontSize:'0.80rem',color:'rgba(255,230,140,0.85)',lineHeight:1.6,margin:0}}>{req.estimatorComments}</p>
+                    </div>
+                  )}
 
                   {/* ── AI SUGGESTIONS — P (collapsible) ── */}
                   <div style={{background:'rgba(130,40,255,0.06)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:12,flexShrink:0,...(dirAiOpen?{flex:1,minHeight:120}:{}),display:'flex',flexDirection:'column',overflow:'hidden'}}>
@@ -10361,7 +10756,12 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const location = useLocation();
 
   const [intro,setIntro] = useState(true);
-  const [userRole, setUserRole] = useState(initialRole || null);
+  const [userRole, setUserRole] = useState(() => {
+    if (initialRole) return initialRole;
+    if (location.pathname.startsWith('/estimation')) return 'estimator';
+    if (location.pathname.startsWith('/sales')) return 'sales';
+    return null;
+  });
   const [userCode, setUserCode] = useState(initialCode || '');
   const [aiOpen,      setAiOpen]      = useState(false);
   const [toolOpen,    setToolOpen]    = useState(false);
@@ -10380,6 +10780,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   else if (currentPath === 'relax') view = 'relax';
   else if (currentPath === 'open-requests') view = 'openRequests';
   else if (currentPath === 'est-overview') view = 'estOverview';
+  else if (currentPath === 'my-team') view = 'myTeam';
   else if (currentPath === 'analyse') view = 'analyse';
   else if (currentPath === 'sales-dashboard') view = 'salesDashboard';
   else if (currentPath === 'track') view = 'trackQuotation';
@@ -10395,6 +10796,15 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
      view = (userRole === 'estimator' || userRole === 'director') ? 'dashboard' : 'landing';
   }
 
+  // TSE access-code gate state
+  const [tseGate, setTseGate] = useState(null); // null | pending view name
+
+  // Protected nav — requires TSE code for certain views (director bypasses)
+  const navProtected = (targetView) => {
+    if (userRole === 'director') { setView(targetView); return; }
+    setTseGate(targetView);
+  };
+
   // 2. Intercept setView and change the URL instead!
   const setView = (newView) => {
     const viewMap = {
@@ -10408,6 +10818,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
       relax: 'relax',
       openRequests: 'open-requests',
       estOverview: 'est-overview',
+      myTeam: 'my-team',
       analyse: 'analyse',
       salesDashboard: 'sales-dashboard',
       trackQuotation: 'track',
@@ -10434,7 +10845,9 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const handleRoleLogin = (role, code) => {
     setUserRole(role);
     setUserCode(code);
-    if (role === 'estimator' || role === 'director') {
+    if (role === 'estimator') {
+      setView('dashboard');
+    } else if (role === 'director') {
       setView('dashboard');
     }
     // Sales: stay on the current view (e.g. /sales/track) — don't redirect
@@ -10931,7 +11344,7 @@ const handleSubmit = async (formData) => {
       </div>
       {/* RoleLogin only when no role AND not in a guest-accessible view */}
       {!userRole && !['landing','form','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','relax','loading','results','dashboard','openRequests','estOverview'].includes(view) && <RoleLogin onLogin={handleRoleLogin}/>}
-      <NavBar view={view} setView={setView} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}
+      <NavBar view={view} setView={setView} navProtected={navProtected} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}
         onDirectorAccess={(code='STAR')=>{ setUserRole('director'); setUserCode(code); setView('dashboard'); }}/>
 
       {/* ── Floating AI Bot button — landing only, estimator & director ── */}
@@ -10977,7 +11390,7 @@ const handleSubmit = async (formData) => {
       {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
-      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
+      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} onDashboard={()=>setView('dashboard')} onOverview={()=>setView('estOverview')} onOpenReqs={()=>setView('openRequests')} onAnalyse={()=>setView('analyse')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')} docUploadProgress={docUploadProgress}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={visibleRequests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
@@ -10999,6 +11412,8 @@ const handleSubmit = async (formData) => {
           pendingSubmit={pendingSubmit}
       />}
       {view==='estOverview'  && <EstRequestOverview requests={visibleRequests}/>}
+      {view==='myTeam'       && <EstimationTeamView requests={visibleRequests}/>}
+      {tseGate && <TseAccessModal pendingView={tseGate} onSuccess={()=>{ const v=tseGate; setTseGate(null); setView(v); }} onCancel={()=>setTseGate(null)}/>}
       {view==='analyse'      && <Analyse requests={visibleRequests}/>}
       {view==='salesDashboard' && <SalesDashboard
           requests={visibleRequests}
