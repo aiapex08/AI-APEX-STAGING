@@ -2974,6 +2974,9 @@ const EST_ROSTER = [
   {code:'EX392',name:'Jaffar Shaik'},
 ];
 
+// Photo URLs keyed by estimator code — add entries here when photos are available
+const AVATAR_URLS = {};
+
 const FULL_STAFF = [
   {code:'SX985',name:'Ammar Khaldoun',    role:'sales'},
   {code:'SX417',name:'Ashik Bin Shams',   role:'sales'},
@@ -3497,6 +3500,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
   const F = "'Inter',sans-serif";
   const [search, setSearch]     = useState('');
   const [openIdx, setOpenIdx]   = useState(null);
+  const [statFilter, setStatFilter] = useState(null); // null | 'approved' | 'inProgress' | 'rejected'
   const [chatMsg, setChatMsg]   = useState('');
   const chatEndRef              = useRef(null);
   const [seenTs, setSeenTs]       = useState(() => _getSeen());
@@ -3899,28 +3903,48 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
               style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontFamily:F,fontSize:'0.80rem'}}/>
           </div>
         </div>
-        {/* Summary chips */}
+        {/* Summary filter buttons */}
         {(()=>{
-          const all=myReqs.length,approved=myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length,pending=myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length,rejected=myReqs.filter(r=>r.directorAction==='rejected'||r.reqStatus==='out-of-scope').length;
+          const all=myReqs.length,approved=myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length,inProg=myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed'&&r.reqStatus!=='out-of-scope').length,rejected=myReqs.filter(r=>r.directorAction==='rejected'||r.reqStatus==='out-of-scope').length;
+          const chips=[['Total',all,null,'rgba(100,160,255,0.90)','rgba(80,120,255,0.14)'],['Approved',approved,'approved','rgba(0,220,130,0.95)','rgba(0,180,100,0.12)'],['In Progress',inProg,'inProgress','rgba(255,200,50,0.95)','rgba(220,160,0,0.12)'],['Rejected',rejected,'rejected','rgba(255,80,80,0.95)','rgba(200,40,40,0.12)']];
           return (
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              {[['Total',all,'rgba(100,160,255,0.80)','rgba(80,120,255,0.12)'],['Approved',approved,'rgba(0,220,130,0.90)','rgba(0,180,100,0.10)'],['In Progress',pending,'rgba(255,200,50,0.90)','rgba(220,160,0,0.10)'],['Rejected',rejected,'rgba(255,80,80,0.90)','rgba(200,40,40,0.10)']].map(([lbl,cnt,c,bg])=>(
-                <div key={lbl} style={{background:bg,border:`1px solid ${c}30`,borderRadius:7,padding:'5px 14px',display:'flex',alignItems:'center',gap:7}}>
-                  <span style={{fontSize:'0.52rem',letterSpacing:'0.12em',textTransform:'uppercase',color:c,fontWeight:700}}>{lbl}</span>
-                  <span style={{fontSize:'1.0rem',fontWeight:800,color:c,lineHeight:1}}>{cnt}</span>
-                </div>
-              ))}
+              {chips.map(([lbl,cnt,key,c,bg])=>{
+                const active=statFilter===key;
+                return (
+                  <button key={lbl} onClick={()=>setStatFilter(active?null:key)}
+                    style={{
+                      background: active ? c.replace('0.95','0.22').replace('0.90','0.22') : bg,
+                      border: active ? `1.5px solid ${c}` : `1px solid ${c.replace('0.95','0.30').replace('0.90','0.28')}`,
+                      borderRadius:8, padding:'6px 15px', display:'flex', alignItems:'center', gap:7,
+                      cursor:'pointer', outline:'none', transition:'all 0.15s',
+                      boxShadow: active ? `0 0 14px ${c.replace('0.95','0.35').replace('0.90','0.30')}` : 'none',
+                      transform: active ? 'translateY(-1px)' : 'none',
+                    }}
+                    onMouseEnter={e=>{ if(!active){ e.currentTarget.style.background=c.replace('0.95','0.14').replace('0.90','0.12'); e.currentTarget.style.borderColor=c; } }}
+                    onMouseLeave={e=>{ if(!active){ e.currentTarget.style.background=bg; e.currentTarget.style.borderColor=c.replace('0.95','0.30').replace('0.90','0.28'); } }}>
+                    <span style={{fontSize:'0.52rem',letterSpacing:'0.12em',textTransform:'uppercase',color:c,fontWeight:700}}>{lbl}</span>
+                    <span style={{fontSize:'1.0rem',fontWeight:800,color:c,lineHeight:1}}>{cnt}</span>
+                  </button>
+                );
+              })}
             </div>
           );
         })()}
       </div>
-      {/* Cards */}
-      {myReqs.length === 0 ? (
+      {/* Cards — filtered by active stat button */}
+      {(()=>{
+        const visReqs = statFilter==='approved' ? myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved')
+          : statFilter==='inProgress' ? myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed'&&r.reqStatus!=='out-of-scope')
+          : statFilter==='rejected'   ? myReqs.filter(r=>r.directorAction==='rejected'||r.reqStatus==='out-of-scope')
+          : myReqs;
+        return visReqs.length === 0 ? (
         <div style={{textAlign:'center',padding:'48px 0',color:'rgba(255,255,255,0.22)'}}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginBottom:12,opacity:0.3}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <p style={{fontSize:'0.88rem',margin:0}}>No quotations found.</p>
         </div>
-      ) : myReqs.map((r,i) => {
+      ) : visReqs.map((r) => {
+        const i = myReqs.indexOf(r);
         const stageIdx=getStageIdx(r),sc=statusColor(r),sl=statusLabel(r);
         const unread = _unreadCount(r.conversation, r.id, 'estimator');
         return (
@@ -4163,7 +4187,259 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
             )}
           </div>
         );
+      })
+      })()}
+    </div>
+  );
+};
+
+// ─── QUOTED REQUESTS ─────────────────────────────────────────────────────────
+const QuotedRequests = ({ requests, spName, showAll, onUpdate }) => {
+  const F = "'Inter',sans-serif";
+  const [search, setSearch] = useState('');
+  const [openId, setOpenId] = useState(null);
+  const [chatMsg, setChatMsg] = useState('');
+  const chatEndRef = useRef(null);
+
+  const myReqs = (requests || []).filter(r => {
+    const approved = r.directorAction === 'approved' || r.reqStatus === 'completed';
+    if (!approved) return false;
+    if (showAll) return true;
+    return (r.salesPerson || '').toLowerCase() === (spName || '').toLowerCase() ||
+           (r.submittedBy || '').toLowerCase() === (spName || '').toLowerCase();
+  }).sort((a, b) => (b.approvedAt || b.submittedAt || 0) > (a.approvedAt || a.submittedAt || 0) ? 1 : -1);
+
+  const filtered = search.trim()
+    ? myReqs.filter(r => {
+        const lo = search.toLowerCase();
+        return [r.id, r.proj, r.client, r.salesPerson, r.estimator, r.deal, r.mainContractor, r.consultant]
+          .some(v => (v || '').toLowerCase().includes(lo));
+      })
+    : myReqs;
+
+  const SALES_COLORS = {
+    Won:         { c:'#4ade80', bg:'rgba(34,197,94,0.12)',  bd:'rgba(34,197,94,0.32)'  },
+    Lost:        { c:'#f87171', bg:'rgba(239,68,68,0.12)',  bd:'rgba(239,68,68,0.32)'  },
+    'Follow-up': { c:'#fbbf24', bg:'rgba(251,191,36,0.10)', bd:'rgba(251,191,36,0.32)' },
+    Risky:       { c:'#fb923c', bg:'rgba(249,115,22,0.10)', bd:'rgba(249,115,22,0.32)' },
+    Pending:     { c:'rgba(255,255,255,0.42)', bg:'rgba(255,255,255,0.05)', bd:'rgba(255,255,255,0.14)' },
+  };
+
+  const openReq = openId ? myReqs.find(r => r.id === openId) : null;
+
+  // ── Detail Panel ──
+  if (openReq) {
+    const r = openReq;
+    const sc = SALES_COLORS[r.salesStatus || 'Pending'] || SALES_COLORS.Pending;
+    const docs = r.estimationDocs?.length ? r.estimationDocs : r.estimationFile ? [{ name:'Quotation', url: r.estimationFile }] : [];
+    const infoRows = [
+      ['Request ID',      r.id],
+      ['Project',         r.proj],
+      ['Client',          r.client],
+      ['Main Contractor', r.mainContractor],
+      ['Consultant',      r.consultant],
+      ['Deal Type',       r.deal],
+      ['Supply',          r.supplyOnly ? 'Supply Only' : r.supplyInstall ? 'Supply & Install' : '—'],
+      ['Lead Time',       r.leadTime],
+      ['Submitted By',    r.submittedBy],
+      ['Sales Person',    r.salesPerson],
+      ['Estimator',       r.estimator],
+      ['Submitted On',    r.date],
+    ];
+    return (
+      <div style={{ position:'relative', width:'100%', height:'100%', overflowY:'auto', padding:'72px 28px 32px', fontFamily:F, color:'#e2e8f0', boxSizing:'border-box' }}>
+        <button onClick={() => setOpenId(null)}
+          style={{ background:'transparent', border:'none', color:'rgba(255,255,255,0.45)', cursor:'pointer', fontSize:'0.82rem', fontFamily:F, display:'flex', alignItems:'center', gap:6, marginBottom:22, padding:0 }}>
+          ← Quoted Requests
+        </button>
+
+        {/* Approval banner */}
+        <div style={{ background:'rgba(0,200,100,0.08)', border:'1px solid rgba(0,200,100,0.30)', borderRadius:12, padding:'14px 20px', display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
+          <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(0,200,100,0.14)', border:'1px solid rgba(0,200,100,0.40)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'1.0rem' }}>✓</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:'0.50rem', letterSpacing:'0.18em', textTransform:'uppercase', color:'rgba(0,220,120,0.55)', marginBottom:2, fontWeight:700 }}>Quotation Approved</div>
+            <div style={{ fontSize:'0.90rem', fontWeight:700, color:'rgba(0,220,130,0.92)' }}>This request has been approved by Cost Artist</div>
+          </div>
+          <div style={{ fontFamily:'monospace', fontSize:'0.82rem', color:'rgba(220,165,0,0.88)', fontWeight:700 }}>{r.id}</div>
+        </div>
+
+        {/* Sales status */}
+        <div style={{ background:sc.bg, border:`1px solid ${sc.bd}`, borderRadius:10, padding:'12px 18px', display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+          <span style={{ width:9, height:9, borderRadius:'50%', background:sc.c, boxShadow:`0 0 7px ${sc.c}`, flexShrink:0 }}/>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:'0.50rem', letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', marginBottom:2 }}>Sales Status</div>
+            <div style={{ fontSize:'0.92rem', fontWeight:700, color:sc.c }}>{r.salesStatus || 'Pending'}</div>
+          </div>
+        </div>
+
+        {/* Info grid */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, borderRadius:12, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', marginBottom:20 }}>
+          {infoRows.map(([label, val], i) => (
+            <div key={label} style={{ padding:'11px 16px', background: i%2===0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.015)' }}>
+              <div style={{ fontSize:'0.48rem', letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.28)', marginBottom:3, fontWeight:700 }}>{label}</div>
+              <div style={{ fontSize:'0.80rem', color:'rgba(255,255,255,0.80)', lineHeight:1.4 }}>{val || '—'}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Director note */}
+        {r.directorNote && (
+          <div style={{ background:'rgba(180,130,255,0.07)', border:'1px solid rgba(168,85,247,0.25)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
+            <div style={{ fontSize:'0.50rem', letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(168,85,247,0.65)', marginBottom:6, fontWeight:700 }}>Cost-Artist Note</div>
+            <p style={{ fontSize:'0.82rem', color:'rgba(220,200,255,0.85)', lineHeight:1.6, margin:0 }}>{r.directorNote}</p>
+          </div>
+        )}
+
+        {/* Estimator comments */}
+        {r.estimatorComments && (
+          <div style={{ background:'rgba(255,200,80,0.05)', border:'1px solid rgba(255,200,80,0.18)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
+            <div style={{ fontSize:'0.50rem', letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(255,200,80,0.55)', marginBottom:6, fontWeight:700 }}>Estimator Comments</div>
+            <p style={{ fontSize:'0.82rem', color:'rgba(255,230,140,0.85)', lineHeight:1.6, margin:0 }}>{r.estimatorComments}</p>
+          </div>
+        )}
+
+        {/* Quotation docs */}
+        {docs.length > 0 && (
+          <div style={{ background:'rgba(0,160,255,0.06)', border:'1px solid rgba(0,160,255,0.22)', borderRadius:10, padding:'16px 18px', marginBottom:20 }}>
+            <div style={{ fontSize:'0.50rem', letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(0,180,255,0.60)', marginBottom:12, fontWeight:700 }}>Quotation Files</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {docs.map((d, i) => (
+                <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, background:'rgba(0,160,255,0.08)', border:'1px solid rgba(0,160,255,0.20)', textDecoration:'none', color:'rgba(100,200,255,0.90)', fontSize:'0.80rem', fontWeight:600, transition:'background 0.15s' }}
+                  onMouseEnter={e=>e.currentTarget.style.background='rgba(0,160,255,0.16)'}
+                  onMouseLeave={e=>e.currentTarget.style.background='rgba(0,160,255,0.08)'}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  {d.name || `File ${i+1}`}
+                  <svg style={{ marginLeft:'auto' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Conversation ── */}
+        <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:12, padding:'16px 18px' }}>
+          <div style={{ fontSize:'0.50rem', letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(168,85,247,0.65)', marginBottom:14, fontWeight:700 }}>Conversation</div>
+
+          {/* Messages */}
+          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:14, maxHeight:280, overflowY:'auto' }}>
+            {(r.conversation||[]).length === 0 && (
+              <div style={{ fontSize:'0.74rem', color:'rgba(255,255,255,0.22)', fontStyle:'italic', textAlign:'center', padding:'16px 0' }}>No messages yet. Start the conversation below.</div>
+            )}
+            {(r.conversation||[]).map((m, mi) => {
+              const isMine = m.role === 'sales' || (m.from||'').toLowerCase() === (spName||'').toLowerCase();
+              return (
+                <div key={mi} style={{ display:'flex', flexDirection:'column', alignItems: isMine ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ maxWidth:'78%', background: isMine ? 'rgba(168,85,247,0.16)' : 'rgba(255,255,255,0.06)', border: isMine ? '1px solid rgba(168,85,247,0.28)' : '1px solid rgba(255,255,255,0.10)', borderRadius: isMine ? '12px 12px 4px 12px' : '12px 12px 12px 4px', padding:'9px 13px' }}>
+                    <div style={{ fontSize:'0.60rem', color: isMine ? 'rgba(210,170,255,0.65)' : 'rgba(255,255,255,0.35)', marginBottom:4, fontWeight:600 }}>{m.from || (isMine ? 'Sales' : 'Estimator')}</div>
+                    <div style={{ fontSize:'0.80rem', color:'rgba(255,255,255,0.85)', lineHeight:1.55 }}>{m.text}</div>
+                    <div style={{ fontSize:'0.55rem', color:'rgba(255,255,255,0.25)', marginTop:4, textAlign: isMine ? 'right' : 'left' }}>{m.ts}</div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={chatEndRef}/>
+          </div>
+
+          {/* Input */}
+          <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+            <textarea value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(r); } }}
+              placeholder="Type a message… (Enter to send)"
+              rows={2}
+              style={{ flex:1, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.14)', borderRadius:10, padding:'10px 13px', color:'rgba(255,255,255,0.85)', fontFamily:F, fontSize:'0.80rem', outline:'none', resize:'none', lineHeight:1.5 }}/>
+            <button onClick={()=>sendChat(r)}
+              disabled={!chatMsg.trim()}
+              style={{ padding:'10px 18px', borderRadius:10, background: chatMsg.trim() ? 'rgba(168,85,247,0.22)' : 'rgba(255,255,255,0.04)', border: chatMsg.trim() ? '1px solid rgba(168,85,247,0.45)' : '1px solid rgba(255,255,255,0.09)', color: chatMsg.trim() ? 'rgba(210,170,255,0.95)' : 'rgba(255,255,255,0.22)', fontFamily:F, fontSize:'0.80rem', fontWeight:700, cursor: chatMsg.trim() ? 'pointer' : 'default', outline:'none', transition:'all 0.15s', flexShrink:0, alignSelf:'flex-end' }}>
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    function sendChat(req) {
+      if (!chatMsg.trim() || !onUpdate) return;
+      const ts = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      onUpdate(req.id, { conversation:[...(req.conversation||[]),{ from: spName||'Sales', role:'sales', text:chatMsg.trim(), ts, tsMs:Date.now() }] });
+      setChatMsg('');
+      setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:'smooth'}),60);
+    }
+  }
+
+  // ── List View ──
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', overflowY:'auto', padding:'72px 28px 32px', fontFamily:F, color:'#e2e8f0', boxSizing:'border-box' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom:22 }}>
+        <p style={{ fontSize:'0.50rem', letterSpacing:'0.24em', textTransform:'uppercase', color:'rgba(0,200,130,0.65)', margin:'0 0 3px', fontWeight:700 }}>NAFFCO · SALES</p>
+        <h2 style={{ fontSize:'1.3rem', fontWeight:800, color:'rgba(255,255,255,0.92)', margin:'0 0 4px' }}>Quoted Requests</h2>
+        <p style={{ fontSize:'0.70rem', color:'rgba(255,255,255,0.28)', margin:0 }}>
+          {filtered.length} approved quotation{filtered.length !== 1 ? 's' : ''}{!showAll && spName ? ` · ${spName}` : ''}
+        </p>
+      </div>
+
+      {/* Search */}
+      <div style={{ position:'relative', marginBottom:20 }}>
+        <svg style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by project, client, ID, estimator…"
+          style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, padding:'10px 14px 10px 38px', color:'rgba(255,255,255,0.85)', fontFamily:F, fontSize:'0.82rem', outline:'none' }}/>
+      </div>
+
+      {/* Empty state */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign:'center', padding:'60px 20px', color:'rgba(255,255,255,0.22)' }}>
+          <div style={{ fontSize:'2.2rem', marginBottom:12, opacity:0.4 }}>📋</div>
+          <div style={{ fontSize:'0.86rem', fontWeight:600 }}>No approved quotations yet</div>
+          <div style={{ fontSize:'0.72rem', marginTop:6, opacity:0.7 }}>Requests approved by the Cost Artist will appear here</div>
+        </div>
+      )}
+
+      {/* Cards */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {filtered.map(r => {
+          const sc = SALES_COLORS[r.salesStatus || 'Pending'] || SALES_COLORS.Pending;
+          const hasDocs = r.estimationDocs?.length || r.estimationFile;
+          const dealColors = {
+            'Job In Hand': 'rgba(0,210,130,0.80)', Tender: 'rgba(100,180,255,0.80)',
+            Budget: 'rgba(255,200,50,0.80)', Other: 'rgba(168,85,247,0.80)',
+          };
+          const dealC = dealColors[r.deal] || dealColors.Other;
+          return (
+            <div key={r.id} onClick={() => setOpenId(r.id)}
+              style={{ borderRadius:14, padding:'16px 20px', cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', transition:'all 0.18s', backdropFilter:'blur(12px)' }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(0,200,100,0.07)'; e.currentTarget.style.borderColor='rgba(0,200,100,0.28)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.09)'; }}>
+
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:10 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
+                    <span style={{ fontFamily:'monospace', fontSize:'0.72rem', color:'rgba(220,165,0,0.85)', fontWeight:700 }}>{r.id}</span>
+                    <span style={{ fontSize:'0.48rem', letterSpacing:'0.12em', textTransform:'uppercase', color:dealC, background:`${dealC.replace('0.80','0.10')}`, padding:'2px 7px', borderRadius:20, fontWeight:700, border:`1px solid ${dealC.replace('0.80','0.28')}` }}>{r.deal || 'Other'}</span>
+                    {hasDocs && <span style={{ fontSize:'0.46rem', letterSpacing:'0.10em', textTransform:'uppercase', color:'rgba(100,200,255,0.75)', background:'rgba(0,150,255,0.10)', padding:'2px 7px', borderRadius:20, fontWeight:700, border:'1px solid rgba(0,150,255,0.22)' }}>📎 Docs</span>}
+                  </div>
+                  <div style={{ fontSize:'0.88rem', fontWeight:700, color:'rgba(255,255,255,0.90)', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.proj || '—'}</div>
+                  <div style={{ fontSize:'0.72rem', color:'rgba(255,255,255,0.38)' }}>{r.client || '—'}</div>
+                </div>
+                {/* Sales status pill */}
+                <div style={{ flexShrink:0, background:sc.bg, border:`1px solid ${sc.bd}`, borderRadius:20, padding:'4px 12px', display:'flex', alignItems:'center', gap:5 }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:sc.c, flexShrink:0 }}/>
+                  <span style={{ fontSize:'0.62rem', fontWeight:700, color:sc.c, whiteSpace:'nowrap' }}>{r.salesStatus || 'Pending'}</span>
+                </div>
+              </div>
+
+              <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+                {r.estimator && <span style={{ fontSize:'0.66rem', color:'rgba(255,255,255,0.35)' }}>Est: <span style={{ color:'rgba(255,255,255,0.60)', fontWeight:600 }}>{r.estimator}</span></span>}
+                {r.salesPerson && <span style={{ fontSize:'0.66rem', color:'rgba(255,255,255,0.35)' }}>SP: <span style={{ color:'rgba(255,255,255,0.60)', fontWeight:600 }}>{r.salesPerson}</span></span>}
+                {r.date && <span style={{ fontSize:'0.66rem', color:'rgba(255,255,255,0.28)' }}>{r.date}</span>}
+                <span style={{ marginLeft:'auto', fontSize:'0.60rem', color:'rgba(0,210,110,0.55)', fontWeight:600 }}>✓ Approved</span>
+              </div>
+            </div>
+          );
         })}
+      </div>
     </div>
   );
 };
@@ -4481,6 +4757,9 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
           <button className={`nav-btn${trackActive?' active':''}`} onClick={()=>setView('trackQuotation')}>
             Track Quotation
           </button>
+          <button className={`nav-btn${view==='quotedRequests'?' active':''}`} onClick={()=>setView('quotedRequests')}>
+            Quoted Requests
+          </button>
         </>}
 
         {/* ── Estimator View ── */}
@@ -4521,6 +4800,9 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
           </button>
           <button className={`nav-btn${salesActive?' active':''}`} onClick={()=>setView('salesStatus')}>
             Sales View
+          </button>
+          <button className={`nav-btn${view==='quotedRequests'?' active':''}`} onClick={()=>setView('quotedRequests')}>
+            Quoted Requests
           </button>
           <button className={`nav-btn${perfActive?' active':''}`} onClick={()=>setView('salesPerformance')}>
             Sales Performance
@@ -4609,34 +4891,129 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
   );
 };
 
-// ─── TSE ACCESS CODE MODAL ───────────────────────────────────────────────────
+// ─── ACCESS CODE MODAL (shared for dashboard EST, overview TSE, team TSE) ────
+const VIEW_CODES    = { dashboard:'EST', estOverview:'TSE', myTeam:'TSE' };
+const VIEW_LABELS_G = { dashboard:'Estimator Dashboard', estOverview:'Request Overview', myTeam:'My Team' };
+const VIEW_ACCENT   = { dashboard:'rgba(80,160,255,0.75)', estOverview:'rgba(20,184,166,0.75)', myTeam:'rgba(20,184,166,0.75)' };
+const VIEW_BTN_BG   = { dashboard:'rgba(80,160,255,0.18)',  estOverview:'rgba(20,184,166,0.18)',  myTeam:'rgba(20,184,166,0.18)'  };
+const VIEW_BTN_HV   = { dashboard:'rgba(80,160,255,0.34)',  estOverview:'rgba(20,184,166,0.34)',  myTeam:'rgba(20,184,166,0.34)'  };
+const VIEW_BTN_C    = { dashboard:'rgba(140,210,255,0.95)', estOverview:'rgba(94,234,212,0.95)', myTeam:'rgba(94,234,212,0.95)'  };
+
 const TseAccessModal = ({ pendingView, onSuccess, onCancel }) => {
   const [code, setCode] = useState('');
   const [err, setErr] = useState(false);
   const F = "'Inter',sans-serif";
-  const labels = { estOverview:'Request Overview', myTeam:'My Team' };
+  const required = VIEW_CODES[pendingView] || 'TSE';
 
   const submit = () => {
-    if (code.trim().toUpperCase() === 'TSE') { onSuccess(); }
+    if (code.trim().toUpperCase() === required) { onSuccess(); }
     else { setErr(true); setTimeout(() => setErr(false), 1400); setCode(''); }
   };
 
+  // Particles: [left%, bottom%, size_px, delay_s, duration_s, type(0=float,1=twinkle), color(0=gold,1=blue,2=white)]
+  // color: 0=gold(dominant), 1=blue(accent), 2=white(accent) — ~16 gold, 5 blue, 4 white
+  const PARTS = [
+    [7,12,3,0.0,3.2,0,0],[14,45,2,0.6,4.0,1,0],[22,28,4,1.1,3.6,0,0],[31,60,2,0.3,4.5,1,1],[40,18,3,1.8,3.1,0,0],
+    [49,52,2,0.8,4.2,1,0],[57,35,5,2.1,3.8,0,0],[65,70,2,0.4,3.4,1,2],[73,22,3,1.5,4.6,0,0],[82,48,2,0.9,3.3,1,0],
+    [90,15,4,1.3,4.1,0,0],[95,62,2,2.4,3.7,1,1],[18,80,3,2.7,4.3,0,0],[35,38,2,1.6,3.5,1,0],[53,55,4,0.2,4.8,0,2],
+    [68,25,2,2.0,3.9,1,0],[78,72,3,0.7,4.4,0,0],[87,42,2,1.9,3.6,1,1],[11,65,5,2.3,4.2,0,0],[44,30,2,1.0,3.8,1,0],
+    [5,50,3,1.4,3.5,0,0],[25,15,2,0.5,4.1,1,2],[60,85,4,2.2,3.3,0,0],[75,40,2,0.1,4.7,1,1],[93,28,3,1.7,3.9,0,0],
+  ];
+  const COLORS = [
+    // gold
+    { bg:'radial-gradient(circle,#ffd93d 30%,rgba(255,160,0,0.55) 100%)', glow:'rgba(255,200,50,0.70)', glowB:'rgba(255,220,80,1.00)' },
+    // blue
+    { bg:'radial-gradient(circle,#60c8ff 30%,rgba(30,120,255,0.55) 100%)',  glow:'rgba(60,160,255,0.70)',  glowB:'rgba(100,200,255,1.00)' },
+    // white
+    { bg:'radial-gradient(circle,#ffffff 20%,rgba(180,220,255,0.50) 100%)', glow:'rgba(200,230,255,0.60)', glowB:'rgba(255,255,255,0.95)' },
+  ];
+
   return (
     <div style={{ position:'fixed', inset:0, zIndex:9100, display:'flex', alignItems:'center', justifyContent:'center',
-      background:'rgba(0,0,0,0.72)', backdropFilter:'blur(18px)', fontFamily:F }}
+      background:'rgba(0,0,0,0.72)', backdropFilter:'blur(18px)', fontFamily:F, overflow:'hidden' }}
       onClick={onCancel}>
+      <style>{`
+        @keyframes tseFloat {
+          0%   { transform:translateY(0) scale(1);    opacity:var(--gop,0.8); }
+          55%  { opacity:var(--gop,0.8); }
+          100% { transform:translateY(-100px) scale(0.10); opacity:0; }
+        }
+        @keyframes tseTwinkle {
+          0%,100% { transform:scale(0.5) rotate(0deg);   opacity:0.15; }
+          50%      { transform:scale(1.6) rotate(180deg); opacity:var(--gop,0.95); }
+        }
+        @keyframes tseGlowGold  { 0%,100%{box-shadow:0 0 5px 2px rgba(255,200,50,0.45)} 50%{box-shadow:0 0 16px 6px rgba(255,220,80,0.95)} }
+        @keyframes tseGlowBlue  { 0%,100%{box-shadow:0 0 5px 2px rgba(60,160,255,0.45)} 50%{box-shadow:0 0 16px 6px rgba(100,200,255,0.95)} }
+        @keyframes tseGlowWhite { 0%,100%{box-shadow:0 0 5px 2px rgba(200,230,255,0.35)} 50%{box-shadow:0 0 14px 5px rgba(255,255,255,0.80)} }
+        @keyframes tseNumRise {
+          0%   { transform:translateY(0);   opacity:0; }
+          12%  { opacity:var(--nop,0.18); }
+          80%  { opacity:var(--nop,0.18); }
+          100% { transform:translateY(-140px); opacity:0; }
+        }
+      `}</style>
+      {/* Floating digit streams */}
+      {[
+        [3,  -5, '7 2 9', 0.0, 6.5, 0.14,'rgba(255,210,60,0.90)'],
+        [10, -8, '4 1',   1.2, 5.8, 0.12,'rgba(255,220,80,0.85)'],
+        [19, -3, '8 3 6', 2.4, 7.1, 0.16,'rgba(180,210,255,0.80)'],
+        [27,-10, '0 5',   0.7, 6.2, 0.13,'rgba(255,215,50,0.90)'],
+        [36, -6, '1 9 4', 3.1, 5.5, 0.15,'rgba(255,210,60,0.85)'],
+        [45, -4, '6 2',   1.8, 6.8, 0.12,'rgba(220,235,255,0.75)'],
+        [54, -9, '3 7 0', 0.3, 7.3, 0.17,'rgba(255,220,70,0.90)'],
+        [63, -2, '5 8',   2.6, 5.9, 0.13,'rgba(255,210,60,0.85)'],
+        [72, -7, '2 4 1', 1.0, 6.4, 0.15,'rgba(180,210,255,0.80)'],
+        [81,-11, '9 6',   3.5, 5.6, 0.12,'rgba(255,215,50,0.90)'],
+        [89, -5, '0 3 8', 0.6, 7.0, 0.16,'rgba(255,220,80,0.85)'],
+        [97, -3, '5 1',   2.0, 6.1, 0.13,'rgba(220,235,255,0.75)'],
+      ].map(([x,b,txt,delay,dur,nop,col], i) => (
+        <div key={`n${i}`} style={{
+          position:'absolute', left:`${x}%`, bottom:`${b}%`,
+          pointerEvents:'none', userSelect:'none',
+          fontFamily:"'Courier New',monospace", fontSize:'0.70rem', fontWeight:700,
+          letterSpacing:'0.18em', color:col, lineHeight:2.2, whiteSpace:'nowrap',
+          writingMode:'vertical-lr', textOrientation:'mixed',
+          '--nop': nop,
+          animationName:'tseNumRise',
+          animationDuration:`${dur}s`,
+          animationDelay:`${delay}s`,
+          animationTimingFunction:'linear',
+          animationIterationCount:'infinite',
+          animationFillMode:'both',
+        }}>{txt.split(' ').join('\n')}</div>
+      ))}
+      {PARTS.map(([x,b,sz,delay,dur,type,col], i) => {
+        const C = COLORS[col];
+        const glowAnim = col===0 ? 'tseGlowGold' : col===1 ? 'tseGlowBlue' : 'tseGlowWhite';
+        const moveAnim = type===1 ? 'tseTwinkle' : 'tseFloat';
+        return (
+          <div key={i} style={{
+            position:'absolute', left:`${x}%`, bottom:`${b}%`, width:sz, height:sz,
+            borderRadius: type===1 ? '2px' : '50%',
+            pointerEvents:'none',
+            background: C.bg,
+            '--gop': 0.55 + (i % 6) * 0.08,
+            animationName: `${moveAnim}, ${glowAnim}`,
+            animationDuration: `${dur}s, ${dur*0.65}s`,
+            animationDelay: `${delay}s, ${delay*0.4}s`,
+            animationTimingFunction: 'ease-in-out, ease-in-out',
+            animationIterationCount: 'infinite, infinite',
+            animationFillMode: 'both, both',
+          }}/>
+        );
+      })}
       <div style={{ width:'min(360px,92vw)', background:'rgba(255,255,255,0.07)',
         backdropFilter:'blur(40px) saturate(1.4) brightness(1.08)',
         WebkitBackdropFilter:'blur(40px) saturate(1.4) brightness(1.08)',
         borderRadius:20, padding:'36px 32px 30px',
-        boxShadow:'0 24px 80px rgba(0,0,0,0.55), inset 0 1.5px 0 rgba(255,255,255,0.18)',
-        display:'flex', flexDirection:'column', gap:18 }}
+        boxShadow:'0 24px 80px rgba(0,0,0,0.55), inset 0 1.5px 0 rgba(255,255,255,0.18), 0 0 60px rgba(255,200,60,0.07)',
+        display:'flex', flexDirection:'column', gap:18, position:'relative', zIndex:1 }}
         onClick={e => e.stopPropagation()}>
         <div>
           <div style={{ fontSize:'0.52rem', letterSpacing:'0.22em', textTransform:'uppercase',
-            color:'rgba(20,184,166,0.75)', fontWeight:700, marginBottom:8 }}>Restricted Access</div>
+            color: VIEW_ACCENT[pendingView]||'rgba(20,184,166,0.75)', fontWeight:700, marginBottom:8 }}>Restricted Access</div>
           <div style={{ fontSize:'1.1rem', fontWeight:800, color:'rgba(255,255,255,0.92)', lineHeight:1.2, marginBottom:6 }}>
-            {labels[pendingView] || 'Protected Page'}
+            {VIEW_LABELS_G[pendingView] || 'Protected Page'}
           </div>
           <div style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.38)', lineHeight:1.5 }}>
             Enter the access code to continue.
@@ -4653,17 +5030,21 @@ const TseAccessModal = ({ pendingView, onSuccess, onCancel }) => {
         {err && <div style={{ fontSize:'0.72rem', color:'rgba(255,100,100,0.90)', marginTop:-8 }}>Invalid code — try again.</div>}
         <div style={{ display:'flex', gap:10 }}>
           <button onClick={onCancel}
-            style={{ flex:1, padding:'11px 0', borderRadius:10, background:'rgba(255,255,255,0.05)',
-              color:'rgba(255,255,255,0.38)', fontFamily:F, fontSize:'0.84rem', border:'none', cursor:'pointer', outline:'none' }}>
+            style={{ flex:1, padding:'11px 0', borderRadius:10, background:'rgba(255,255,255,0.08)',
+              border:'1px solid rgba(255,255,255,0.18)', color:'rgba(255,255,255,0.75)',
+              fontFamily:F, fontSize:'0.84rem', cursor:'pointer', outline:'none', transition:'all 0.15s' }}
+            onMouseEnter={e=>{ e.currentTarget.style.background='rgba(255,255,255,0.14)'; e.currentTarget.style.color='rgba(255,255,255,0.92)'; }}
+            onMouseLeave={e=>{ e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.color='rgba(255,255,255,0.75)'; }}>
             Cancel
           </button>
           <button onClick={submit}
             style={{ flex:2, padding:'11px 0', borderRadius:10,
-              background:'rgba(20,184,166,0.18)', color:'rgba(94,234,212,0.95)',
+              background: VIEW_BTN_BG[pendingView]||'rgba(20,184,166,0.18)',
+              color: VIEW_BTN_C[pendingView]||'rgba(94,234,212,0.95)',
               fontFamily:F, fontSize:'0.88rem', fontWeight:700, border:'none', cursor:'pointer', outline:'none',
               transition:'background 0.18s' }}
-            onMouseEnter={e => e.currentTarget.style.background='rgba(20,184,166,0.34)'}
-            onMouseLeave={e => e.currentTarget.style.background='rgba(20,184,166,0.18)'}>
+            onMouseEnter={e => e.currentTarget.style.background = VIEW_BTN_HV[pendingView]||'rgba(20,184,166,0.34)'}
+            onMouseLeave={e => e.currentTarget.style.background = VIEW_BTN_BG[pendingView]||'rgba(20,184,166,0.18)'}>
             Confirm →
           </button>
         </div>
@@ -5483,20 +5864,43 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
 
   const showList = isSales ? true : q.trim().length > 0;
 
-  const ReqRow = ({r, accent='rgba(0,180,255,0.07)', bd='rgba(0,180,255,0.25)'}) => (
-    <button key={r.id} onClick={()=>onSelect(r)}
-      style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 20px',cursor:'pointer',textAlign:'left',fontFamily:F2,display:'flex',alignItems:'center',gap:20,transition:'background 0.2s,border-color 0.2s',width:'100%'}}
-      onMouseEnter={e=>{e.currentTarget.style.background=accent;e.currentTarget.style.borderColor=bd;}}
-      onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';}}>
-      <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',flexShrink:0,minWidth:72}}>{r.id}</span>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:'0.86rem',fontWeight:600,color:'rgba(255,255,255,0.82)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
-        <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginTop:3}}>{r.client||''}{r.client&&r.submittedBy?' · ':''}{r.submittedBy||''}</div>
-      </div>
-      <span style={{fontSize:'0.68rem',padding:'4px 10px',borderRadius:50,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.42)',flexShrink:0}}>{r.status}</span>
-      <span style={{fontSize:'0.82rem',color:'rgba(0,200,255,0.55)',flexShrink:0}}>→</span>
-    </button>
-  );
+  const ReqRow = ({r, accent='rgba(0,180,255,0.07)', bd='rgba(0,180,255,0.25)'}) => {
+    const pal = r.estimator ? avatarPalette(r.estimator) : null;
+    const initials = r.estimator ? r.estimator.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2) : '';
+    const avatarUrl = AVATAR_URLS[EST_ROSTER.find(e=>e.name===r.estimator)?.code];
+    return (
+      <button key={r.id} onClick={()=>onSelect(r)}
+        style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:10,padding:'14px 20px',cursor:'pointer',textAlign:'left',fontFamily:F2,display:'flex',alignItems:'center',gap:16,transition:'background 0.2s,border-color 0.2s',width:'100%'}}
+        onMouseEnter={e=>{e.currentTarget.style.background=accent;e.currentTarget.style.borderColor=bd;}}
+        onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor='rgba(255,255,255,0.09)';}}>
+        <span style={{fontFamily:'monospace',fontSize:'0.82rem',fontWeight:700,color:'rgba(220,165,0,0.90)',flexShrink:0,minWidth:72}}>{r.id}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:'0.86rem',fontWeight:600,color:'rgba(255,255,255,0.82)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</div>
+          <div style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.38)',marginTop:3}}>{r.client||''}{r.client&&r.submittedBy?' · ':''}{r.submittedBy||''}</div>
+        </div>
+        {/* Estimator avatar + name */}
+        {r.estimator ? (
+          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+            {avatarUrl
+              ? <img src={avatarUrl} alt={r.estimator} style={{width:30,height:30,borderRadius:'50%',objectFit:'cover',border:`1.5px solid ${pal?.border||'rgba(255,255,255,0.20)'}`}}/>
+              : <div style={{width:30,height:30,borderRadius:'50%',background:pal?.bg||'rgba(100,180,255,0.14)',border:`1.5px solid ${pal?.border||'rgba(100,180,255,0.35)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.58rem',fontWeight:800,color:'#fff',flexShrink:0}}>{initials}</div>
+            }
+            <div style={{display:'flex',flexDirection:'column'}}>
+              <span style={{fontSize:'0.48rem',letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700,lineHeight:1}}>Estimator</span>
+              <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.70)',fontWeight:600,lineHeight:1.3,maxWidth:110,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.estimator}</span>
+            </div>
+          </div>
+        ) : (
+          <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+            <div style={{width:30,height:30,borderRadius:'50%',background:'rgba(255,255,255,0.05)',border:'1.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.58rem',color:'rgba(255,255,255,0.25)'}}>—</div>
+            <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.25)'}}>Unassigned</span>
+          </div>
+        )}
+        <span style={{fontSize:'0.68rem',padding:'4px 10px',borderRadius:50,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',color:'rgba(255,255,255,0.42)',flexShrink:0}}>{r.status}</span>
+        <span style={{fontSize:'0.82rem',color:'rgba(0,200,255,0.55)',flexShrink:0}}>→</span>
+      </button>
+    );
+  };
 
   return (
     <div style={{position:'relative',width:'100%',height:'100%',display:'flex',flexDirection:'column',padding:'80px 60px 40px',overflowY:'auto',fontFamily:F2}}>
@@ -9386,35 +9790,6 @@ const Dashboard = ({
             </div>
           )}
 
-          {/* Request Overview shortcut */}
-          {onOverview && (
-            <button onClick={onOverview}
-              style={{display:'flex',alignItems:'center',gap:7,padding:'7px 16px',borderRadius:8,
-                border:'1px solid rgba(100,180,255,0.30)',
-                background:'rgba(40,100,220,0.10)',
-                color:'rgba(100,200,255,0.90)',
-                fontFamily:F,fontSize:'0.75rem',fontWeight:700,cursor:'pointer',outline:'none',
-                transition:'all 0.15s',letterSpacing:'0.04em',flexShrink:0,whiteSpace:'nowrap'}}
-              onMouseEnter={e=>{e.currentTarget.style.background='rgba(40,100,220,0.22)';e.currentTarget.style.borderColor='rgba(100,180,255,0.55)';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='rgba(40,100,220,0.10)';e.currentTarget.style.borderColor='rgba(100,180,255,0.30)';}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-              Request Overview
-            </button>
-          )}
-
-          {/* Team page toggle — estimator mode only */}
-          {viewMode === 'estimator' && (
-            <button onClick={()=>setEstTeamPage(v=>!v)}
-              style={{display:'flex',alignItems:'center',gap:7,padding:'7px 16px',borderRadius:8,
-                border:`1px solid ${estTeamPage?'rgba(160,255,180,0.45)':'rgba(255,255,255,0.12)'}`,
-                background:estTeamPage?'rgba(0,200,100,0.12)':'rgba(255,255,255,0.04)',
-                color:estTeamPage?'rgba(160,255,180,0.95)':'rgba(255,255,255,0.45)',
-                fontFamily:F,fontSize:'0.75rem',fontWeight:estTeamPage?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',flexShrink:0}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-              {estTeamPage ? 'My Requests' : 'Team'}
-            </button>
-          )}
-
           {/* Requester name filter (only in requester mode) */}
           {viewMode === 'requester' && (
             <select value={requesterFilter} onChange={e=>setRequesterFilter(e.target.value)}
@@ -10783,6 +11158,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   else if (currentPath === 'my-team') view = 'myTeam';
   else if (currentPath === 'analyse') view = 'analyse';
   else if (currentPath === 'sales-dashboard') view = 'salesDashboard';
+  else if (currentPath === 'quoted-requests') view = 'quotedRequests';
   else if (currentPath === 'track') view = 'trackQuotation';
   else if (currentPath === 'sales-status') view = 'salesStatus';
   else if (currentPath === 'performance') view = 'salesPerformance';
@@ -10796,10 +11172,11 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
      view = (userRole === 'estimator' || userRole === 'director') ? 'dashboard' : 'landing';
   }
 
-  // TSE access-code gate state
-  const [tseGate, setTseGate] = useState(null); // null | pending view name
+  // Access-code gate state
+  const [tseGate, setTseGate] = useState(null);        // null | pending view name
+  const [estDashGranted, setEstDashGranted] = useState(false); // EST gate for dashboard
 
-  // Protected nav — requires TSE code for certain views (director bypasses)
+  // Protected nav — requires code for certain views (director bypasses all)
   const navProtected = (targetView) => {
     if (userRole === 'director') { setView(targetView); return; }
     setTseGate(targetView);
@@ -10821,6 +11198,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
       myTeam: 'my-team',
       analyse: 'analyse',
       salesDashboard: 'sales-dashboard',
+      quotedRequests: 'quoted-requests',
       trackQuotation: 'track',
       salesStatus: 'sales-status',
       salesPerformance: 'performance',
@@ -11414,6 +11792,7 @@ const handleSubmit = async (formData) => {
       {view==='estOverview'  && <EstRequestOverview requests={visibleRequests}/>}
       {view==='myTeam'       && <EstimationTeamView requests={visibleRequests}/>}
       {tseGate && <TseAccessModal pendingView={tseGate} onSuccess={()=>{ const v=tseGate; setTseGate(null); setView(v); }} onCancel={()=>setTseGate(null)}/>}
+      {view==='dashboard' && !estDashGranted && userRole !== 'director' && <TseAccessModal pendingView='dashboard' onSuccess={()=>setEstDashGranted(true)} onCancel={()=>navigate(-1)}/>}
       {view==='analyse'      && <Analyse requests={visibleRequests}/>}
       {view==='salesDashboard' && <SalesDashboard
           requests={visibleRequests}
@@ -11429,6 +11808,10 @@ const handleSubmit = async (formData) => {
       {view==='salesStatus'  && <SalesStatusView requests={visibleRequests} onUpdate={updateRequest}
           autoSpName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):undefined}
           showAll={userRole==='director'}/>}
+      {view==='quotedRequests' && <QuotedRequests requests={visibleRequests}
+          spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
+          showAll={userRole==='director'}
+          onUpdate={updateRequest}/>}
       {view==='salesPerformance' && <SalesPerformance
           spName={userRole==='sales'?(STAFF_NAMES[userCode]||userCode):''}
           showAll={userRole==='director'}
