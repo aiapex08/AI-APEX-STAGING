@@ -11957,7 +11957,9 @@ const handleSubmit = async (formData) => {
   };
 
   const handleFinalPriceSubmit = async (formData) => {
-    const newId = nextRequestId();
+    const origId = formData.originalId;
+    const existingFinals = origId ? latestRequestsRef.current.filter(r => r.originalId === origId && r.requestType === 'finalPrice').length : 0;
+    const newId = origId ? `${origId}_F${existingFinals + 1}` : nextRequestId();
     const docFiles = formData.docFiles || [];
 
     const finaliseFinalPriceSubmit = (fData, nId, uDocs) => {
@@ -12001,7 +12003,9 @@ const handleSubmit = async (formData) => {
   };
 
   const handleRevisedSubmit = async (formData) => {
-    const newId = nextRequestId();
+    const origId = formData.originalId;
+    const existingRevisions = origId ? latestRequestsRef.current.filter(r => r.originalId === origId && r.requestType === 'revised').length : 0;
+    const newId = origId ? `${origId}_R${existingRevisions + 1}` : nextRequestId();
     const docFiles = formData.docFiles || [];
 
     const finaliseRevisedSubmit = (fData, nId, uDocs) => {
