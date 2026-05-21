@@ -2223,13 +2223,79 @@ const RoleLogin = ({ onLogin }) => {
     else { setErr(true); }
   };
 
+  // Particles: [left%, bottom%, size_px, delay_s, duration_s, type(0=float,1=twinkle), color(0=gold,1=blue,2=white)]
+  const RL_PARTS = [
+    [7,12,3,0.0,3.2,0,0],[14,45,2,0.6,4.0,1,0],[22,28,4,1.1,3.6,0,0],[31,60,2,0.3,4.5,1,1],[40,18,3,1.8,3.1,0,0],
+    [49,52,2,0.8,4.2,1,0],[57,35,5,2.1,3.8,0,0],[65,70,2,0.4,3.4,1,2],[73,22,3,1.5,4.6,0,0],[82,48,2,0.9,3.3,1,0],
+    [90,15,4,1.3,4.1,0,0],[95,62,2,2.4,3.7,1,1],[18,80,3,2.7,4.3,0,0],[35,38,2,1.6,3.5,1,0],[53,55,4,0.2,4.8,0,2],
+    [68,25,2,2.0,3.9,1,0],[78,72,3,0.7,4.4,0,0],[87,42,2,1.9,3.6,1,1],[11,65,5,2.3,4.2,0,0],[44,30,2,1.0,3.8,1,0],
+    [5,50,3,1.4,3.5,0,0],[25,15,2,0.5,4.1,1,2],[60,85,4,2.2,3.3,0,0],[75,40,2,0.1,4.7,1,1],[93,28,3,1.7,3.9,0,0],
+    [3,35,3,0.9,3.6,0,0],[16,70,2,1.3,4.4,1,0],[29,20,4,2.5,3.2,0,1],[48,88,2,0.4,4.9,1,0],[72,55,3,1.8,3.7,0,2],
+  ];
+  const RL_COLORS = [
+    { bg:'radial-gradient(circle,#ffd93d 30%,rgba(255,160,0,0.55) 100%)', glowAnim:'rlGlowGold' },
+    { bg:'radial-gradient(circle,#60c8ff 30%,rgba(30,120,255,0.55) 100%)',  glowAnim:'rlGlowBlue' },
+    { bg:'radial-gradient(circle,#ffffff 20%,rgba(180,220,255,0.50) 100%)', glowAnim:'rlGlowWhite' },
+  ];
+  // digit streams: [left%, startBottom%, text, delay_s, dur_s, color]
+  const RL_NUMS = [
+    [3,  -5,'7 2 9',0.0,6.5,'rgba(255,210,60,0.90)'],[10,-8,'4 1',  1.2,5.8,'rgba(255,220,80,0.85)'],
+    [19, -3,'8 3 6',2.4,7.1,'rgba(180,210,255,0.80)'],[27,-10,'0 5', 0.7,6.2,'rgba(255,215,50,0.90)'],
+    [36, -6,'1 9 4',3.1,5.5,'rgba(255,210,60,0.85)'],[45,-4,'6 2',  1.8,6.8,'rgba(220,235,255,0.75)'],
+    [54, -9,'3 7 0',0.3,7.3,'rgba(255,220,70,0.90)'],[63,-2,'5 8',  2.6,5.9,'rgba(255,210,60,0.85)'],
+    [72, -7,'2 4 1',1.0,6.4,'rgba(180,210,255,0.80)'],[81,-11,'9 6',3.5,5.6,'rgba(255,215,50,0.90)'],
+    [89, -5,'0 3 8',0.6,7.0,'rgba(255,220,80,0.85)'],[97,-3,'5 1',  2.0,6.1,'rgba(220,235,255,0.75)'],
+  ];
+
   return (
     <div style={{
       position:'fixed', inset:0, zIndex:200,
       display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
       background:'rgba(0,1,6,0.94)', backdropFilter:'blur(20px)',
-      animation:'fadeUp 0.4s ease both', fontFamily:F2,
+      animation:'fadeUp 0.4s ease both', fontFamily:F2, overflow:'hidden',
     }}>
+      <style>{`
+        @keyframes rlFloat   { 0%{transform:translateY(0) scale(1);opacity:var(--gop,0.8)} 55%{opacity:var(--gop,0.8)} 100%{transform:translateY(-100px) scale(0.10);opacity:0} }
+        @keyframes rlTwinkle { 0%,100%{transform:scale(0.5) rotate(0deg);opacity:0.15} 50%{transform:scale(1.6) rotate(180deg);opacity:var(--gop,0.95)} }
+        @keyframes rlGlowGold  { 0%,100%{box-shadow:0 0 5px 2px rgba(255,200,50,0.45)} 50%{box-shadow:0 0 16px 6px rgba(255,220,80,0.95)} }
+        @keyframes rlGlowBlue  { 0%,100%{box-shadow:0 0 5px 2px rgba(60,160,255,0.45)} 50%{box-shadow:0 0 16px 6px rgba(100,200,255,0.95)} }
+        @keyframes rlGlowWhite { 0%,100%{box-shadow:0 0 5px 2px rgba(200,230,255,0.35)} 50%{box-shadow:0 0 14px 5px rgba(255,255,255,0.80)} }
+        @keyframes rlNumRise   { 0%{transform:translateY(0);opacity:0} 12%{opacity:var(--nop,0.15)} 80%{opacity:var(--nop,0.15)} 100%{transform:translateY(-140px);opacity:0} }
+      `}</style>
+
+      {/* Digit streams */}
+      {RL_NUMS.map(([x,b,txt,delay,dur,col],i)=>(
+        <div key={`rn${i}`} style={{
+          position:'absolute',left:`${x}%`,bottom:`${b}%`,
+          pointerEvents:'none',userSelect:'none',
+          fontFamily:"'Courier New',monospace",fontSize:'0.70rem',fontWeight:700,
+          letterSpacing:'0.18em',color:col,lineHeight:2.2,whiteSpace:'nowrap',
+          writingMode:'vertical-lr',textOrientation:'mixed',
+          '--nop':0.13+(i%5)*0.02,
+          animationName:'rlNumRise',animationDuration:`${dur}s`,animationDelay:`${delay}s`,
+          animationTimingFunction:'linear',animationIterationCount:'infinite',animationFillMode:'both',
+        }}>{txt.split(' ').join('\n')}</div>
+      ))}
+
+      {/* Floating particles */}
+      {RL_PARTS.map(([x,b,sz,delay,dur,type,col],i)=>{
+        const C=RL_COLORS[col];
+        const moveAnim=type===1?'rlTwinkle':'rlFloat';
+        return (
+          <div key={`rp${i}`} style={{
+            position:'absolute',left:`${x}%`,bottom:`${b}%`,width:sz,height:sz,
+            borderRadius:type===1?'2px':'50%',pointerEvents:'none',
+            background:C.bg,'--gop':0.55+(i%6)*0.08,
+            animationName:`${moveAnim}, ${C.glowAnim}`,
+            animationDuration:`${dur}s, ${dur*0.65}s`,
+            animationDelay:`${delay}s, ${delay*0.4}s`,
+            animationTimingFunction:'ease-in-out, ease-in-out',
+            animationIterationCount:'infinite, infinite',
+            animationFillMode:'both, both',
+          }}/>
+        );
+      })}
+
       <div style={{position:'absolute',inset:0,overflow:'hidden',pointerEvents:'none',zIndex:0}}>
         <div style={{position:'absolute',width:'60vw',height:'60vw',borderRadius:'50%',top:'-20vw',left:'-15vw',
           background:'radial-gradient(circle,rgba(109,40,217,0.12) 0%,transparent 70%)',filter:'blur(40px)'}}/>
@@ -3169,7 +3235,7 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           </div>
           <div style={{display:'flex',gap:5,alignItems:'center'}}>
             {r.deal && <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:dealColor(r.deal),background:dealColor(r.deal).replace(/[\d.]+\)$/,'0.12)'),borderRadius:20,padding:'2px 9px'}}>{r.deal}</span>}
-            {r.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISED</span>}
+            {r.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISE</span>}
             {r.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.85)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
             {userRole==='director' && (
               <button onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
@@ -6840,7 +6906,7 @@ const Badge = ({s}) => (
 );
 
 // ─── DIRECTOR REVIEW MODAL ────────────────────────────────────────────────────
-const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
+const DirectorReviewModal = ({req, idx, now, onUpdate, onClose, requests=[]}) => {
   const rs = getReqStatus(req, now);
   const rss = REQ_STATUS_STYLE[rs];
   const [revisedMargin, setRevisedMargin] = useState(req.revisedMargin||'');
@@ -6848,7 +6914,18 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
   const [note, setNote] = useState(req.directorNote||'');
   const [submitted, setSubmitted] = useState(false);
   const allQuotDocs = (req.estimationDocs?.length > 0 ? req.estimationDocs : [req.estimationDoc].filter(Boolean));
+  const [editedDocs, setEditedDocs] = useState(()=> allQuotDocs);
   const [selectedDocIds, setSelectedDocIds] = useState(() => req.salesApprovedDocs?.length ? req.salesApprovedDocs : allQuotDocs.map(d=>d.id).filter(Boolean));
+  const [docUploadState, setDocUploadState] = useState(null);
+  const dirDocUploadRef = useRef(null);
+  const [origOpen, setOrigOpen] = useState(false);
+  const origReq = req.originalId ? requests.find(r => r.id === req.originalId) : null;
+  const similarReqs = req.originalId ? [] : requests.filter(r =>
+    r.id !== req.id && (r.reqStatus === 'completed' || r.directorAction === 'approved') &&
+    ((r.client||'').toLowerCase() === (req.client||'').toLowerCase() ||
+     (r.proj||'').toLowerCase() === (req.proj||'').toLowerCase()) &&
+    r.client
+  ).slice(0, 5);
 
   const tatElapsed = req.taggedAt ? now - req.taggedAt : 0;
   const tatPct = Math.min(100, (tatElapsed / TAT_MS) * 100);
@@ -6868,9 +6945,35 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
     const dTs = new Date().toISOString();
     const tlEntry = { event: action==='approved'?'approved':action==='rejected'?'rejected':'revision', ts: dTs, label: action==='approved'?'Cost Artist Approved':action==='rejected'?'Cost Artist Rejected':'Correction Required', by: 'Cost Artist' };
     onUpdate(req.id, {revisedMargin, directorAction:action, directorNote:note, status:newStatus, reqStatus:newReqStatus,
-      directorRespondedAt: dTs, salesApprovedDocs: selectedDocIds, timeline: [...(req.timeline||[]), tlEntry] });
+      estimationDocs: editedDocs,
+      directorRespondedAt: dTs, salesApprovedDocs: selectedDocIds.filter(id=>editedDocs.some(d=>d.id===id)), timeline: [...(req.timeline||[]), tlEntry] });
     setSubmitted(true);
     setTimeout(() => onClose(), 1800);
+  };
+
+  const handleDirDocUpload = async e => {
+    const files = Array.from(e.target.files||[]);
+    if (!files.length) return;
+    setDocUploadState('uploading');
+    const newDocs = [];
+    for (const file of files) {
+      const id = `dir-doc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+      let url = null, verified = false;
+      try {
+        url = await uploadToAzure(file, req.id, file.name);
+        verified = url ? await verifyAzureBlob(url) : false;
+      } catch {}
+      newDocs.push({ id, name: file.name, url, verified });
+    }
+    setEditedDocs(prev => [...prev, ...newDocs]);
+    setSelectedDocIds(prev => [...prev, ...newDocs.map(d=>d.id)]);
+    setDocUploadState(null);
+    e.target.value = '';
+  };
+
+  const deleteDirDoc = id => {
+    setEditedDocs(prev => prev.filter(d => d.id !== id));
+    setSelectedDocIds(prev => prev.filter(i => i !== id));
   };
 
   const F = "'Inter',sans-serif";
@@ -6977,62 +7080,64 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
                 {!req.supplyOnly && !req.supplyInstall && <span style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.22)'}}>—</span>}
               </div>
             </GC>
-            {/* Quotation files — Visible whenever files exist so Cost-Artist can review them */}
+            {/* Quotation files — Cost-Artist can add/delete/select */}
             <GC>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
                 {lbl('Quotation Files — tick to release to Sales')}
-                {allQuotDocs.length > 1 && (
-                  <div style={{display:'flex',gap:5,marginTop:-4}}>
-                    <button onClick={()=>setSelectedDocIds(allQuotDocs.map(d=>d.id).filter(Boolean))}
-                      style={{fontSize:'0.52rem',fontWeight:700,color:'rgba(0,220,130,0.80)',background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.22)',borderRadius:5,padding:'2px 8px',cursor:'pointer',outline:'none',letterSpacing:'0.06em'}}>All</button>
+                <div style={{display:'flex',gap:5,marginTop:-4}}>
+                  {editedDocs.length > 1 && <>
+                    <button onClick={()=>setSelectedDocIds(editedDocs.map(d=>d.id).filter(Boolean))}
+                      style={{fontSize:'0.52rem',fontWeight:700,color:'rgba(0,220,130,0.80)',background:'rgba(0,220,130,0.08)',border:'1px solid rgba(0,220,130,0.22)',borderRadius:5,padding:'2px 8px',cursor:'pointer',outline:'none'}}>All</button>
                     <button onClick={()=>setSelectedDocIds([])}
-                      style={{fontSize:'0.52rem',fontWeight:700,color:'rgba(255,255,255,0.35)',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:5,padding:'2px 8px',cursor:'pointer',outline:'none',letterSpacing:'0.06em'}}>None</button>
-                  </div>
-                )}
+                      style={{fontSize:'0.52rem',fontWeight:700,color:'rgba(255,255,255,0.35)',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:5,padding:'2px 8px',cursor:'pointer',outline:'none'}}>None</button>
+                  </>}
+                  <input ref={dirDocUploadRef} type="file" multiple style={{display:'none'}} onChange={handleDirDocUpload}/>
+                  <button onClick={()=>dirDocUploadRef.current?.click()} disabled={docUploadState==='uploading'}
+                    style={{fontSize:'0.52rem',fontWeight:700,color:docUploadState==='uploading'?'rgba(255,255,255,0.30)':'rgba(100,180,255,0.90)',background:'rgba(60,120,255,0.10)',border:'1px solid rgba(80,150,255,0.28)',borderRadius:5,padding:'2px 9px',cursor:docUploadState==='uploading'?'wait':'pointer',outline:'none',transition:'all 0.15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(60,120,255,0.20)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(60,120,255,0.10)'}>
+                    {docUploadState==='uploading' ? '⟳ Uploading…' : '+ Add File'}
+                  </button>
+                </div>
               </div>
-              {allQuotDocs.length > 0 ? (
-                <div style={{display:'flex',flexDirection:'column',gap:5,marginTop:4}}>
-                  {allQuotDocs.map((d,i)=>{
+              {editedDocs.length > 0 ? (
+                <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                  {editedDocs.map((d,i)=>{
                     const isSel = d.id ? selectedDocIds.includes(d.id) : false;
                     return (
-                      <div key={i} style={{display:'flex',alignItems:'center',gap:6,background:isSel?'rgba(0,220,130,0.07)':'transparent',borderRadius:7,padding:'2px 0',transition:'background 0.15s'}}>
-                        <button
-                          title={isSel ? 'Deselect' : 'Select for release'}
-                          onClick={()=>{
-                            if (!d.id) return;
-                            setSelectedDocIds(prev => isSel ? prev.filter(id=>id!==d.id) : [...prev, d.id]);
-                          }}
-                          style={{flexShrink:0,width:18,height:18,borderRadius:4,
-                            background:isSel?'rgba(0,220,130,0.25)':'rgba(255,255,255,0.05)',
-                            border:`1.5px solid ${isSel?'rgba(0,220,130,0.70)':'rgba(255,255,255,0.18)'}`,
-                            color:isSel?'rgba(0,230,140,0.95)':'rgba(255,255,255,0.30)',
-                            cursor:d.id?'pointer':'default',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',
-                            transition:'all 0.15s',fontSize:'0.62rem',fontWeight:800}}>
-                          {isSel ? '✓' : ''}
+                      <div key={d.id||i} style={{display:'flex',alignItems:'center',gap:5,background:isSel?'rgba(0,220,130,0.07)':'transparent',borderRadius:7,padding:'2px 0',transition:'background 0.15s'}}>
+                        {/* Select checkbox */}
+                        <button title={isSel?'Deselect':'Select for release'} onClick={()=>{ if(!d.id) return; setSelectedDocIds(prev=>isSel?prev.filter(id=>id!==d.id):[...prev,d.id]); }}
+                          style={{flexShrink:0,width:18,height:18,borderRadius:4,background:isSel?'rgba(0,220,130,0.25)':'rgba(255,255,255,0.05)',border:`1.5px solid ${isSel?'rgba(0,220,130,0.70)':'rgba(255,255,255,0.18)'}`,color:isSel?'rgba(0,230,140,0.95)':'rgba(255,255,255,0.30)',cursor:d.id?'pointer':'default',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s',fontSize:'0.62rem',fontWeight:800}}>
+                          {isSel?'✓':''}
                         </button>
+                        {/* Download */}
                         <button onClick={()=>downloadDoc(d)}
-                          style={{flex:1,display:'flex',alignItems:'center',gap:7,padding:'6px 10px',borderRadius:7,
-                            background:isSel?'rgba(0,220,130,0.10)':'rgba(0,220,130,0.06)',
-                            border:`1px solid ${isSel?'rgba(0,220,130,0.40)':'rgba(0,220,130,0.22)'}`,
-                            color:'rgba(0,220,130,0.90)',fontSize:'0.74rem',fontWeight:600,cursor:'pointer',outline:'none',fontFamily:F2,
-                            transition:'background 0.15s',textAlign:'left',overflow:'hidden',minWidth:0}}
+                          style={{flex:1,display:'flex',alignItems:'center',gap:7,padding:'6px 10px',borderRadius:7,background:isSel?'rgba(0,220,130,0.10)':'rgba(0,220,130,0.06)',border:`1px solid ${isSel?'rgba(0,220,130,0.40)':'rgba(0,220,130,0.22)'}`,color:'rgba(0,220,130,0.90)',fontSize:'0.74rem',fontWeight:600,cursor:'pointer',outline:'none',transition:'background 0.15s',textAlign:'left',overflow:'hidden',minWidth:0}}
                           onMouseEnter={e=>e.currentTarget.style.background='rgba(0,220,130,0.16)'}
                           onMouseLeave={e=>e.currentTarget.style.background=isSel?'rgba(0,220,130,0.10)':'rgba(0,220,130,0.06)'}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                          <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name || `Quotation ${i+1}`}</span>
-                          {isSel && <span style={{fontSize:'0.44rem',color:'rgba(0,220,130,0.70)',letterSpacing:'0.08em',textTransform:'uppercase',flexShrink:0,fontWeight:700}}>Sales ✓</span>}
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`Quotation ${i+1}`}</span>
+                          {isSel&&<span style={{fontSize:'0.44rem',color:'rgba(0,220,130,0.70)',letterSpacing:'0.08em',textTransform:'uppercase',flexShrink:0,fontWeight:700}}>Sales ✓</span>}
+                        </button>
+                        {/* Delete */}
+                        <button onClick={()=>deleteDirDoc(d.id)} title="Remove file"
+                          style={{flexShrink:0,width:24,height:24,borderRadius:5,background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,80,80,0.60)',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s'}}
+                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.24)';e.currentTarget.style.color='rgba(255,100,100,0.95)';}}
+                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.08)';e.currentTarget.style.color='rgba(220,80,80,0.60)';}}>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                       </div>
                     );
                   })}
-                  <div style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.22)',marginTop:2,paddingLeft:24}}>
-                    {selectedDocIds.length} of {allQuotDocs.length} file{allQuotDocs.length!==1?'s':''} selected for Sales release
+                  <div style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',marginTop:2,paddingLeft:24}}>
+                    {selectedDocIds.filter(id=>editedDocs.some(d=>d.id===id)).length} of {editedDocs.length} file{editedDocs.length!==1?'s':''} selected for Sales release
                   </div>
                 </div>
               ) : (
-                <div style={{marginTop:7,padding:'7px 10px',borderRadius:7,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:7}}>
+                <div style={{padding:'7px 10px',borderRadius:7,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'center',gap:7}}>
                   <span style={{width:5,height:5,borderRadius:'50%',background:'rgba(255,180,0,0.70)',flexShrink:0}}/>
-                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>No quotation files uploaded yet</span>
+                  <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',fontStyle:'italic'}}>No quotation files — use "+ Add File" to attach</span>
                 </div>
               )}
             </GC>
@@ -7143,6 +7248,146 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose}) => {
               </GC>
             );
           })()}
+
+          {/* ── Original Request History (collapsible) ── */}
+          {origReq && (
+            <GC>
+              <button onClick={()=>setOrigOpen(v=>!v)}
+                style={{display:'flex',alignItems:'center',gap:8,background:'transparent',border:'none',cursor:'pointer',padding:0,width:'100%',textAlign:'left',outline:'none'}}>
+                <span style={{fontSize:'0.56rem',color:origOpen?'rgba(0,220,255,0.75)':'rgba(255,255,255,0.30)',transition:'color 0.15s'}}>{origOpen?'▾':'▸'}</span>
+                <span style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,color:origOpen?'rgba(0,220,255,0.75)':'rgba(255,255,255,0.30)',transition:'color 0.15s'}}>Original Request — {origReq.proj||origReq.id}</span>
+                {origReq.directorAction && <span style={{marginLeft:'auto',fontSize:'0.52rem',fontWeight:700,padding:'2px 8px',borderRadius:4,
+                  background:origReq.directorAction==='approved'?'rgba(0,220,130,0.12)':origReq.directorAction==='rejected'?'rgba(220,60,60,0.12)':'rgba(255,160,30,0.12)',
+                  color:origReq.directorAction==='approved'?'rgba(0,220,130,0.80)':origReq.directorAction==='rejected'?'rgba(220,80,80,0.80)':'rgba(255,180,50,0.80)',
+                  border:`1px solid ${origReq.directorAction==='approved'?'rgba(0,220,130,0.28)':origReq.directorAction==='rejected'?'rgba(220,60,60,0.28)':'rgba(255,160,30,0.28)'}`
+                }}>{origReq.directorAction.charAt(0).toUpperCase()+origReq.directorAction.slice(1)}</span>}
+              </button>
+              {origOpen && (
+                <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8,paddingTop:10,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                  {/* Info row */}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                    {[['Client',origReq.client],['Project',origReq.proj],['Estimator',origReq.estimator||'—']].map(([k,v])=>(
+                      <div key={k}>
+                        <div style={{fontSize:'0.48rem',color:'rgba(0,220,255,0.35)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:3,fontWeight:600}}>{k}</div>
+                        <div style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.72)',fontWeight:600}}>{v||'—'}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Date + decision */}
+                  <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                    <div>
+                      <div style={{fontSize:'0.48rem',color:'rgba(0,220,255,0.35)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:3,fontWeight:600}}>Submitted</div>
+                      <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.55)'}}>{origReq.date||'—'}</div>
+                    </div>
+                    {origReq.directorRespondedAt && <div>
+                      <div style={{fontSize:'0.48rem',color:'rgba(0,220,255,0.35)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:3,fontWeight:600}}>Responded</div>
+                      <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,0.55)'}}>{new Date(origReq.directorRespondedAt).toLocaleDateString('en-GB')}</div>
+                    </div>}
+                    {origReq.revisedMargin && <div>
+                      <div style={{fontSize:'0.48rem',color:'rgba(0,220,255,0.35)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:3,fontWeight:600}}>Revised Margin</div>
+                      <div style={{fontSize:'0.72rem',color:'rgba(0,220,255,0.80)',fontWeight:700}}>{origReq.revisedMargin}%</div>
+                    </div>}
+                  </div>
+                  {/* Original requestor remarks */}
+                  {origReq.remarks && (
+                    <div style={{background:'rgba(80,80,200,0.06)',border:'1px solid rgba(120,120,255,0.18)',borderRadius:8,padding:'8px 12px'}}>
+                      <div style={{fontSize:'0.48rem',color:'rgba(180,180,255,0.55)',letterSpacing:'0.13em',textTransform:'uppercase',marginBottom:4,fontWeight:700}}>Requestor Remarks</div>
+                      <p style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.62)',lineHeight:1.5,margin:0}}>{origReq.remarks}</p>
+                    </div>
+                  )}
+                  {/* Estimator comments on original */}
+                  {origReq.estimatorComments && (
+                    <div style={{background:'rgba(255,200,40,0.05)',border:'1px solid rgba(255,200,40,0.16)',borderRadius:8,padding:'8px 12px'}}>
+                      <div style={{fontSize:'0.48rem',color:'rgba(255,200,40,0.55)',letterSpacing:'0.13em',textTransform:'uppercase',marginBottom:4,fontWeight:700}}>Estimator Comments</div>
+                      <p style={{fontSize:'0.76rem',color:'rgba(255,230,140,0.75)',lineHeight:1.5,margin:0}}>{origReq.estimatorComments}</p>
+                    </div>
+                  )}
+                  {/* Cost-Artist note on original */}
+                  {origReq.directorNote && (
+                    <div style={{background:'rgba(0,150,255,0.06)',border:'1px solid rgba(0,180,255,0.18)',borderRadius:8,padding:'8px 12px'}}>
+                      <div style={{fontSize:'0.48rem',color:'rgba(0,200,255,0.55)',letterSpacing:'0.13em',textTransform:'uppercase',marginBottom:4,fontWeight:700}}>Cost-Artist Note</div>
+                      <p style={{fontSize:'0.76rem',color:'rgba(180,220,255,0.80)',lineHeight:1.5,margin:0}}>{origReq.directorNote}</p>
+                    </div>
+                  )}
+                  {/* Original quotation docs */}
+                  {(origReq.estimationDocs?.length > 0 || origReq.estimationDoc) && (
+                    <div>
+                      <div style={{fontSize:'0.48rem',color:'rgba(52,211,153,0.50)',letterSpacing:'0.13em',textTransform:'uppercase',marginBottom:5,fontWeight:700}}>Original Quotation Docs</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                        {(origReq.estimationDocs?.length > 0 ? origReq.estimationDocs : [origReq.estimationDoc]).filter(Boolean).map((d,i)=>(
+                          <button key={i} onClick={()=>downloadDoc(d)}
+                            style={{display:'flex',alignItems:'center',gap:6,fontSize:'0.68rem',color:'rgba(52,211,153,0.85)',background:'rgba(0,180,100,0.08)',border:'1px solid rgba(52,211,153,0.22)',borderRadius:6,padding:'4px 10px',cursor:'pointer',outline:'none',fontFamily:F,fontWeight:600}}>
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            {d.name||`orig-doc-${i+1}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </GC>
+          )}
+
+          {/* ── Similar Requests (past approved/completed with same client or project) ── */}
+          {similarReqs.length > 0 && (
+            <GC>
+              <div style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontWeight:700,marginBottom:10}}>Similar Past Requests</div>
+              <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                {similarReqs.map((sr,i)=>{
+                  const srDate = sr.directorRespondedAt ? new Date(sr.directorRespondedAt).toLocaleDateString('en-GB') : sr.date||'—';
+                  return (
+                    <div key={sr.id||i} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'9px 12px',borderRadius:8,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',transition:'background 0.15s'}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.055)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
+                      {/* Estimator avatar */}
+                      {(() => {
+                        const pal = avatarPalette(sr.estimator||'');
+                        const estCode = EST_ROSTER.find(e=>e.name===sr.estimator)?.code;
+                        const photoUrl = AVATAR_URLS[estCode];
+                        return (
+                          <div style={{width:28,height:28,borderRadius:'50%',flexShrink:0,background:photoUrl?'transparent':pal.bg,border:`1.5px solid ${pal.ring}`,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',fontSize:'0.62rem',fontWeight:700,color:pal.fg}}>
+                            {photoUrl ? <img src={photoUrl} alt={sr.estimator} style={{width:'100%',height:'100%',objectFit:'cover'}}/> : (sr.estimator||'?').charAt(0).toUpperCase()}
+                          </div>
+                        );
+                      })()}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:3}}>
+                          <span style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.75)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sr.proj||sr.id}</span>
+                          <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.30)'}}>·</span>
+                          <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.38)'}}>{sr.client}</span>
+                          <span style={{marginLeft:'auto',fontSize:'0.58rem',color:'rgba(255,255,255,0.22)',flexShrink:0}}>{srDate}</span>
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+                          {sr.estimator && <span style={{fontSize:'0.60rem',color:'rgba(100,200,255,0.65)',fontWeight:500}}>Est: {sr.estimator}</span>}
+                          {sr.revisedMargin && <span style={{fontSize:'0.60rem',color:'rgba(0,220,255,0.55)',fontFamily:'monospace'}}>{sr.revisedMargin}% margin</span>}
+                          {sr.totalAmt && <span style={{fontSize:'0.60rem',color:'rgba(0,220,130,0.55)',fontFamily:'monospace'}}>{sr.totalAmt} AED</span>}
+                          <span style={{fontSize:'0.54rem',fontWeight:700,padding:'1px 7px',borderRadius:4,
+                            background:sr.directorAction==='approved'?'rgba(0,220,130,0.10)':'rgba(255,255,255,0.05)',
+                            color:sr.directorAction==='approved'?'rgba(0,220,130,0.75)':'rgba(255,255,255,0.30)',
+                            border:`1px solid ${sr.directorAction==='approved'?'rgba(0,220,130,0.22)':'rgba(255,255,255,0.08)'}`
+                          }}>{sr.reqStatus==='completed'?'Completed':'Approved'}</span>
+                        </div>
+                        {/* Similar request docs */}
+                        {(sr.estimationDocs?.length > 0 || sr.estimationDoc) && (
+                          <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:5}}>
+                            {(sr.estimationDocs?.length > 0 ? sr.estimationDocs : [sr.estimationDoc]).filter(Boolean).slice(0,3).map((d,di)=>(
+                              <button key={di} onClick={()=>downloadDoc(d)}
+                                style={{fontSize:'0.60rem',color:'rgba(52,211,153,0.75)',background:'rgba(0,160,80,0.07)',border:'1px solid rgba(52,211,153,0.18)',borderRadius:5,padding:'2px 8px',cursor:'pointer',outline:'none',fontFamily:F,fontWeight:600,display:'flex',alignItems:'center',gap:4}}>
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                {d.name||`doc-${di+1}`}
+                              </button>
+                            ))}
+                            {(sr.estimationDocs?.length||0) > 3 && <span style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.25)'}}>+{sr.estimationDocs.length-3} more</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </GC>
+          )}
 
           {/* ── Footer buttons ── */}
           {submitted ? (
@@ -7873,7 +8118,7 @@ const Dashboard = ({
         )}
 
         {reviewIdx !== null && (
-          <DirectorReviewModal req={requests[reviewIdx]} idx={reviewIdx} now={now} onUpdate={onUpdate} onClose={()=>setReviewIdx(null)}/>
+          <DirectorReviewModal req={requests[reviewIdx]} idx={reviewIdx} now={now} onUpdate={onUpdate} onClose={()=>setReviewIdx(null)} requests={requests}/>
         )}
         {/* ── Sticky sub-nav header ── */}
         {(() => {
@@ -7922,7 +8167,7 @@ const Dashboard = ({
                 <LBL>Request ID</LBL>
                 <div style={{display:'flex',alignItems:'center',gap:7}}>
                   <span style={{fontSize:'0.90rem',fontWeight:800,color:'rgba(220,165,0,0.95)',fontFamily:'monospace',letterSpacing:'0.06em'}}>{req.id}</span>
-                  {req.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISED</span>}
+                  {req.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISE</span>}
                   {req.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.90)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
                 </div>
               </div>
@@ -8231,6 +8476,124 @@ const Dashboard = ({
                   </div>
                 </div>
               )}
+
+              {/* ── Previous quotation data (revise / final price) ── */}
+              {(req.requestType==='revised'||req.requestType==='finalPrice') && req.originalId && (() => {
+                const orig = requests.find(r => r.id === req.originalId);
+                if (!orig) return null;
+                const origQuotDocs = orig.estimationDocs?.length > 0 ? orig.estimationDocs : orig.estimationDoc ? [orig.estimationDoc] : [];
+                const origToolDocs = orig.toolDocs || [];
+                // Prefer live docs from original; fall back to the snapshot copied at revision-submit time
+                const origReqDocs  = (orig.docs?.length ? orig.docs : null) || req.originalDocs || [];
+                const hasSomething = orig.projValue || orig.directorNote || origQuotDocs.length || origToolDocs.length || origReqDocs.length;
+                if (!hasSomething) return null;
+                return (
+                  <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid rgba(255,200,40,0.14)'}}>
+                    <p style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,200,40,0.55)',marginBottom:8,fontWeight:700}}>
+                      Previous Quotation — {orig.id}
+                    </p>
+                    {/* Estimator row */}
+                    {orig.estimator && (() => {
+                      const pal = avatarPalette(orig.estimator);
+                      const estCode = EST_ROSTER.find(e => e.name === orig.estimator)?.code;
+                      const photoUrl = AVATAR_URLS[estCode];
+                      return (
+                        <div style={{display:'flex',alignItems:'center',gap:9,padding:'7px 10px',borderRadius:8,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',marginBottom:6}}>
+                          <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,background:photoUrl?'transparent':pal.bg,border:`2px solid ${pal.ring}`,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',fontSize:'0.72rem',fontWeight:700,color:pal.fg}}>
+                            {photoUrl
+                              ? <img src={photoUrl} alt={orig.estimator} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                              : orig.estimator.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{fontSize:'0.50rem',color:'rgba(255,255,255,0.28)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:1}}>Estimator</div>
+                            <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.82)',fontWeight:700}}>{orig.estimator}</div>
+                          </div>
+                          {orig.directorAction && (
+                            <span style={{marginLeft:'auto',fontSize:'0.50rem',fontWeight:700,padding:'2px 8px',borderRadius:4,
+                              background:orig.directorAction==='approved'?'rgba(0,220,130,0.12)':orig.directorAction==='rejected'?'rgba(220,60,60,0.12)':'rgba(255,160,30,0.12)',
+                              color:orig.directorAction==='approved'?'rgba(0,220,130,0.85)':orig.directorAction==='rejected'?'rgba(220,80,80,0.85)':'rgba(255,180,50,0.85)',
+                              border:`1px solid ${orig.directorAction==='approved'?'rgba(0,220,130,0.28)':orig.directorAction==='rejected'?'rgba(220,60,60,0.28)':'rgba(255,160,30,0.28)'}`
+                            }}>{orig.directorAction.charAt(0).toUpperCase()+orig.directorAction.slice(1)}</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+
+                      {/* Quoted Value */}
+                      {orig.projValue && (
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 10px',borderRadius:7,background:'rgba(0,200,120,0.07)',border:'1px solid rgba(0,200,120,0.18)'}}>
+                          <span style={{fontSize:'0.56rem',color:'rgba(0,200,120,0.60)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>Quoted Value</span>
+                          <span style={{fontSize:'0.88rem',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontWeight:700}}>{orig.projValue} AED</span>
+                        </div>
+                      )}
+
+                      {/* Request Docs */}
+                      {origReqDocs.length > 0 && (
+                        <div>
+                          <p style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,180,255,0.55)',marginBottom:5,fontWeight:700}}>Request Docs</p>
+                          <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                            {origReqDocs.map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(0,160,255,0.07)',border:'1px solid rgba(0,180,255,0.20)',cursor:'pointer',outline:'none',fontFamily:F2,width:'100%',textAlign:'left'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(0,160,255,0.14)'}
+                                onMouseLeave={e=>e.currentTarget.style.background='rgba(0,160,255,0.07)'}>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.75)" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span style={{fontSize:'0.72rem',color:'rgba(0,200,255,0.85)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{docName(d)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cost-Artist Remarks */}
+                      {orig.directorNote && (
+                        <div style={{padding:'8px 10px',borderRadius:7,background:'rgba(0,150,255,0.06)',border:'1px solid rgba(0,180,255,0.16)'}}>
+                          <p style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,255,0.50)',marginBottom:4,fontWeight:700}}>Cost-Artist Remarks</p>
+                          <p style={{fontSize:'0.76rem',color:'rgba(180,220,255,0.80)',lineHeight:1.5,margin:0}}>{orig.directorNote}</p>
+                        </div>
+                      )}
+
+                      {/* Project Docs */}
+                      {origToolDocs.length > 0 && (
+                        <div>
+                          <p style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(168,85,247,0.55)',marginBottom:5,fontWeight:700}}>Project Docs</p>
+                          <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                            {origToolDocs.map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(168,85,247,0.07)',border:'1px solid rgba(168,85,247,0.22)',cursor:'pointer',outline:'none',fontFamily:F2,width:'100%',textAlign:'left'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(168,85,247,0.14)'}
+                                onMouseLeave={e=>e.currentTarget.style.background='rgba(168,85,247,0.07)'}>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(196,181,253,0.75)" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span style={{fontSize:'0.72rem',color:'rgba(196,181,253,0.85)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`proj-doc-${i+1}`}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quotation Docs */}
+                      {origQuotDocs.length > 0 && (
+                        <div>
+                          <p style={{fontSize:'0.50rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,200,40,0.55)',marginBottom:5,fontWeight:700}}>Quotation Docs</p>
+                          <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                            {origQuotDocs.map((d,i)=>(
+                              <button key={i} onClick={()=>downloadDoc(d)}
+                                style={{display:'flex',alignItems:'center',gap:7,padding:'5px 9px',borderRadius:6,background:'rgba(255,180,0,0.07)',border:'1px solid rgba(255,200,40,0.22)',cursor:'pointer',outline:'none',fontFamily:F2,width:'100%',textAlign:'left'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,180,0,0.14)'}
+                                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,180,0,0.07)'}>
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,210,60,0.75)" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span style={{fontSize:'0.72rem',color:'rgba(255,210,60,0.85)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{d.name||`quot-doc-${i+1}`}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Drag handle — left / middle */}
@@ -8392,6 +8755,24 @@ const Dashboard = ({
                   );
                 })()}
 
+                {/* ── View Original Request button (estimator navigation) ── */}
+                {req.originalId && (() => {
+                  const origIdx = requests.findIndex(r => r.id === req.originalId);
+                  if (origIdx < 0) return null;
+                  const origR = requests[origIdx];
+                  return (
+                    <button onClick={()=>setOpen(origIdx)}
+                      style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,background:'rgba(220,165,0,0.08)',border:'1px solid rgba(220,165,0,0.30)',color:'rgba(255,200,60,0.90)',fontFamily:F2,fontSize:'0.78rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',width:'100%',textAlign:'left'}}
+                      onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,165,0,0.16)';e.currentTarget.style.borderColor='rgba(220,165,0,0.50)';}}
+                      onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,165,0,0.08)';e.currentTarget.style.borderColor='rgba(220,165,0,0.30)';}}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
+                      <span>View Original Request</span>
+                      <span style={{marginLeft:'auto',fontSize:'0.65rem',color:'rgba(255,200,60,0.55)',fontFamily:'monospace',fontWeight:600}}>{origR.id}</span>
+                      {origR.proj && <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.30)',fontWeight:400,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{origR.proj}</span>}
+                    </button>
+                  );
+                })()}
+
                 {/* ── Comment History thread ── */}
                 {(() => {
                   const origReq = req.originalId ? requests.find(r => r.id === req.originalId) : null;
@@ -8496,7 +8877,8 @@ const Dashboard = ({
                     </div>
 
                     {/* ── SECTION B: Tool / Project Documents ── */}
-                    <div style={{background:'rgba(168,85,247,0.04)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:8,padding:'10px 12px'}}>
+                    <div style={{position:'relative',background:'rgba(168,85,247,0.04)',border:'1px solid rgba(168,85,247,0.20)',borderRadius:8,padding:'10px 12px'}}>
+                      <div style={{position:'absolute',top:4,right:10,fontSize:'3.2rem',fontWeight:900,color:'rgba(168,85,247,1)',opacity:0.22,pointerEvents:'none',lineHeight:1,userSelect:'none',fontFamily:'monospace'}}>1</div>
                       <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,247,0.70)" strokeWidth="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(168,85,247,0.70)',margin:0,fontWeight:700}}>
@@ -8541,8 +8923,17 @@ const Dashboard = ({
                       </button>
                     </div>
 
+                    {/* ── Project Value ── */}
+                    <div style={{position:'relative',background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
+                      <div style={{position:'absolute',top:4,right:10,fontSize:'3.2rem',fontWeight:900,color:'rgba(0,220,130,1)',opacity:0.22,pointerEvents:'none',lineHeight:1,userSelect:'none',fontFamily:'monospace'}}>2</div>
+                      <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
+                      <input type="number" value={req.projValue||''} onChange={e=>onUpdate(req.id,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
+                        style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
+                    </div>
+
                     {/* ── SECTION C: Quotation Documents ── */}
-                    <div style={{background:'rgba(0,10,30,0.40)',border:'1px solid rgba(255,200,40,0.22)',borderRadius:8,padding:'10px 12px'}}>
+                    <div style={{position:'relative',background:'rgba(0,10,30,0.40)',border:'1px solid rgba(255,200,40,0.22)',borderRadius:8,padding:'10px 12px'}}>
+                      <div style={{position:'absolute',top:4,right:10,fontSize:'3.2rem',fontWeight:900,color:'rgba(255,200,40,1)',opacity:0.22,pointerEvents:'none',lineHeight:1,userSelect:'none',fontFamily:'monospace'}}>3</div>
                       <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:7}}>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,200,40,0.65)" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                         <p style={{fontSize:'0.50rem',letterSpacing:'0.13em',textTransform:'uppercase',color:'rgba(255,210,60,0.70)',margin:0,fontWeight:700}}>
@@ -8614,12 +9005,6 @@ const Dashboard = ({
                       </button>
                     </div>
 
-                  </div>
-                  {/* Project Value */}
-                  <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
-                    <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
-                    <input type="number" value={req.projValue||''} onChange={e=>onUpdate(req.id,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
-                      style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
                   </div>
                   {/* Estimator Comments */}
                   <div style={{background:'rgba(0,10,30,0.60)',border:'1px solid rgba(255,200,80,0.22)',borderRadius:8,padding:'10px 12px'}}>
@@ -10301,7 +10686,7 @@ const Dashboard = ({
                     </span>
                   )}
                   {r.requestType==='revised' && (
-                    <span style={{fontSize:'0.52rem',color:'rgba(0,200,255,0.70)',fontWeight:600,letterSpacing:'0.06em'}}>REVISED</span>
+                    <span style={{fontSize:'0.52rem',color:'rgba(0,200,255,0.70)',fontWeight:600,letterSpacing:'0.06em'}}>REVISE</span>
                   )}
                   {r.requestType==='finalPrice' && (
                     <span style={{fontSize:'0.52rem',color:'rgba(52,211,153,0.80)',fontWeight:600,letterSpacing:'0.06em'}}>FINAL</span>
@@ -10623,7 +11008,7 @@ const Analyse = ({ requests }) => {
             <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.05)',paddingBottom:7}}>
               <span style={{fontFamily:'monospace',fontSize:'0.72rem',fontWeight:700,color:'rgba(220,165,0,0.85)',flexShrink:0}}>{r.id}</span>
               <span style={{flex:1,fontSize:'0.76rem',color:'rgba(255,255,255,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||'—'}</span>
-              {r.requestType==='revised'    && <span style={{fontSize:'0.58rem',color:'rgba(0,200,255,0.70)',fontWeight:700,flexShrink:0}}>REVISED</span>}
+              {r.requestType==='revised'    && <span style={{fontSize:'0.58rem',color:'rgba(0,200,255,0.70)',fontWeight:700,flexShrink:0}}>REVISE</span>}
               {r.requestType==='finalPrice' && <span style={{fontSize:'0.58rem',color:'rgba(52,211,153,0.80)',fontWeight:700,flexShrink:0}}>FINAL</span>}
               <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.30)',flexShrink:0}}>{r.date}</span>
             </div>
@@ -11576,16 +11961,29 @@ const handleSubmit = async (formData) => {
     const docFiles = formData.docFiles || [];
 
     const finaliseFinalPriceSubmit = (fData, nId, uDocs) => {
+      const origEntry = fData.originalId
+        ? latestRequestsRef.current.find(r => r.id === fData.originalId)
+        : null;
+      const autoEstimator = origEntry?.estimator || null;
+      const nowTs = new Date().toISOString();
+      const nowMs = Date.now();
       const entry = {
         id: nId,
         ...fData,
         docs: uDocs,
         status: 'Pending Estimation',
         date: new Date().toLocaleDateString('en-GB'),
-        submittedAt: new Date().toISOString(),
-        estimationFile: null, estimator: null, margin: '', taggedAt: null,
-        reqStatus: 'not-started', directorAction: null, directorNote: '',
-        timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Final Price Request Submitted', by: fData.submittedBy||'' }],
+        submittedAt: nowTs,
+        estimationFile: null,
+        estimator: autoEstimator,
+        margin: '',
+        taggedAt: autoEstimator ? nowMs : null,
+        reqStatus: autoEstimator ? 'inprogress' : 'not-started',
+        directorAction: null, directorNote: '',
+        timeline: [
+          { event:'submitted', ts:nowTs, tsMs:nowMs, label:'Final Price Request Submitted', by: fData.submittedBy||'' },
+          ...(autoEstimator ? [{ event:'assigned', ts:nowTs, tsMs:nowMs, label:`Auto-assigned to ${autoEstimator} (previous estimator)`, by:'System' }] : []),
+        ],
       };
       setRequests(prev => [entry, ...prev]);
       setFinalPriceSource(null);
@@ -11607,16 +12005,29 @@ const handleSubmit = async (formData) => {
     const docFiles = formData.docFiles || [];
 
     const finaliseRevisedSubmit = (fData, nId, uDocs) => {
+      const origEntry = fData.originalId
+        ? latestRequestsRef.current.find(r => r.id === fData.originalId)
+        : null;
+      const autoEstimator = origEntry?.estimator || null;
+      const nowTs = new Date().toISOString();
+      const nowMs = Date.now();
       const entry = {
         id: nId,
         ...fData,
         docs: uDocs,
         status: 'Pending Estimation',
         date: new Date().toLocaleDateString('en-GB'),
-        submittedAt: new Date().toISOString(),
-        estimationFile: null, estimator: null, margin: '', taggedAt: null,
-        reqStatus: 'not-started', directorAction: null, directorNote: '',
-        timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Revised Request Submitted', by: fData.submittedBy||'' }],
+        submittedAt: nowTs,
+        estimationFile: null,
+        estimator: autoEstimator,
+        margin: '',
+        taggedAt: autoEstimator ? nowMs : null,
+        reqStatus: autoEstimator ? 'inprogress' : 'not-started',
+        directorAction: null, directorNote: '',
+        timeline: [
+          { event:'submitted', ts:nowTs, tsMs:nowMs, label:'Revised Request Submitted', by: fData.submittedBy||'' },
+          ...(autoEstimator ? [{ event:'assigned', ts:nowTs, tsMs:nowMs, label:`Auto-assigned to ${autoEstimator} (previous estimator)`, by:'System' }] : []),
+        ],
       };
       setRequests(prev => [entry, ...prev]);
       setRevisedSource(null);

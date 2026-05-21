@@ -3,7 +3,9 @@
     "allow": [
       "Bash(node -e ':*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const {parse}=require\\('@babel/parser'\\),fs=require\\('fs'\\);try{parse\\(fs.readFileSync\\('./src/pages/AIEstimation.jsx','utf-8'\\),{sourceType:'module',plugins:['jsx']}\\);console.log\\('OK'\\);}catch\\(e\\){console.log\\('ERR:',e.message\\);}\")"
     ]
   }
 }
