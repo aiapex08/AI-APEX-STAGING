@@ -3019,7 +3019,7 @@ const STAFF_NAMES = {
   // Sales
   'SX985':'Ammar Khaldoun','SX417':'Ashik Bin Shams',
   'SE628':'Mohammad Hindawi','SE842':'Ibrahim Odeh',
-  'SE519':'Yazan Al Agha','SM386':'Ali Hussnain','SE421':'Almira Abogado',
+  'SE519':'Yazan Al Agha','SM386':'Ali Hussnain','SE421':'Armela E. Arboleda',
   'MYD':'My Dashboard',
   // Estimators
   'EX552':'Sachin Poojary','EX719':'Mohammad Samee Hamid Khan',
@@ -3050,7 +3050,7 @@ const FULL_STAFF = [
   {code:'SE842',name:'Ibrahim Odeh',      role:'sales'},
   {code:'SE519',name:'Yazan Al Agha',     role:'sales'},
   {code:'SM386',name:'Ali Hussnain',      role:'sales'},
-  {code:'SE421',name:'Almira Abogado',    role:'sales'},
+  {code:'SE421',name:'Armela E. Arboleda',    role:'sales'},
   ...EST_ROSTER.map(e => ({ ...e, role:'estimator' })),
 ];
 
