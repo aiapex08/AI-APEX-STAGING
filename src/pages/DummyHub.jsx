@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
+ 
 // Floating icons per department — each entry: { x%, y%, sz, delay, dur, path }
 const FLOATS = {
   sales: [
@@ -52,7 +52,7 @@ const FLOATS = {
     { x:18, y:80, sz:36, delay:0.8,  dur:3.9, d:'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z' },
   ],
 };
-
+ 
 const DEPT_META = {
   sales: {
     desc: 'Sales Intelligence Module',
@@ -121,7 +121,7 @@ const DEPT_META = {
     items: ['Sourcing','Vendor Eval','Purchase Orders','QA Check','Performance'],
   },
 };
-
+ 
 const DEPT_ICONS_LARGE = {
   sales: (a) => (
     <svg width="118" height="96" viewBox="0 0 118 96" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -130,7 +130,10 @@ const DEPT_ICONS_LARGE = {
         <g key={i} style={{ transformOrigin:`${b.x+9}px 90px`, animation:`hs-bar-grow 2.2s ease-in-out ${b.d} infinite alternate` }}>
           <rect x={b.x} y={90-b.h} width="18" height={b.h} rx="3" fill={`rgba(${a},0.52)`}/>
         </g>
-      ))}
+      ))}// Example from the existing code
+<g style={{ transformOrigin:'50px 53px', animation:'hs-ping 3s ease-in-out 1.2s infinite' }}>
+  <circle cx="50" cy="53" r="24" stroke={`rgba(${a},0.14)`} strokeWidth="1" fill="none"/>
+</g>
       <polyline points="15,67 37,46 59,27 81,52 103,14"
         stroke={`rgba(${a},0.92)`} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
         strokeDasharray="220" style={{ animation:'hs-stroke 2.4s ease forwards' }}/>
@@ -142,21 +145,18 @@ const DEPT_ICONS_LARGE = {
     </svg>
   ),
   estimation: (a) => (
-    <svg width="100" height="108" viewBox="0 0 100 108" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="12" y="4" width="66" height="88" rx="5" stroke={`rgba(${a},0.48)`} strokeWidth="1.8" fill={`rgba(${a},0.05)`}/>
-      <path d="M62 4 L78 20 L62 20 Z" fill={`rgba(${a},0.14)`} stroke={`rgba(${a},0.38)`} strokeWidth="1.2"/>
-      {[28,42,56,70].map((y,i)=>(
-        <line key={i} x1="24" y1={y} x2={i<3?68:52} y2={y}
-          stroke={`rgba(${a},0.55)`} strokeWidth="1.8" strokeLinecap="round"
-          strokeDasharray="55" style={{ animation:`hs-stroke 1.6s ease ${i*0.28}s forwards` }}/>
-      ))}
-      <line x1="12" y1="28" x2="78" y2="28" stroke={`rgba(${a},0.80)`} strokeWidth="1.8" strokeLinecap="round"
-        style={{ animation:'hs-scan-ln 3s ease-in-out infinite' }}/>
-      <circle cx="82" cy="88" r="16" stroke={`rgba(${a},0.45)`} strokeWidth="1.5" fill={`rgba(${a},0.07)`}/>
-      <line x1="82" y1="80" x2="82" y2="88" stroke={`rgba(${a},0.75)`} strokeWidth="1.8" strokeLinecap="round"/>
-      <line x1="82" y1="88" x2="88" y2="94" stroke={`rgba(${a},0.75)`} strokeWidth="1.8" strokeLinecap="round"
-        style={{ animation:'hs-tick-hand 2s ease-in-out infinite alternate' }}/>
-    </svg>
+    <div style={{ width:108, height:108, display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
+      <img
+        src="/E_Estimation.png"
+        alt="Estimation"
+        style={{
+          width:100, height:100, objectFit:'contain',
+          mixBlendMode:'screen',
+          filter:`drop-shadow(0 0 10px rgba(${a},0.75)) drop-shadow(0 0 3px rgba(${a},0.50))`,
+          opacity:0.95,
+        }}
+      />
+    </div>
   ),
   contracts: (a) => (
     <svg width="100" height="106" viewBox="0 0 100 106" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -231,7 +231,15 @@ const DEPT_ICONS_LARGE = {
     </svg>
   ),
 };
-
+ 
+const VSCREENS = [
+  { title:'PIPELINE',    color:'#00e5ff', a:'0,229,255',   graph:'bar',     x:'55%', y:'18%', dur:'20s', delay:'0s'  },
+  { title:'PERFORMANCE', color:'#34d399', a:'52,211,153',  graph:'line',    x:'60%', y:'41%', dur:'20s', delay:'4s'  },
+  { title:'COMPLETION',  color:'#a855f7', a:'168,85,247',  graph:'donut',   x:'57%', y:'63%', dur:'20s', delay:'8s'  },
+  { title:'ACTIVITY',    color:'#fb923c', a:'251,146,60',  graph:'scatter', x:'7%',  y:'36%', dur:'20s', delay:'12s' },
+  { title:'CAPACITY',    color:'#f59e0b', a:'245,158,11',  graph:'gauge',   x:'43%', y:'8%',  dur:'20s', delay:'16s' },
+];
+ 
 export default function DummyHub() {
   const [phase, setPhase]           = useState('select');
   const [selDept, setSelDept]       = useState(null);
@@ -247,7 +255,7 @@ export default function DummyHub() {
   const [activeIdx, setActiveIdx]   = useState(2);
   const touchStartX                 = useRef(null);
   const scrollLock                  = useRef(false);
-
+ 
   React.useEffect(() => {
     clearInterval(typingRef.current);
     if (expandedCard) {
@@ -266,68 +274,40 @@ export default function DummyHub() {
     }
     return () => clearInterval(typingRef.current);
   }, [expandedCard]);
-
+ 
   const depts = [
     {
       id:'sales', label:'Sales & Marketing', hint:'Enter sales code',
-      color:'#f59e0b', a:'245,158,11', b:'234,88,12',
-      icon:(c)=>(
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
-        </svg>
-      ),
+      color:'#00e5ff', a:'0,229,255', b:'6,182,212',
+      icon:(c)=>(<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>),
     },
     {
       id:'estimation', label:'Estimation', hint:'Enter estimation code',
-      color:'#a78bfa', a:'167,139,250', b:'168,85,247',
-      icon:(c)=>(
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="8" y1="15" x2="11" y2="15"/>
-        </svg>
-      ),
+      color:'#7c3aed', a:'124,58,237', b:'109,40,217',
+      icon:(c)=>(<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="8" y1="15" x2="11" y2="15"/></svg>),
     },
     {
       id:'contracts', label:'Contracts', hint:'Enter contracts code',
-      color:'#60a5fa', a:'96,165,250', b:'59,130,246',
-      icon:(c)=>(
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-          <path d="M9 13h6M9 17h4"/>
-        </svg>
-      ),
+      color:'#ec4899', a:'236,72,153', b:'219,39,119',
+      icon:(c)=>(<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h4"/></svg>),
     },
     {
       id:'engineering', label:'Engineering', hint:'Enter engineering code',
-      color:'#34d399', a:'52,211,153', b:'16,185,129',
-      icon:(c)=>(
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14M12 2v2M12 20v2M2 12h2M20 12h2"/>
-        </svg>
-      ),
+      color:'#06b6d4', a:'6,182,212', b:'14,165,233',
+      icon:(c)=>(<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>),
     },
     {
       id:'salesorder', label:'Sales Order', hint:'Enter sales order code',
-      color:'#fb923c', a:'251,146,60', b:'239,68,68',
-      icon:(c)=>(
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
-          <path d="M16 10a4 4 0 01-8 0"/>
-        </svg>
-      ),
+      color:'#818cf8', a:'129,140,248', b:'99,102,241',
+      icon:(c)=>(<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>),
     },
     {
       id:'supplier', label:'Supplier', hint:'Enter supplier code',
-      color:'#2dd4bf', a:'45,212,191', b:'20,184,166',
-      icon:(c)=>(
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-        </svg>
-      ),
+      color:'#a855f7', a:'168,85,247', b:'147,51,234',
+      icon:(c)=>(<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>),
     },
   ];
-
+ 
   const pickDept = (dept) => {
     setSelDept(dept); setCode(''); setErrMsg(''); setPhase('code');
     setTimeout(() => inputRef.current?.focus(), 80);
@@ -343,16 +323,22 @@ export default function DummyHub() {
     if (entered === 'TEST') alert(`Logged into ${selDept.label} successfully!`);
     else doShake('Invalid code (Try "TEST")');
   };
-
+ 
   // ── Arc constants ──
   const N       = depts.length;   // 6
-  const ARC     = 70;              // total spread in degrees
-  const RADIUS  = 890;            // px — distance from viewer to each panel
-  const PW      = 240;            // panel width  px
-  const PH      = 510;            // panel height px
-  const STAGE_H = 650;            // stage container height px
-  const stepAngle = ARC / (N - 1); // 16° per step
-
+  const RADIUS  = 1100;            // px — arc radius
+  const PW      = 260;             // panel width  px
+  const PH      = 420;             // panel height px
+  const STAGE_H = 550;             // stage container height px
+ 
+  const CARD_ANGLES = {
+    '-5': -80, '-4': -64, '-3': -48,
+    '-2': -35, '-1': -25,  '0':  35,
+     '1':  16,  '2':  32,  '3':  48,
+     '4':  64,  '5':  80,
+  };
+  const cardAngle = (relIdx) => CARD_ANGLES[String(relIdx)] ?? relIdx * 14;
+ 
   const goNext = () => {
     if (scrollLock.current || expandedCard) return;
     scrollLock.current = true;
@@ -377,10 +363,10 @@ export default function DummyHub() {
     diff > 0 ? goNext() : goPrev();
     touchStartX.current = null;
   };
-
+ 
   const activeDept = depts[activeIdx];
   const activeMeta  = DEPT_META[activeDept.id];
-
+ 
   return (
     <div style={{
       position:'fixed', inset:0, zIndex:200,
@@ -389,8 +375,11 @@ export default function DummyHub() {
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Barlow+Condensed:wght@600;700&display=swap');
+ 
+        /* ── AURORA: single looping keyframe, same as title ── */
         @keyframes hs-aurora  { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
         :root { --aurora: linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%); --aurora-sz:300% auto; }
+ 
         @keyframes hs-fadeUp  { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         @keyframes hs-shake   { 0%{transform:translateX(0)} 15%{transform:translateX(-10px)} 30%{transform:translateX(10px)} 45%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 75%{transform:translateX(-4px)} 90%{transform:translateX(4px)} 100%{transform:translateX(0)} }
         @keyframes hs-errP    { 0%{box-shadow:0 0 0 rgba(220,30,30,0)} 50%{box-shadow:0 0 22px rgba(220,30,30,0.7)} 100%{box-shadow:0 0 8px rgba(220,30,30,0.3)} }
@@ -411,6 +400,10 @@ export default function DummyHub() {
         @keyframes hs-dot-orbit { to{transform:rotate(360deg) translateX(88px) rotate(-360deg)} }
         @keyframes hs-ticker    { 0%{opacity:0.2} 50%{opacity:1} 100%{opacity:0.2} }
         @keyframes hs-bar-grow  { 0%{transform:scaleY(0.12)} 100%{transform:scaleY(1)} }
+        @keyframes hs-wave-bar  { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-14px)} }
+        @keyframes hs-wave-color { 0%{filter:hue-rotate(0deg)} 100%{filter:hue-rotate(360deg)} }
+        @keyframes hs-watermark { 0%,100%{opacity:0;transform:translate(-50%,-50%) scale(0.94)} 18%,82%{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+        @keyframes hs-net-dash  { 0%{stroke-dashoffset:600} 100%{stroke-dashoffset:0} }
         @keyframes hs-scan-ln   { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(54px)} }
         @keyframes hs-stroke    { from{stroke-dashoffset:300} to{stroke-dashoffset:0} }
         @keyframes hs-float-up  { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-11px)} }
@@ -438,9 +431,31 @@ export default function DummyHub() {
         @keyframes hs-hex-rot { to{transform:rotate(360deg)} }
         @keyframes hs-node-pulse { 0%,100%{r:3;opacity:0.4} 50%{r:5.5;opacity:1} }
         @keyframes hs-data-blink { 0%,100%{opacity:0.12} 50%{opacity:0.45} }
-
+        @keyframes hs-vscreen-cycle {
+          0%,100%{ opacity:0; transform:scale(0.86) translateY(10px); }
+          5%     { opacity:1; transform:scale(1) translateY(0); }
+          23%    { opacity:1; transform:scale(1) translateY(0); }
+          30%    { opacity:0; transform:scale(0.93) translateY(-7px); }
+        }
+ 
+        /* ── Aurora drift — used for the soft secondary radial overlays only ── */
+        @keyframes hs-aurora-drift1 {
+          0%   { transform:translateY(-22%) scaleX(1.05); opacity:0.85; }
+          50%  { transform:translateY(22%)  scaleX(1.0);  opacity:1.0; }
+          100% { transform:translateY(-22%) scaleX(1.05); opacity:0.85; }
+        }
+        @keyframes hs-aurora-drift4 {
+          0%   { transform:translateY(20%)  scaleX(1.0);  opacity:0.88; }
+          50%  { transform:translateY(-20%) scaleX(1.04); opacity:1.0; }
+          100% { transform:translateY(20%)  scaleX(1.0);  opacity:0.88; }
+        }
+ @keyframes hs-ping {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
         /* branding */
-        .hs-topbrand { position:absolute; top:22px; left:40px; z-index:30; display:flex; flex-direction:column; gap:2px; animation:hs-fadeUp 0.5s ease both; }
+        .hs-topbrand { position:absolute; top:22px; left:6%; z-index:30; display:flex; flex-direction:column; gap:0px; animation:hs-fadeUp 0.5s ease both; }
         .hs-topbrand-naffco {
           font-size:clamp(0.78rem,1vw,0.95rem); font-weight:500; letter-spacing:0.28em;
           text-transform:uppercase; line-height:1;
@@ -450,19 +465,19 @@ export default function DummyHub() {
         }
         .hs-topbrand-sub { font-size:clamp(0.52rem,0.65vw,0.62rem); font-weight:400; letter-spacing:0.38em; text-transform:uppercase; color:rgba(255,255,255,0.28); margin-bottom:10px; }
         .hs-title {
-          font-family:'Cinzel',serif; font-size:clamp(3.2rem,6vw,6rem); font-weight:400; letter-spacing:0.08em; text-transform:uppercase; line-height:1.1; margin-bottom:6px;
+          font-family:'Cinzel',serif; font-size:clamp(2.15rem,4.3vw,4rem); font-weight:400; letter-spacing:0.08em; text-transform:uppercase; line-height:1.1; margin-bottom:6px;
           background:linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%);
           background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
           filter:drop-shadow(0 2px 20px rgba(6,182,212,0.50)); animation:hs-aurora 5s ease infinite;
         }
         .hs-state-of-art { font-family:'Barlow Condensed',sans-serif; font-size:0.78rem; font-weight:700; letter-spacing:0.38em; text-transform:uppercase; color:rgba(255,255,255,0.32); margin-top:-4px; }
-
+ 
         /* icon */
         .hs-icon-wrap { position:relative; width:54px; height:54px; flex-shrink:0; }
         .hs-icon-ring { position:absolute; inset:-2px; border-radius:13px; background:conic-gradient(from 0deg,#00e5ff 0deg,#4f46e5 90deg,#a855f7 180deg,#06b6d4 270deg,#00e5ff 360deg); animation:hs-spin 3.5s linear infinite; opacity:0.65; }
         .hs-panel:hover .hs-icon-ring { opacity:1; }
         .hs-icon-bg  { position:absolute; inset:2px; border-radius:11px; background:rgba(6,4,22,0.90); display:flex; align-items:center; justify-content:center; }
-
+ 
         /* code entry */
         .hs-cinput { background:transparent;border:none;border-bottom:2px solid #333;outline:none; color:#e0e0e0;font-size:clamp(20px,3vw,36px);font-weight:600;letter-spacing:0.3em;text-align:center; text-transform:uppercase;width:clamp(200px,28vw,320px);padding:8px 0; caret-color:#cc0000;transition:border-color 0.3s; }
         .hs-cinput:focus  { border-bottom-color:#cc0000; }
@@ -473,7 +488,7 @@ export default function DummyHub() {
         .hs-hint   { font-size:11px;letter-spacing:0.3em;color:#2a2a2a;text-transform:uppercase;margin-top:22px; }
         .hs-errmsg { font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:#dc1e1e;margin-top:10px;opacity:0;transition:opacity 0.2s; }
         .hs-errmsg.vis { opacity:1; }
-
+ 
         /* card label — ceramic white shine */
         @keyframes hs-shine { 0%{background-position:-250% center} 100%{background-position:250% center} }
         .hs-card-label-aurora {
@@ -504,32 +519,77 @@ export default function DummyHub() {
           animation:hs-shine 5s linear infinite;
           filter:drop-shadow(0 0 10px rgba(255,252,245,0.45)) drop-shadow(0 2px 12px rgba(0,0,0,0.80));
         }
-
+ 
         /* AR pill */
-        .hs-ar-btn { position:absolute; bottom:24px; right:24px; z-index:40; display:inline-flex; align-items:center; gap:7px; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.20); border-radius:100px; padding:7px 16px; cursor:pointer; color:rgba(255,255,255,0.82); font-size:0.70rem; font-weight:600; letter-spacing:0.10em; text-transform:uppercase; transition:background 0.2s,border-color 0.2s,color 0.2s,box-shadow 0.2s; }
-        .hs-ar-btn:hover { background:rgba(0,200,255,0.12); border-color:rgba(0,200,255,0.45); color:#fff; box-shadow:0 0 16px rgba(0,200,255,0.22); }
-        .hs-ar-dot { width:6px; height:6px; border-radius:50%; background:#00cfff; box-shadow:0 0 6px #00cfff; }
+        .hs-ar-btn { position:absolute; bottom:24px; right:24px; z-index:40; display:inline-flex; align-items:center; gap:7px; background:rgba(10,8,26,0.65); border:1px solid rgba(255,255,255,0.28); border-radius:100px; padding:8px 18px; cursor:pointer; color:rgba(255,255,255,0.88); font-size:0.72rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; transition:all 0.3s cubic-bezier(0.4,0,0.2,1); backdrop-filter:blur(14px); box-shadow:0 4px 15px rgba(0,0,0,0.4); }
+        .hs-ar-btn:hover { background:rgba(0,229,255,0.15); border-color:rgba(0,229,255,0.60); color:#fff; box-shadow:0 0 20px rgba(0,229,255,0.35); transform:translateY(-2px); }
+        .hs-ar-dot { width:7px; height:7px; border-radius:50%; background:#00e5ff; box-shadow:0 0 10px #00e5ff; }
       `}</style>
-
-      {/* ── FULL-SCREEN BACKGROUND: aurora + robot ── */}
-      <div style={{position:'absolute',inset:0,zIndex:0}}>
-        <div style={{position:'absolute',top:'-10%',left:0,right:0,bottom:'-5%',
-          background:'radial-gradient(ellipse at 30% 25%, rgba(99,102,241,0.38) 0%, transparent 52%), radial-gradient(ellipse at 72% 72%, rgba(109,40,217,0.22) 0%, transparent 48%)',
-          filter:'blur(55px)',opacity:1}}/>
-        <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,
-          background:'radial-gradient(ellipse at 50% 42%, rgba(30,27,110,0.32) 0%, transparent 62%)',
-          filter:'blur(28px)',opacity:1}}/>
+ 
+      {/* ══ LAYER 1: FULL-SCREEN AURORA — fully synced with hs-aurora 5s loop ══ */}
+      {/* dark base */}
+      <div style={{position:'absolute',inset:0,zIndex:0,background:'#010106',pointerEvents:'none'}}/>
+      {/* solid dark left half */}
+      <div style={{position:'absolute',top:0,left:0,width:'50%',height:'100%',zIndex:0,background:'#010106',pointerEvents:'none'}}/>
+ 
+      {/* ── SYNCED AURORA: right half, zIndex:0 — lives entirely behind the AI bot ── */}
+      <div style={{position:'absolute',top:0,right:0,width:'55%',height:'100%',zIndex:0,overflow:'hidden',pointerEvents:'none'}}>
+        {/*
+          PRIMARY BAND — uses the exact same gradient + hs-aurora 5s ease infinite as the
+          "AI APEX HUB" title, so both cycle through cyan → indigo → violet → purple → teal
+          in perfect lockstep.
+        */}
+        <div style={{
+          position:'absolute',
+          inset:'-15% -5%',                     /* slight bleed so blur doesn't show hard edge */
+          background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)',
+          backgroundSize:'300% auto',            /* same as title CSS variable */
+          animation:'hs-aurora 5s ease infinite',/* ← identical loop: duration, easing, fill */
+          opacity:0.70,
+          filter:'blur(55px)',                   /* diffuse so it reads as atmospheric glow */
+        }}/>
+        {/* secondary warm drift layer — adds depth without breaking the master sync */}
+        <div style={{
+          position:'absolute', inset:0,
+          background:'radial-gradient(ellipse 55% 80% at 22% 50%, rgba(0,229,255,0.20) 0%, transparent 65%)',
+          animation:'hs-aurora-drift1 18s ease-in-out infinite',
+        }}/>
+        {/* secondary cool drift layer */}
+        <div style={{
+          position:'absolute', inset:0,
+          background:'radial-gradient(ellipse 55% 80% at 80% 50%, rgba(168,85,247,0.20) 0%, transparent 65%)',
+          animation:'hs-aurora-drift4 24s ease-in-out infinite',
+        }}/>
+        {/* left-edge feather — blends aurora cleanly into the dark left half */}
+        <div style={{position:'absolute',top:0,left:0,width:'28%',height:'100%',background:'linear-gradient(to right,#010106 0%,transparent 100%)',pointerEvents:'none'}}/>
+      </div>
+ 
+      {/* global dim overlay */}
+      <div style={{position:'absolute',inset:0,zIndex:1,background:'rgba(1,1,6,0.28)',pointerEvents:'none'}}/>
+ 
+      {/* ══ LAYER 2: AI BOT IMAGE — sits above aurora (zIndex:4) ══ */}
+      <div style={{position:'absolute',inset:0,zIndex:4,pointerEvents:'none'}}>
         <img src="/AIBOT.png" alt="AI Bot" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',pointerEvents:'none'}}/>
       </div>
-
-      {/* ── TOP-LEFT BRANDING ── */}
-      <div className="hs-topbrand">
-        <div className="hs-topbrand-naffco">NAFFCO AI APEX</div>
-        <div className="hs-topbrand-sub">Passion to Protect</div>
-        <h1 className="hs-title">AI APEX HUB</h1>
-        <p className="hs-state-of-art">— STATE OF ART —</p>
+ 
+      {/* ══ LAYER 3: TEXT BRANDING ══ */}
+ 
+      {/* ── NAFFCO wordmark — extreme left ── */}
+      <div style={{ position:'absolute', top:22, left:16, zIndex:30, display:'flex', flexDirection:'column', gap:0, animation:'hs-fadeUp 0.5s ease both' }}>
+        <div className="hs-topbrand-naffco"><span style={{ fontWeight:900, letterSpacing:'0.18em' }}>NAFFCO</span> <span style={{ fontWeight:400 }}>AI APEX</span></div>
+        <div className="hs-topbrand-sub" style={{ marginTop:3 }}>Passion to Protect</div>
       </div>
-
+ 
+      {/* ── AI APEX HUB title + STATE OF ART — 6% from left ── */}
+      <div className="hs-topbrand">
+        <h1 className="hs-title" style={{ marginTop:140 }}>AI APEX HUB</h1>
+        <p className="hs-state-of-art" style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ width:7, height:9, borderRadius:'50%', background:'#cc0000', boxShadow:'0 0 6px #cc0000, 0 0 14px rgba(204,0,0,0.55)', flexShrink:0, display:'inline-block' }}/>
+          <span style={{ flex:1, height:1, background:'linear-gradient(to right, rgba(204,0,0,0.70) 0%, rgba(255,255,255,0.18) 100%)', display:'inline-block' }}/>
+          <span>STATE OF ART</span>
+        </p>
+      </div>
+ 
       {/* ── BOTTOM-LEFT LOGO ── */}
       <img src="/logo.png" alt="NAFFCO" style={{
         position:'absolute', bottom:24, left:36, zIndex:30,
@@ -537,12 +597,12 @@ export default function DummyHub() {
         filter:'drop-shadow(0 1px 8px rgba(109,40,217,0.35))',
         animation:'hs-fadeUp 0.6s ease both', cursor:'pointer',
       }} onClick={() => alert('Cost Artist Login Prompt!')} />
-
+ 
       {/* ── AR VIEWER ── */}
       <button className="hs-ar-btn" onClick={() => alert('AR Viewer Activated!')}>
         <span className="hs-ar-dot"/> AR Viewer
       </button>
-
+ 
       {/* ── LEFT SIDE: SMALL CIRCLE + VERTICAL PILL ── */}
       <AnimatePresence>
         {phase === 'select' && !expandedCard && (
@@ -556,21 +616,21 @@ export default function DummyHub() {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             {/* vertical pill */}
-            <div style={{ background:'rgba(10,8,26,0.68)', backdropFilter:'blur(22px)', border:'1px solid rgba(255,255,255,0.11)', borderRadius:100, padding:'13px 8px', display:'flex', flexDirection:'column', gap:16, alignItems:'center', boxShadow:'0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)' }}>
+            <div style={{ background:'rgba(10,8,26,0.75)', backdropFilter:'blur(28px)', border:'1.2px solid rgba(255,255,255,0.18)', borderRadius:100, padding:'15px 10px', display:'flex', flexDirection:'column', gap:18, alignItems:'center', boxShadow:'0 12px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)' }}>
               {[
                 { d:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10', on:true  },
                 { d:'M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0',   on:false },
                 { d:'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z', on:false },
               ].map(({ d, on }, i) => (
-                <button key={i} style={{ width:34, height:34, borderRadius:'50%', background: on ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.04)', border:`1px solid ${on ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.08)'}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: on ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.36)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
+                <button key={i} style={{ width:38, height:38, borderRadius:'50%', background: on ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)', border:`1px solid ${on ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)'}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: on ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.42)', transition:'all 0.3s ease', boxShadow: on ? '0 0 12px rgba(255,255,255,0.15)' : 'none' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
                 </button>
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
+ 
       {/* ── TOP-RIGHT GRID CIRCLE BUTTON ── */}
       {phase === 'select' && (
         <button onClick={() => alert('Grid View')} style={{ position:'absolute', top:26, right:168, zIndex:42, width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.07)', backdropFilter:'blur(14px)', border:'1px solid rgba(255,255,255,0.15)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.58)' }}>
@@ -580,13 +640,28 @@ export default function DummyHub() {
           </svg>
         </button>
       )}
+ 
+      {/* ══ LAYER 4.5: FULL-SCREEN LIQUID GLASS FROST — covers everything when card is expanded ══ */}
+      <AnimatePresence>
+        {expandedCard && (
+          <motion.div
+            key="global-frost"
+            initial={{ opacity:0 }}
+            animate={{ opacity:1 }}
+            exit={{ opacity:0 }}
+            transition={{ duration:0.50, ease:[0.22,1,0.36,1] }}
+            onClick={() => setExpandedCard(null)}
+            style={{
+              position:'fixed', inset:0, zIndex:50, cursor:'default',
+              background:'rgba(1,4,20,0.30)',
+              backdropFilter:'blur(8px) saturate(80%) brightness(0.75)',
+              WebkitBackdropFilter:'blur(8px) saturate(80%) brightness(0.75)',
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-
-
-
-      {/* ══════════════════════════════════════════
-          SELECT PHASE — PANORAMIC ARC STAGE
-      ══════════════════════════════════════════ */}
+      {/* ══ LAYER 5: CARDS + NAVIGATION ══ */}
       <AnimatePresence>
         {phase === 'select' && (
           <motion.div
@@ -595,645 +670,279 @@ export default function DummyHub() {
             onWheel={onWheel}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
+            onClick={() => { if (expandedCard) setExpandedCard(null); }}
             style={{
               position:'absolute',
               top:210, left:0, right:0, bottom:0,
-              /* 3-D perspective — viewer inside the arc */
               perspective:`${RADIUS * 1.1}px`,
-              perspectiveOrigin:'33% 35%',
-              zIndex:20,
+              perspectiveOrigin:'33% 68%',
+              zIndex: expandedCard ? 60 : 20,
             }}
           >
-            {/* ── outside-click dismiss overlay ── */}
-            {expandedCard && (
-              <div
-                onClick={() => setExpandedCard(null)}
-                style={{ position:'fixed', inset:0, zIndex:8, cursor:'default' }}
-              />
-            )}
-
             {/* ── arc panels ── */}
             {depts.map((dept, idx) => {
               const relIdx     = idx - activeIdx;
-              const angle      = relIdx * stepAngle;
+              const angle      = cardAngle(relIdx);
               const isExpanded = expandedCard === dept.id;
               const isHidden   = expandedCard && !isExpanded;
               const floats     = FLOATS[dept.id] || [];
-
+ 
               return (
                 <motion.div
                   key={dept.id}
                   className="hs-panel"
-                  /* Fix transform order: rotateY THEN translateZ creates the proper cylinder arc */
-                  transformTemplate={({ x, rotateY, z, scaleX, scaleY }) =>
-                    `translateX(${x ?? '-50%'}) scaleX(${scaleX ?? 1}) scaleY(${scaleY ?? 1}) rotateY(${rotateY ?? '0deg'}) translateZ(${z ?? '0px'})`
-                  }
+                  transformTemplate={({ x, rotateY, z, scale, scaleX, scaleY }) => {
+                    const s = scale ?? 1;
+                    const sx = scaleX != null ? scaleX * s : s;
+                    const sy = scaleY != null ? scaleY * s : s;
+                    const tx = x == null ? '-50%' : (typeof x === 'number' ? `${x}px` : x);
+                    return `translateX(${tx}) rotateY(${rotateY ?? '0deg'}) translateZ(${z ?? '0px'}) scaleX(${sx}) scaleY(${sy})`;
+                  }}
                   style={{
                     '--tc': dept.color,
                     position:'absolute',
-                    left:'33%', bottom:120,
+                    left:'30%', bottom:80,
                     originX:'50%', originY:'50%',
-                    borderRadius:'18px 18px 0 0',
-                    cursor:'pointer', overflow:'hidden',
-                    backdropFilter: isExpanded
-                      ? 'blur(28px) saturate(160%) brightness(1.08)'
-                      : `blur(${relIdx === 0 ? 18 : 12}px) saturate(140%) brightness(1.05)`,
-                    zIndex: isExpanded ? 15 : Math.max(1, 12 - Math.abs(relIdx)),
+                    borderRadius:'20px',
+                    cursor:'pointer', overflow: relIdx === 0 ? 'visible' : 'hidden',
+                    backdropFilter: isExpanded ? 'blur(20px) saturate(160%) brightness(1.12)' : 'blur(6px) saturate(130%)',
+                    zIndex: isExpanded ? 22 : (expandedCard ? 4 : Math.max(1, 12 - Math.abs(relIdx))),
                   }}
                   initial={false}
                   animate={isExpanded ? {
-                    x: -240, rotateY: 0, z: 150,
-                    width: 800, height: 500,
+                    x: -240, rotateY: 0, z: 300,
+                    scale: 1,
+                    width: 800, height: 450,
                     opacity: 1,
-                    background:`linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.07) 30%, rgba(255,255,255,0.02) 60%, rgba(4,3,22,0.18) 100%)`,
-                    border:`1px solid rgba(255,255,255,0.32)`,
-                    boxShadow:`0 32px 80px rgba(0,0,0,0.42), 0 8px 24px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(255,255,255,0.10), inset 1px 0 0 rgba(255,255,255,0.22), inset -1px 0 0 rgba(255,255,255,0.12), 0 0 80px rgba(${dept.a},0.14)`,
-} : {
-  x:'-50%', rotateY: -angle,
-  z: -RADIUS + (relIdx === 0 ? 520 : Math.max(0, 200 - Math.abs(relIdx) * 80)),
-  width: relIdx === 0 ? 320 : Math.max(160, PW - Math.abs(relIdx) * 22),
-  height: relIdx === 0 ? 550 : Math.max(340, PH - Math.abs(relIdx) * 28),
-  opacity: isHidden ? 0 : Math.max(0.18, 1 - Math.abs(relIdx) * 0.25),
-  background: relIdx === 0
-    ? `linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.02) 60%, rgba(6,4,24,0.22) 100%)`
-    : `linear-gradient(160deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 32%, rgba(255,255,255,0.01) 65%, rgba(6,4,24,0.32) 100%)`,
-  border: relIdx === 0
-    ? `1px solid rgba(255,255,255,0.38)`
-    : `1px solid rgba(255,255,255,0.20)`,
-  boxShadow: relIdx === 0
-    ? `0 32px 92px rgba(0,0,0,0.45), 0 8px 20px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(255,255,255,0.10), inset 1px 0 0 rgba(255,255,255,0.22), inset -1px 0 0 rgba(255,255,255,0.12), 0 0 0 1px rgba(255,255,255,0.05)`
-    : `0 14px 38px rgba(0,0,0,0.32), inset 0 2px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(255,255,255,0.06), inset 1px 0 0 rgba(255,255,255,0.14), inset -1px 0 0 rgba(255,255,255,0.07)`,
-}}
-                  transition={{ type:'spring', stiffness:200, damping:28, opacity:{ duration:0.25 } }}
-                  whileHover={!expandedCard ? { scale:1.06 } : {}}
-                  whileTap={!expandedCard ? { scale:0.95 } : {}}
+                    background:'rgba(6,16,58,0.72)',
+                    border:'1px solid rgba(160,200,255,0.45)',
+                    boxShadow:'0 48px 140px rgba(0,4,24,0.85), 0 20px 60px rgba(0,8,48,0.65), 0 6px 20px rgba(0,4,28,0.50), inset 0 2px 0 rgba(220,235,255,0.50), inset 0 -1px 0 rgba(100,160,255,0.18), inset 1px 0 0 rgba(170,205,255,0.30), inset -1px 0 0 rgba(170,205,255,0.25), 0 0 100px rgba(40,100,220,0.30)',
+                    transition:{
+                      type:'spring', stiffness:280, damping:26, mass:0.80,
+                      opacity:{ type:'tween', duration:0.22, ease:'easeOut' },
+                      background:{ type:'tween', duration:0.50, ease:[0.22,1,0.36,1] },
+                      boxShadow:{ type:'tween', duration:0.55, ease:[0.22,1,0.36,1] },
+                      border:{ type:'tween', duration:0.50, ease:[0.22,1,0.36,1] },
+                    },
+                  } : {
+                    x: -(PW / 2), rotateY: angle,
+                    z: relIdx === 0 ? 200 : RADIUS * (Math.cos(angle * Math.PI / 180) - 1) * 1.8,
+                    scale: relIdx === 0 ? 0.96 : Math.max(0.50, 1 - Math.abs(relIdx) * 0.26),
+                    width: PW,
+                    height: PH,
+                    opacity: isHidden ? 0 : (relIdx === 0 ? 1 : Math.max(0.65, 0.95 - Math.abs(relIdx) * 0.12)),
+                    background: 'rgba(8,24,80,0.06)',
+                    border: `1px solid rgba(140,185,255,${relIdx === 0 ? 0.16 : Math.max(0.08, 0.14 - Math.abs(relIdx) * 0.02)})`,
+                    boxShadow: `0 8px 40px rgba(0,10,60,0.10), inset 0 1px 0 rgba(160,200,255,0.14), inset 0 -1px 0 rgba(100,160,255,0.07), inset 1px 0 0 rgba(140,190,255,0.10), inset -1px 0 0 rgba(140,190,255,0.07), 0 0 18px 3px rgba(30,80,200,0.06)`,
+                    transition:{
+                      type:'tween', duration:0.55, ease:[0.22,1,0.36,1],
+                      opacity:{ duration:0.28, ease:'easeOut' },
+                    },
+                  }}
+                  whileHover={!expandedCard && relIdx !== 0 ? { scale: Math.max(0.50, 1 - Math.abs(relIdx) * 0.26) + 0.04 } : {}}
+                  whileTap={!expandedCard ? { scale: relIdx === 0 ? 1.05 : Math.max(0.46, 1 - Math.abs(relIdx) * 0.26) - 0.04 } : {}}
                   onClick={(e) => { e.stopPropagation(); if (isExpanded) { pickDept(dept); } else if (relIdx === 0) { setExpandedCard(dept.id); } else { setActiveIdx(idx); } }}
                 >
-                  {/* sweeping sheen */}
-                  <div style={{
-                    position:'absolute', top:0, width:'55%', height:'100%',
-                    background:'linear-gradient(108deg,transparent 0%,rgba(255,255,255,0.055) 50%,transparent 100%)',
-                    animation:'cardSweep 6s ease-in-out infinite',
-                    animationDelay:`${-(idx*0.75).toFixed(2)}s`, pointerEvents:'none',
-                  }}/>
-                  {/* ── GLASS EDGES ── */}
-
-                  {/* TOP EDGE — bright specular line + glow */}
-                  <div style={{
-                    position:'absolute', top:0, left:0, right:0, height:2, zIndex:2,
-                    background:`linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 8%, rgba(255,255,255,1) 28%, rgba(255,255,255,1) 72%, rgba(255,255,255,0.55) 92%, transparent 100%)`,
-                    boxShadow:`0 0 10px 3px rgba(255,255,255,0.45), 0 0 28px 6px rgba(255,255,255,0.14)`,
-                    animation:'hs-edge-pulse 4s ease-in-out infinite',
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* BOTTOM EDGE — subtle secondary catch */}
-                  <div style={{
-                    position:'absolute', bottom:0, left:0, right:0, height:1, zIndex:2,
-                    background:`linear-gradient(90deg, transparent, rgba(255,255,255,0.22) 25%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0.22) 75%, transparent)`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* LEFT EDGE — bright highlight fading down */}
-                  <div style={{
-                    position:'absolute', top:0, left:0, bottom:0, width:2, zIndex:2,
-                    background:`linear-gradient(to bottom, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.50) 25%, rgba(255,255,255,0.18) 60%, transparent 100%)`,
-                    boxShadow:`2px 0 12px rgba(255,255,255,0.20)`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* RIGHT EDGE — softer refraction */}
-                  <div style={{
-                    position:'absolute', top:0, right:0, bottom:0, width:1.5, zIndex:2,
-                    background:`linear-gradient(to bottom, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.22) 35%, rgba(255,255,255,0.08) 70%, transparent 100%)`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* INNER BEVEL — glass thickness top */}
-                  <div style={{
-                    position:'absolute', top:4, left:4, right:4, height:1, zIndex:2,
-                    background:`linear-gradient(90deg, transparent, rgba(255,255,255,0.18) 20%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.18) 80%, transparent)`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* INNER BEVEL — glass thickness left */}
-                  <div style={{
-                    position:'absolute', top:4, left:4, bottom:4, width:1, zIndex:2,
-                    background:`linear-gradient(to bottom, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 55%, transparent)`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* CORNER GLINT — top-left */}
-                  <div style={{
-                    position:'absolute', top:-1, left:-1, width:14, height:14, zIndex:4,
-                    background:`radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.55) 35%, transparent 70%)`,
-                    animation:`hs-corner-flash ${3.2 + idx * 0.3}s ease-in-out infinite`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* CORNER GLINT — top-right */}
-                  <div style={{
-                    position:'absolute', top:-1, right:-1, width:12, height:12, zIndex:4,
-                    background:`radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.35) 40%, transparent 70%)`,
-                    animation:`hs-corner-flash ${3.2 + idx * 0.3}s ease-in-out ${1.4}s infinite`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* CORNER GLINT — bottom-left */}
-                  <div style={{
-                    position:'absolute', bottom:-1, left:-1, width:8, height:8, zIndex:4,
-                    background:`radial-gradient(circle, rgba(255,255,255,0.50) 0%, transparent 70%)`,
-                    animation:`hs-corner-flash ${3.6 + idx * 0.3}s ease-in-out ${0.7}s infinite`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* TRAVELING GLINT — slides along top edge */}
-                  <div style={{
-                    position:'absolute', top:-1, width:'22%', height:4, zIndex:3,
-                    background:`linear-gradient(90deg, transparent, rgba(255,255,255,0.90) 40%, rgba(255,255,255,0.90) 60%, transparent)`,
-                    filter:`blur(1.5px)`,
-                    animation:`hs-glint ${5 + idx * 0.7}s ease-in-out ${idx * 0.55}s infinite`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* glass inner top highlight */}
-                  <div style={{
-                    position:'absolute', top:0, left:0, right:0, height: isExpanded ? 100 : 70, zIndex:1,
-                    background:`linear-gradient(to bottom, rgba(255,255,255,0.10) 0%, transparent 100%)`,
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* glass color tint vignette */}
-                  <div style={{
-                    position:'absolute', inset:0, zIndex:1,
-                    background:`radial-gradient(ellipse at 30% 20%, rgba(${dept.a},0.10) 0%, transparent 60%)`,
-                    pointerEvents:'none',
-                  }}/>
-
+                  {/* ── VIRTUAL LIGHT EDGES ── */}
+                  <div style={{ position:'absolute', top:0, left:0, right:0, height:1.5, zIndex:30, background:`linear-gradient(90deg, transparent 0%, rgba(100,160,255,0.12) 12%, rgba(140,195,255,0.28) 35%, rgba(140,195,255,0.28) 65%, rgba(100,160,255,0.12) 88%, transparent 100%)`, boxShadow:`0 0 5px 1px rgba(80,140,255,0.10)`, animation:'hs-edge-pulse 4s ease-in-out infinite', animationDelay:`${idx * 0.6}s`, pointerEvents:'none' }}/>
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, height:1, zIndex:30, background:`linear-gradient(90deg, transparent, rgba(80,140,255,0.10) 30%, rgba(100,160,255,0.18) 50%, rgba(80,140,255,0.10) 70%, transparent)`, pointerEvents:'none' }}/>
+                  <div style={{ position:'absolute', top:0, left:0, bottom:0, width:1.5, zIndex:30, background:`linear-gradient(to bottom, rgba(120,175,255,0.20) 0%, rgba(80,140,255,0.08) 45%, rgba(60,110,255,0.02) 80%, transparent 100%)`, boxShadow:`2px 0 8px rgba(80,140,255,0.08)`, pointerEvents:'none' }}/>
+                  <div style={{ position:'absolute', top:0, right:0, bottom:0, width:1.5, zIndex:30, background:`linear-gradient(to bottom, rgba(100,160,255,0.16) 0%, rgba(70,125,255,0.06) 50%, rgba(50,100,255,0.02) 80%, transparent 100%)`, boxShadow:`-2px 0 8px rgba(80,140,255,0.06)`, pointerEvents:'none' }}/>
+                  <div style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none', background:`radial-gradient(ellipse 80% 50% at 50% 15%, rgba(80,130,255,0.04) 0%, transparent 70%)` }}/>
+ 
                   {/* ── NORMAL card face ── */}
                   <AnimatePresence>
                     {!isExpanded && (
                       <motion.div
-                        initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-                        transition={{ duration:0.25 }}
-                        style={{ position:'absolute', inset:0 }}
+                        variants={{
+                          hidden: { opacity:0 },
+                          visible: { opacity:1, transition:{ duration:0.28, delay:0.32 } },
+                          exit:    { opacity:0, transition:{ duration:0.14 } },
+                        }}
+                        initial="hidden" animate="visible" exit="exit"
+                        style={{ position:'absolute', inset:0, borderRadius:'inherit', overflow:'hidden' }}
                       >
-                        {/* glass background — light specular highlight */}
-                        <div style={{ position:'absolute', inset:0, background:'linear-gradient(160deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 28%, transparent 55%)' }}/>
-                        {/* active aurora top line */}
-                        {relIdx === 0 && (
-                          <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,transparent,#06b6d4 20%,#4f46e5 45%,#a855f7 65%,#06b6d4 80%,transparent)', backgroundSize:'300% auto', animation:'hs-aurora 4s ease infinite', boxShadow:'0 0 10px rgba(6,182,212,0.65)', pointerEvents:'none' }}/>
-                        )}
-                        {/* large animated dept icon — covers upper half */}
-                        <div style={{ position:'absolute', top:'8%', left:'50%', transform:'translateX(-50%) scale(1.35)', pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center', width:'100%', height:'56%', filter:`drop-shadow(0 0 18px rgba(${dept.a},0.75)) drop-shadow(0 0 6px rgba(${dept.a},0.50)) brightness(1.5)` }}>
-                          {DEPT_ICONS_LARGE[dept.id]?.(dept.a)}
-                        </div>
-                        {/* bottom: fade + name + aurora dots */}
-                        <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'38px 12px 11px', background:'linear-gradient(to top, rgba(2,2,20,0.97) 0%, rgba(2,2,20,0.55) 55%, transparent 100%)', pointerEvents:'none' }}>
-                          <div className={relIdx === 0 ? 'hs-card-label-aurora' : 'hs-card-label'} style={{ marginBottom:5 }}>{dept.label}</div>
-                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                            <span style={{ fontSize:'0.60rem', color:'rgba(255,255,255,0.50)', letterSpacing:'0.14em', textTransform:'uppercase' }}>AI Module</span>
-                            <div style={{ display:'flex', gap:4 }}>
-                              {['#00e5ff','#7c3aed','#a855f7'].map((c,i) => (
-                                <div key={i} style={{ width:7, height:7, borderRadius:'50%', background:c, opacity: relIdx===0 ? (i===0?1:0.5) : 0.2, boxShadow: relIdx===0 && i===0 ? `0 0 7px ${c}` : 'none' }}/>
+                        {relIdx === 0 ? (
+                          <>
+                            <div style={{ position:'absolute', top:0, left:0, right:0, height:'50%', background:'linear-gradient(180deg,rgba(120,170,255,0.10) 0%,rgba(80,130,255,0.04) 40%,transparent 100%)', borderRadius:'20px 20px 0 0', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:0, left:'10%', right:'10%', height:1, background:'linear-gradient(90deg,transparent,rgba(140,190,255,0.40) 30%,rgba(160,205,255,0.55) 50%,rgba(140,190,255,0.40) 70%,transparent)', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:'4%', left:0, bottom:'15%', width:'45%', background:'linear-gradient(90deg,rgba(100,160,255,0.08) 0%,transparent 100%)', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'35%', background:'linear-gradient(0deg,rgba(20,60,160,0.12) 0%,transparent 100%)', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', bottom:-55, left:'-20%', right:'-20%', height:70, background:'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(100,160,255,0.55) 0%, rgba(80,120,255,0.18) 50%, transparent 100%)', pointerEvents:'none', borderRadius:'50%', filter:'blur(8px)' }}/>
+                            <div style={{ position:'absolute', bottom:-30, left:'5%', right:'5%', height:2, background:'linear-gradient(90deg,transparent,rgba(140,190,255,0.70) 25%,rgba(180,220,255,0.90) 50%,rgba(140,190,255,0.70) 75%,transparent)', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:'28%', left:12, right:12, textAlign:'center', lineHeight:1.25 }}>
+                              <span className="hs-card-label-aurora" style={{ fontSize:'1.05rem' }}>{dept.label}</span>
+                            </div>
+                            <div style={{ position:'absolute', top:'56%', left:16, right:16, textAlign:'center', color:'rgba(255,255,255,0.45)', fontSize:'0.56rem', letterSpacing:'0.22em', textTransform:'uppercase', fontFamily:"'Inter',sans-serif" }}>AI MODULE</div>
+                            {/* animated waveform */}
+                            <div style={{ position:'absolute', top:'65%', left:'50%', transform:'translateX(-50%)', display:'flex', alignItems:'flex-end', gap:5, height:34 }}>
+                              {[
+                                {h:12,c:'#00e5ff',cd:0},{h:24,c:'#7c3aed',cd:3},{h:32,c:'#a855f7',cd:6},
+                                {h:20,c:'#06b6d4',cd:9},{h:28,c:'#4f46e5',cd:12},{h:16,c:'#00e5ff',cd:15},{h:22,c:'#7c3aed',cd:18},
+                              ].map(({h,c,cd},i) => (
+                                <div key={i} style={{
+                                  width:5,
+                                  height:h,
+                                  borderRadius:3,
+                                  background: c,
+                                  boxShadow:`0 0 8px ${c}bb, 0 0 3px ${c}`,
+                                  animation:`hs-wave-bar ${1.4 + i * 0.22}s ease-in-out infinite, hs-wave-color ${4 + i * 0.5}s linear infinite`,
+                                  animationDelay:`${i * 0.18}s, ${cd * 0.1}s`,
+                                  flexShrink:0,
+                                }}/>
                               ))}
                             </div>
-                          </div>
-                        </div>
+                            <div style={{ position:'absolute', bottom:0, left:'10%', right:'10%', height:1, background:'linear-gradient(90deg,transparent,rgba(100,160,255,0.35) 35%,rgba(120,175,255,0.45) 50%,rgba(100,160,255,0.35) 65%,transparent)' }}/>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ position:'absolute', top:0, left:0, right:0, height:'42%', background:'linear-gradient(180deg,rgba(255,255,255,0.055) 0%,transparent 100%)', borderRadius:'20px 20px 0 0', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:'8%', left:0, bottom:'20%', width:'45%', background:'linear-gradient(90deg,rgba(255,255,255,0.028) 0%,transparent 100%)', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:'36%', left:'50%', transform:'translate(-50%,-50%)', opacity:Math.max(0.25,0.48-Math.abs(relIdx)*0.08) }}>
+                              <svg width="38" height="26" viewBox="0 0 52 36" fill="none">
+                                {[{x:2,h:10},{x:9,h:20},{x:16,h:30},{x:23,h:22},{x:30,h:34},{x:37,h:18},{x:44,h:12}].map((b,i)=>(
+                                  <rect key={i} x={b.x} y={(36-b.h)/2} width="5" height={b.h} rx="2.5" fill="rgba(200,200,230,0.68)"/>
+                                ))}
+                              </svg>
+                            </div>
+                            {Math.abs(relIdx) <= 2 && (
+                              <div style={{ position:'absolute', top:'50%', left:10, right:10, transform:'translateY(-50%)', textAlign:'center', color:`rgba(200,200,220,${Math.abs(relIdx)===1 ? 0.70 : 0.50})`, fontSize:'0.63rem', letterSpacing:'0.10em', fontFamily:"'Inter',sans-serif", fontWeight:500, lineHeight:1.4, textTransform:'uppercase' }}>{dept.label}</div>
+                            )}
+                          </>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
-
-                  {/* ── EXPANDED content: floating icons ── */}
+ 
+                  {/* ── EXPANDED content ── */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
-                        initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-                        transition={{ duration:0.35, delay:0.15 }}
+                        variants={{
+                          hidden: { opacity:0 },
+                          visible: { opacity:1, transition:{ duration:0.42, delay:0.28 } },
+                          exit:    { opacity:0, transition:{ duration:0.14 } },
+                        }}
+                        initial="hidden" animate="visible" exit="exit"
                         style={{ position:'absolute', inset:0 }}
                       >
-
-                        {/* ── FUTURISTIC BACKGROUND LAYER ── */}
-                        <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0 }}>
-
-                          {/* circuit board traces */}
-                          <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:0.18 }} viewBox="0 0 800 500" preserveAspectRatio="none">
-                            {/* horizontal traces */}
-                            {[60,130,200,280,360,430].map((y,i) => (
-                              <line key={`h${i}`} x1="0" y1={y} x2="800" y2={y}
-                                stroke={`rgba(${dept.a},1)`} strokeWidth="0.6"
-                                strokeDasharray="12 28"
-                                style={{ animation:`hs-data-blink ${2.2+i*0.4}s ease-in-out ${i*0.3}s infinite` }}/>
+                        {/* ── blurred background layer: watermark + network ── */}
+                        <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0, filter:'blur(1.8px)', opacity:0.85 }}>
+                          {/* watermark */}
+                          <div style={{ position:'absolute', top:'50%', left:'50%', textAlign:'center', animation:'hs-watermark 7s ease-in-out infinite', animationDelay:'1.0s', opacity:0 }}>
+                            <div style={{ fontSize:'4rem', fontWeight:900, letterSpacing:'0.32em', color:'rgba(160,210,255,0.18)', textTransform:'uppercase', fontFamily:"'Inter',sans-serif", lineHeight:1, userSelect:'none' }}>AI APEX</div>
+                            <div style={{ fontSize:'1.4rem', fontWeight:700, letterSpacing:'0.65em', color:'rgba(140,195,255,0.12)', textTransform:'uppercase', fontFamily:"'Inter',sans-serif", marginTop:6, userSelect:'none' }}>NAFFCO</div>
+                          </div>
+                          {/* network web + circuit lines */}
+                          <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }} viewBox="0 0 1000 540" preserveAspectRatio="none">
+                            {[80,180,280,380,460].map((y,i) => (
+                              <line key={`h${i}`} x1="0" y1={y} x2="1000" y2={y} stroke="rgba(140,190,255,0.18)" strokeWidth="0.7" strokeDasharray="14 30" style={{ animation:`hs-data-blink ${2.8+i*0.40}s ease-in-out ${i*0.30}s infinite` }}/>
                             ))}
-                            {/* vertical traces */}
-                            {[80,180,310,460,580,700].map((x,i) => (
-                              <line key={`v${i}`} x1={x} y1="0" x2={x} y2="500"
-                                stroke={`rgba(${dept.a},1)`} strokeWidth="0.6"
-                                strokeDasharray="8 32"
-                                style={{ animation:`hs-data-blink ${2.6+i*0.35}s ease-in-out ${i*0.25}s infinite` }}/>
+                            {[120,280,460,620,800].map((x,i) => (
+                              <line key={`v${i}`} x1={x} y1="0" x2={x} y2="540" stroke="rgba(140,190,255,0.14)" strokeWidth="0.7" strokeDasharray="10 36" style={{ animation:`hs-data-blink ${3.2+i*0.35}s ease-in-out ${i*0.25}s infinite` }}/>
                             ))}
-                            {/* circuit node dots at intersections */}
-                            {[[80,60],[180,130],[310,200],[460,280],[580,360],[700,60],[80,360],[460,130],[180,430]].map(([x,y],i) => (
-                              <circle key={`n${i}`} cx={x} cy={y} r="3"
-                                fill={`rgba(${dept.a},0.9)`}
-                                style={{ animation:`hs-node-pulse ${1.8+i*0.25}s ease-in-out ${i*0.4}s infinite` }}/>
+                            {[[120,80],[280,180],[460,80],[620,280],[800,180],[120,460],[460,380],[800,460]].map(([x,y],i) => (
+                              <circle key={`n${i}`} cx={x} cy={y} r="4" fill="rgba(160,205,255,0.70)" style={{ animation:`hs-node-pulse ${2.0+i*0.28}s ease-in-out ${i*0.35}s infinite` }}/>
                             ))}
-                            {/* L-shaped circuit paths */}
-                            <path d="M80,60 L80,130 L180,130" stroke={`rgba(${dept.a},0.8)`} strokeWidth="1" fill="none"
-                              strokeDasharray="200" style={{ animation:'hs-circuit 3s ease 0.5s forwards' }}/>
-                            <path d="M460,280 L460,360 L580,360 L580,430" stroke={`rgba(${dept.a},0.8)`} strokeWidth="1" fill="none"
-                              strokeDasharray="300" style={{ animation:'hs-circuit 3.5s ease 0.8s forwards' }}/>
-                            <path d="M700,60 L700,200 L580,200 L580,130" stroke={`rgba(${dept.a},0.7)`} strokeWidth="1" fill="none"
-                              strokeDasharray="350" style={{ animation:'hs-circuit 4s ease 1.2s forwards' }}/>
-                            <path d="M310,430 L180,430 L180,360 L80,360" stroke={`rgba(${dept.a},0.7)`} strokeWidth="1" fill="none"
-                              strokeDasharray="300" style={{ animation:'hs-circuit 3.8s ease 1.0s forwards' }}/>
+                            <path d="M120,80 L120,180 L280,180 L280,80 L460,80" stroke="rgba(100,180,255,0.60)" strokeWidth="1.3" fill="none" strokeDasharray="700" strokeDashoffset="700" style={{ animation:'hs-net-dash 4s ease-in-out 0.5s infinite alternate' }}/>
+                            <path d="M620,280 L620,180 L800,180 L800,80" stroke="rgba(140,80,255,0.55)" strokeWidth="1.3" fill="none" strokeDasharray="700" strokeDashoffset="700" style={{ animation:'hs-net-dash 4.5s ease-in-out 1.2s infinite alternate' }}/>
+                            <path d="M120,460 L280,460 L280,380 L460,380 L460,280" stroke="rgba(0,210,255,0.50)" strokeWidth="1.3" fill="none" strokeDasharray="700" strokeDashoffset="700" style={{ animation:'hs-net-dash 5s ease-in-out 0.8s infinite alternate' }}/>
+                            <path d="M460,80 L460,180 L620,180 L620,80 L800,80" stroke="rgba(0,229,255,0.45)" strokeWidth="1" fill="none" strokeDasharray="600" strokeDashoffset="600" style={{ animation:'hs-net-dash 5.5s ease-in-out 0.3s infinite alternate' }}/>
+                            <path d="M800,460 L800,380 L620,380 L620,460 L460,460" stroke="rgba(168,85,247,0.45)" strokeWidth="1" fill="none" strokeDasharray="600" strokeDashoffset="600" style={{ animation:'hs-net-dash 4.8s ease-in-out 1.6s infinite alternate' }}/>
                           </svg>
-
-                          {/* vertical scan line */}
-                          <div style={{
-                            position:'absolute', left:0, right:0, height:1,
-                            background:`linear-gradient(90deg, transparent 0%, rgba(${dept.a},0.0) 10%, rgba(${dept.a},0.7) 50%, rgba(${dept.a},0.0) 90%, transparent 100%)`,
-                            boxShadow:`0 0 12px rgba(${dept.a},0.5)`,
-                            animation:'hs-scan-v 4s ease-in-out infinite',
-                          }}/>
-
-                          {/* hexagon ring top-right */}
-                          <svg style={{ position:'absolute', top:-30, right:-30, opacity:0.12, animation:'hs-hex-rot 18s linear infinite' }} width="160" height="160" viewBox="0 0 160 160">
-                            <polygon points="80,10 142,45 142,115 80,150 18,115 18,45" fill="none" stroke={`rgba(${dept.a},1)`} strokeWidth="1"/>
-                            <polygon points="80,28 126,53 126,107 80,132 34,107 34,53" fill="none" stroke={`rgba(${dept.a},0.7)`} strokeWidth="0.8"/>
-                            <polygon points="80,46 110,62 110,98 80,114 50,98 50,62" fill="none" stroke={`rgba(${dept.a},0.5)`} strokeWidth="0.6"/>
-                          </svg>
-
-                          {/* hexagon ring bottom-left */}
-                          <svg style={{ position:'absolute', bottom:-20, left:-20, opacity:0.10, animation:'hs-hex-rot 24s linear reverse infinite' }} width="120" height="120" viewBox="0 0 120 120">
-                            <polygon points="60,8 108,34 108,86 60,112 12,86 12,34" fill="none" stroke={`rgba(${dept.a},1)`} strokeWidth="1"/>
-                            <polygon points="60,24 92,42 92,78 60,96 28,78 28,42" fill="none" stroke={`rgba(${dept.a},0.6)`} strokeWidth="0.7"/>
-                          </svg>
-
-                          {/* floating AI particles */}
-                          {[
-                            {x:'15%',d:'0s',sz:4},{x:'72%',d:'0.8s',sz:3},{x:'42%',d:'1.4s',sz:5},
-                            {x:'88%',d:'0.4s',sz:3},{x:'28%',d:'1.9s',sz:4},{x:'60%',d:'2.3s',sz:3},
-                          ].map((p,i) => (
-                            <div key={i} style={{
-                              position:'absolute', bottom:'12%', left:p.x,
-                              width:p.sz, height:p.sz, borderRadius:'50%',
-                              background:`rgba(${dept.a},0.9)`,
-                              boxShadow:`0 0 ${p.sz*3}px rgba(${dept.a},0.8)`,
-                              animation:`hs-particle-up ${3+i*0.5}s ease-out ${p.d} infinite`,
-                            }}/>
-                          ))}
-
-                          {/* corner bracket — top left */}
-                          <svg style={{ position:'absolute', top:8, left:8, opacity:0.55 }} width="36" height="36" viewBox="0 0 36 36">
-                            <path d="M2,18 L2,2 L18,2" fill="none" stroke={`rgba(${dept.a},1)`} strokeWidth="1.5" strokeLinecap="round"
-                              strokeDasharray="60" style={{ animation:'hs-circuit 1.5s ease forwards' }}/>
-                          </svg>
-                          {/* corner bracket — bottom right */}
-                          <svg style={{ position:'absolute', bottom:8, right:8, opacity:0.55 }} width="36" height="36" viewBox="0 0 36 36">
-                            <path d="M34,18 L34,34 L18,34" fill="none" stroke={`rgba(${dept.a},1)`} strokeWidth="1.5" strokeLinecap="round"
-                              strokeDasharray="60" style={{ animation:'hs-circuit 1.5s ease 0.4s forwards' }}/>
-                          </svg>
-
-                          {/* neural net mini — bottom right area */}
-                          <svg style={{ position:'absolute', bottom:55, right:30, opacity:0.22 }} width="110" height="90" viewBox="0 0 110 90">
-                            {[[15,20],[15,70],[55,10],[55,45],[55,80],[95,30],[95,60]].map(([x,y],i) => (
-                              <circle key={i} cx={x} cy={y} r="4" fill={`rgba(${dept.a},1)`}
-                                style={{ animation:`hs-node-pulse ${1.6+i*0.3}s ease-in-out ${i*0.35}s infinite` }}/>
-                            ))}
-                            {[[15,20,55,10],[15,20,55,45],[15,70,55,45],[15,70,55,80],[55,10,95,30],[55,45,95,30],[55,45,95,60],[55,80,95,60]].map(([x1,y1,x2,y2],i) => (
-                              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-                                stroke={`rgba(${dept.a},0.55)`} strokeWidth="0.8"
-                                style={{ animation:`hs-data-blink ${2+i*0.2}s ease-in-out ${i*0.2}s infinite` }}/>
-                            ))}
-                          </svg>
-
                         </div>
-
-                        {/* dept label */}
-                        <div style={{
-                          position:'absolute', top:22, left:22, right:22,
-                          fontFamily:"'Cinzel',serif",
-                          fontSize:'1.8rem', fontWeight:700, letterSpacing:'0.08em',
-                          textTransform:'uppercase',
-                        }}>
+ 
+                        <div style={{ position:'absolute', top:22, left:22, right:22 }}>
                           <span className="hs-card-label-aurora" style={{ fontSize:'1.8rem' }}>{dept.label}</span>
                         </div>
-
-                        {/* ── corner floating mini-icons ── */}
-                        {floats.slice(0,4).map((fi, i) => (
-                          <motion.div key={i} style={{
-                            position:'absolute', left:`${fi.x}%`, top:`${fi.y}%`,
-                            color:`rgba(${dept.a},0.55)`,
-                            filter:`drop-shadow(0 0 6px rgba(${dept.a},0.5))`,
-                            pointerEvents:'none',
-                          }}
-                            animate={{ y:[-8,8,-8], x:[-3,3,-3], rotate:[-5,5,-5], opacity:[0.35,0.7,0.35] }}
-                            transition={{ duration:fi.dur, delay:fi.delay, repeat:Infinity, ease:'easeInOut' }}
-                          >
-                            <svg width={fi.sz*0.75} height={fi.sz*0.75} viewBox="0 0 24 24" fill="none"
-                              stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-                              <path d={fi.d}/>
-                            </svg>
-                          </motion.div>
-                        ))}
-
-                        {/* ── CENTER: 3 BIG ANIMATIONS ── */}
+ 
+ 
+                        {/* center icons — white/glass, same for all cards */}
                         <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-60%)', display:'flex', alignItems:'center', gap:36, pointerEvents:'none', zIndex:2 }}>
-
-                            {/* ANIMATION 1 — pulsing orb with dept icon */}
-                            <div style={{ position:'relative', width:96, height:96, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                              {[0,1,2].map(i => (
-                                <div key={i} style={{
-                                  position:'absolute', inset: i * -14,
-                                  borderRadius:'50%',
-                                  border:`1.5px solid rgba(${dept.a},${0.55 - i * 0.16})`,
-                                  animation:`hs-ping 2.8s ease-in-out ${i * 0.55}s infinite`,
-                                }}/>
-                              ))}
-                              <div style={{
-                                width:64, height:64, borderRadius:'50%',
-                                background:`radial-gradient(circle, rgba(${dept.a},0.22) 0%, rgba(${dept.a},0.06) 60%, transparent 100%)`,
-                                border:`1.5px solid rgba(${dept.a},0.55)`,
-                                display:'flex', alignItems:'center', justifyContent:'center',
-                                boxShadow:`0 0 32px rgba(${dept.a},0.65), inset 0 0 18px rgba(${dept.a},0.12)`,
-                                backdropFilter:'blur(8px)',
-                              }}>
-                                <div style={{ transform:'scale(2.2)', filter:`drop-shadow(0 0 8px rgba(${dept.a},1))` }}>
-                                  {dept.icon(dept.color)}
-                                </div>
+                          <div style={{ position:'relative', width:96, height:96, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                            {[0,1,2].map(i => (
+                              <div key={i} style={{ position:'absolute', inset: i * -14, borderRadius:'50%', border:`1.5px solid rgba(140,190,255,${0.38 - i * 0.11})`, animation:`hs-ping 2.8s ease-in-out ${i * 0.55}s infinite` }}/>
+                            ))}
+                            <div style={{ width:64, height:64, borderRadius:'50%', background:'radial-gradient(circle, rgba(100,160,255,0.16) 0%, rgba(80,130,220,0.06) 60%, transparent 100%)', border:'1.5px solid rgba(140,190,255,0.38)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 28px rgba(80,130,220,0.25), inset 0 0 14px rgba(100,160,255,0.08)', backdropFilter:'blur(8px)' }}>
+                              <div style={{ transform:'scale(2.2)', filter:'drop-shadow(0 0 6px rgba(140,190,255,0.80))' }}>
+                                {dept.icon('rgba(160,205,255,0.92)')}
                               </div>
-                            </div>
-
-                            {/* ANIMATION 2 — MAIN: DEPT_ICONS_LARGE big & glowing */}
-                            <div style={{
-                              transform:'scale(1.65)',
-                              filter:`drop-shadow(0 0 22px rgba(${dept.a},0.90)) drop-shadow(0 0 8px rgba(${dept.a},0.60)) brightness(1.7)`,
-                              flexShrink:0,
-                            }}>
-                              {DEPT_ICONS_LARGE[dept.id]?.(dept.a)}
-                            </div>
-
-                            {/* ANIMATION 3 — dual orbit rings */}
-                            <div style={{ position:'relative', width:96, height:96, flexShrink:0 }}>
-                              {/* core */}
-                              <div style={{
-                                position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)',
-                                width:20, height:20, borderRadius:'50%',
-                                background:`rgba(${dept.a},0.95)`,
-                                boxShadow:`0 0 24px rgba(${dept.a},1), 0 0 8px rgba(${dept.a},0.6)`,
-                              }}/>
-                              {/* outer ring */}
-                              <div style={{
-                                position:'absolute', inset:4, borderRadius:'50%',
-                                border:`1.5px solid rgba(${dept.a},0.28)`,
-                                animation:'hs-spin 4s linear infinite',
-                              }}>
-                                <div style={{ position:'absolute', top:-5, left:'50%', marginLeft:-5, width:10, height:10, borderRadius:'50%', background:`rgba(${dept.a},1)`, boxShadow:`0 0 12px rgba(${dept.a},1)` }}/>
-                                <div style={{ position:'absolute', bottom:-5, left:'50%', marginLeft:-5, width:6, height:6, borderRadius:'50%', background:`rgba(${dept.a},0.6)`, boxShadow:`0 0 8px rgba(${dept.a},0.8)` }}/>
-                              </div>
-                              {/* inner ring */}
-                              <div style={{
-                                position:'absolute', inset:20, borderRadius:'50%',
-                                border:`1px solid rgba(${dept.a},0.45)`,
-                                animation:'hs-spin-rev 2.5s linear infinite',
-                              }}>
-                                <div style={{ position:'absolute', top:-4, left:'50%', marginLeft:-4, width:8, height:8, borderRadius:'50%', background:`rgba(${dept.a},0.9)`, boxShadow:`0 0 10px rgba(${dept.a},0.9)` }}/>
-                              </div>
-                              {/* glow disc */}
-                              <div style={{
-                                position:'absolute', inset:0,
-                                background:`radial-gradient(circle, rgba(${dept.a},0.14) 0%, transparent 65%)`,
-                                borderRadius:'50%', animation:`hs-ping 3.2s ease-in-out infinite`,
-                              }}/>
                             </div>
                           </div>
-
-                        {/* typewriter definition — pinned above status ticker */}
+                          <div style={{ transform:'scale(1.65)', filter:'drop-shadow(0 0 18px rgba(140,190,255,0.55)) drop-shadow(0 0 6px rgba(100,160,255,0.35)) brightness(1.4)', flexShrink:0 }}>
+                            {DEPT_ICONS_LARGE[dept.id]?.('140,190,255')}
+                          </div>
+                          <div style={{ position:'relative', width:96, height:96, flexShrink:0 }}>
+                            <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:20, height:20, borderRadius:'50%', background:'rgba(140,190,255,0.90)', boxShadow:'0 0 20px rgba(100,160,255,0.65), 0 0 7px rgba(80,140,255,0.40)' }}/>
+                            <div style={{ position:'absolute', inset:4, borderRadius:'50%', border:'1.5px solid rgba(140,190,255,0.22)', animation:'hs-spin 4s linear infinite' }}>
+                              <div style={{ position:'absolute', top:-5, left:'50%', marginLeft:-5, width:10, height:10, borderRadius:'50%', background:'rgba(160,205,255,0.92)', boxShadow:'0 0 10px rgba(140,190,255,0.70)' }}/>
+                              <div style={{ position:'absolute', bottom:-5, left:'50%', marginLeft:-5, width:6, height:6, borderRadius:'50%', background:'rgba(100,160,255,0.60)', boxShadow:'0 0 6px rgba(80,140,255,0.50)' }}/>
+                            </div>
+                            <div style={{ position:'absolute', inset:20, borderRadius:'50%', border:'1px solid rgba(140,190,255,0.32)', animation:'hs-spin-rev 2.5s linear infinite' }}>
+                              <div style={{ position:'absolute', top:-4, left:'50%', marginLeft:-4, width:8, height:8, borderRadius:'50%', background:'rgba(160,205,255,0.85)', boxShadow:'0 0 8px rgba(140,190,255,0.65)' }}/>
+                            </div>
+                            <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle, rgba(80,130,220,0.12) 0%, transparent 65%)', borderRadius:'50%', animation:'hs-ping 3.2s ease-in-out infinite' }}/>
+                          </div>
+                        </div>
+ 
                         {isExpanded && (
-                          <p style={{
-                            position:'absolute', bottom:90, left:24, right:24,
-                            margin:0, textAlign:'left',
-                            fontSize:'0.80rem', lineHeight:1.90,
-                            letterSpacing:'0.03em',
-                            fontFamily:"'Inter',sans-serif", fontWeight:500,
-                            background:'linear-gradient(90deg, #c8c0b0 0%, #ede8df 18%, #ffffff 32%, #f8f4ee 42%, #ffffff 50%, #f0ebe2 58%, #ffffff 68%, #ede8df 82%, #c8c0b0 100%)',
-                            backgroundSize:'250% auto',
-                            WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-                            backgroundClip:'text',
-                            animation:'hs-shine 6s linear infinite',
-                            filter:'drop-shadow(0 0 8px rgba(255,252,245,0.30))',
-                            zIndex:2, pointerEvents:'none',
-                          }}>
+                          <p style={{ position:'absolute', bottom:90, left:24, right:24, margin:0, textAlign:'left', fontSize:'0.80rem', lineHeight:1.90, letterSpacing:'0.03em', fontFamily:"'Inter',sans-serif", fontWeight:500, background:'linear-gradient(90deg, #c8c0b0 0%, #ede8df 18%, #ffffff 32%, #f8f4ee 42%, #ffffff 50%, #f0ebe2 58%, #ffffff 68%, #ede8df 82%, #c8c0b0 100%)', backgroundSize:'250% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-shine 6s linear infinite', filter:'drop-shadow(0 0 8px rgba(255,252,245,0.30))', zIndex:2, pointerEvents:'none' }}>
                             {typedDef}
-                            {isTyping && <span className="hs-type-cursor" style={{ color:`rgba(${dept.a},1)`, WebkitTextFillColor:`rgba(${dept.a},1)` }}/>}
+                            {isTyping && <span className="hs-type-cursor" style={{ color:'rgba(160,205,255,1)', WebkitTextFillColor:'rgba(160,205,255,1)' }}/>}
                           </p>
                         )}
-
-                        {/* status ticker bottom-left */}
-                        <div style={{
-                          position:'absolute', bottom:18, left:22,
-                          display:'flex', flexDirection:'column', gap:5, pointerEvents:'none',
-                        }}>
+ 
+                        <div style={{ position:'absolute', bottom:18, left:22, display:'flex', flexDirection:'column', gap:5, pointerEvents:'none' }}>
                           {['SYSTEM ONLINE','AI READY','SECURE LINK'].map((txt,i) => (
-                            <div key={i} style={{
-                              display:'flex', alignItems:'center', gap:6,
-                              animation:`hs-ticker 2.4s ease-in-out ${i*0.6}s infinite`,
-                            }}>
-                              <div style={{
-                                width:5, height:5, borderRadius:'50%',
-                                background:`rgba(${dept.a},0.9)`,
-                                boxShadow:`0 0 6px rgba(${dept.a},1)`,
-                              }}/>
-                              <span style={{
-                                fontSize:'0.58rem', letterSpacing:'0.22em', textTransform:'uppercase',
-                                color:`rgba(${dept.a},0.75)`, fontWeight:600,
-                              }}>{txt}</span>
+                            <div key={i} style={{ display:'flex', alignItems:'center', gap:6, animation:`hs-ticker 2.4s ease-in-out ${i*0.6}s infinite` }}>
+                              <div style={{ width:5, height:5, borderRadius:'50%', background:'rgba(140,190,255,0.90)', boxShadow:'0 0 5px rgba(140,190,255,0.75)' }}/>
+                              <span style={{ fontSize:'0.58rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(160,205,255,0.65)', fontWeight:600 }}>{txt}</span>
                             </div>
                           ))}
                         </div>
-
-                        {/* radial glow */}
-                        <div style={{
-                          position:'absolute', inset:0, pointerEvents:'none',
-                          background:`radial-gradient(ellipse at 50% 52%, rgba(${dept.a},0.18) 0%, transparent 65%)`,
-                        }}/>
+ 
+                        <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(ellipse at 50% 52%, rgba(80,130,220,0.12) 0%, transparent 65%)' }}/>
+                        {/* bottom inner glass glow */}
+                        <div style={{ position:'absolute', bottom:0, left:'-5%', right:'-5%', height:110, background:'radial-gradient(ellipse 80% 100% at 50% 100%, rgba(180,220,255,0.38) 0%, rgba(140,190,255,0.14) 45%, rgba(100,160,255,0.06) 70%, transparent 100%)', borderRadius:'0 0 20px 20px', filter:'blur(8px)', pointerEvents:'none' }}/>
+                        <div style={{ position:'absolute', bottom:0, left:'6%', right:'6%', height:1.5, background:'linear-gradient(90deg,transparent,rgba(160,210,255,0.45) 20%,rgba(200,230,255,0.85) 50%,rgba(160,210,255,0.45) 80%,transparent)', pointerEvents:'none' }}/>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </motion.div>
               );
             })}
-
-            {/* ── glossy floor seam ── */}
-            <div style={{
-              position:'absolute', bottom:0, left:0, right:0, height:1.5, zIndex:5,
-              background:'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.08) 10%,rgba(255,255,255,0.30) 35%,rgba(255,255,255,0.30) 65%,rgba(255,255,255,0.08) 90%,transparent 100%)',
-              boxShadow:'0 0 22px 2px rgba(255,255,255,0.10)',
-            }}/>
-
-            {/* ── floor glass light columns ── */}
-            {depts.map((dept, idx) => {
-              const angle   = (idx - activeIdx) * stepAngle;
-              const xPct    = 50 + Math.sin(angle * Math.PI / 180) * 30;
-              const isActive = idx === activeIdx;
-              return (
-                <div key={`lc-${dept.id}`} style={{
-                  position:'absolute', bottom:0, zIndex:3,
-                  left:`${xPct}%`, transform:'translateX(-50%)',
-                  width: isActive ? 110 : 70,
-                  height: isActive ? 230 : 170,
-                  background: isActive
-                    ? 'radial-gradient(ellipse at top, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)'
-                    : 'radial-gradient(ellipse at top, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, transparent 100%)',
-                  filter:'blur(14px)', pointerEvents:'none',
-                }}/>
-              );
-            })}
-
-            {/* ── floor mirror reflection ── */}
-            {depts.map((dept, idx) => {
-              const relIdx = idx - activeIdx;
-              const angle  = relIdx * stepAngle;
-              const xPct   = 50 + Math.sin(angle * Math.PI / 180) * 28;
-              const scaleX = Math.cos(angle * Math.PI / 180);
-              const cardW  = relIdx === 0 ? 320 : Math.max(160, PW - Math.abs(relIdx) * 22);
-              const refH   = relIdx === 0 ? 200 : Math.max(100, 160 - Math.abs(relIdx) * 18);
-              const refOpacity = Math.max(0.12, 0.72 - Math.abs(relIdx) * 0.20);
-              return (
-                <div key={`rf-${dept.id}`} style={{
-                  position:'absolute', bottom:0, zIndex:7,
-                  left:`${xPct}%`,
-                  transform:`translateX(-50%) scaleX(${scaleX.toFixed(3)})`,
-                  width:cardW, height:refH,
-                  overflow:'hidden', pointerEvents:'none',
-                  opacity: refOpacity,
-                }}>
-                  {/* mirrored card body — scaleY(-1) flips it upside-down */}
-                  <div style={{
-                    position:'absolute', top:0, left:0, right:0, bottom:0,
-                    transform:'scaleY(-1)', transformOrigin:'top center',
-                    background: relIdx === 0
-                      ? `linear-gradient(160deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.18) 30%, rgba(255,255,255,0.08) 60%, rgba(6,4,24,0.42) 100%)`
-                      : `linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.10) 35%, rgba(255,255,255,0.04) 65%, rgba(6,4,24,0.55) 100%)`,
-                    border:`1px solid rgba(255,255,255,${relIdx === 0 ? 0.50 : 0.28})`,
-                    borderTop:'none',
-                    backdropFilter:'blur(28px) saturate(180%)',
-                  }}>
-                    {/* dept color glow stripe at card bottom → appears at top of reflection near floor */}
-                    <div style={{
-                      position:'absolute', bottom:0, left:0, right:0, height:32,
-                      background:`linear-gradient(to top, rgba(${dept.a},0.45) 0%, transparent 100%)`,
-                    }}/>
-                    {/* dept label — shown upside-down in reflection */}
-                    {relIdx === 0 && (
-                      <div style={{
-                        position:'absolute', bottom:8, left:12,
-                        fontFamily:"'Cinzel',serif", fontSize:'0.70rem', fontWeight:700,
-                        letterSpacing:'0.06em', textTransform:'uppercase',
-                        color:`rgba(255,255,255,0.55)`,
-                        textShadow:`0 0 12px rgba(${dept.a},0.60)`,
-                      }}>{dept.label}</div>
-                    )}
-                    {/* sweeping sheen on reflection */}
-                    <div style={{
-                      position:'absolute', top:0, width:'55%', height:'100%',
-                      background:'linear-gradient(108deg,transparent 0%,rgba(255,255,255,0.06) 50%,transparent 100%)',
-                      animation:'cardSweep 6s ease-in-out infinite',
-                      animationDelay:`${-(idx*0.75).toFixed(2)}s`,
-                    }}/>
-                    {/* left edge highlight */}
-                    <div style={{
-                      position:'absolute', top:0, left:0, bottom:0, width:1.5,
-                      background:`linear-gradient(to bottom,rgba(255,255,255,0.45),rgba(255,255,255,0.12),transparent)`,
-                    }}/>
-                    {/* right edge highlight */}
-                    <div style={{
-                      position:'absolute', top:0, right:0, bottom:0, width:1,
-                      background:`linear-gradient(to bottom,rgba(255,255,255,0.22),transparent)`,
-                    }}/>
-                  </div>
-
-                  {/* fade mask: fully visible at top (floor line), transparent at bottom */}
-                  <div style={{
-                    position:'absolute', inset:0,
-                    background:'linear-gradient(to bottom, transparent 0%, rgba(1,1,6,0.55) 60%, rgba(1,1,6,1) 100%)',
-                    pointerEvents:'none',
-                  }}/>
-
-                  {/* floor contact line */}
-                  <div style={{
-                    position:'absolute', top:0, left:'5%', right:'5%', height:1,
-                    background:`linear-gradient(90deg, transparent, rgba(255,255,255,${relIdx===0?0.65:0.35}) 30%, rgba(255,255,255,${relIdx===0?0.65:0.35}) 70%, transparent)`,
-                    boxShadow:`0 0 8px 1px rgba(${dept.a},0.35)`,
-                  }}/>
-                </div>
-              );
-            })}
-
+ 
             {/* ── floor depth fade ── */}
-            <div style={{
-              position:'absolute', bottom:0, left:0, right:0, height:220, zIndex:8,
-              background:'linear-gradient(to bottom, transparent 0%, rgba(1,1,6,0.55) 70%, rgba(1,1,6,0.88) 100%)',
-              pointerEvents:'none',
-            }}/>
+            <div style={{ position:'absolute', bottom:0, left:0, right:0, height:220, zIndex:8, background:'linear-gradient(to bottom, transparent 0%, rgba(1,1,6,0.55) 70%, rgba(1,1,6,0.88) 100%)', pointerEvents:'none' }}/>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ══════════════════════════════════════════
-          CODE ENTRY PHASE
-      ══════════════════════════════════════════ */}
+ 
+      {/* ══ CODE ENTRY PHASE ══ */}
       <AnimatePresence>
         {phase === 'code' && (
           <motion.div
             initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
             transition={{ duration:0.4 }}
-            style={{
-              position:'absolute', inset:0, zIndex:30,
-              display:'flex', flexDirection:'column',
-              justifyContent:'center', alignItems:'flex-start',
-              padding:'0 10vw',
-            }}
+            style={{ position:'absolute', inset:0, zIndex:30, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'flex-start', padding:'0 10vw' }}
           >
             <button className="hs-back" onClick={() => { setPhase('select'); setCode(''); setErrMsg(''); setExpandedCard(null); }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Back
             </button>
-            <h1 style={{
-              fontFamily:'Cinzel,serif', fontSize:'clamp(1.8rem,3.2vw,3rem)', fontWeight:400,
-              letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8,
-              background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)',
-              backgroundSize:'300% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-              backgroundClip:'text', animation:'hs-aurora 5s ease infinite',
-            }}>{selDept?.label}</h1>
-            <p style={{fontSize:'0.78rem', letterSpacing:'0.18em', color:'rgba(255,255,255,0.35)', textTransform:'uppercase', marginBottom:28}}>
-              {selDept?.hint}
-            </p>
-            <form
-              className={`hs-cform${shake ? ' hs-shake' : ''}`}
-              onSubmit={handleSubmit}
-              style={{display:'flex', flexDirection:'column', alignItems:'flex-start'}}
-            >
+            <h1 style={{ fontFamily:'Cinzel,serif', fontSize:'clamp(1.8rem,3.2vw,3rem)', fontWeight:400, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8, background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)', backgroundSize:'300% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-aurora 5s ease infinite' }}>{selDept?.label}</h1>
+            <p style={{fontSize:'0.78rem', letterSpacing:'0.18em', color:'rgba(255,255,255,0.35)', textTransform:'uppercase', marginBottom:28}}>{selDept?.hint}</p>
+            <form className={`hs-cform${shake ? ' hs-shake' : ''}`} onSubmit={handleSubmit} style={{display:'flex', flexDirection:'column', alignItems:'flex-start'}}>
               <div style={{position:'relative', display:'inline-flex', alignItems:'center'}}>
-                <input
-                  ref={inputRef}
-                  className={`hs-cinput${errMsg ? ' hs-err' : ''}`}
-                  type={showCode ? 'text' : 'password'}
-                  value={code}
-                  onChange={e => { setCode(e.target.value); setErrMsg(''); }}
-                  placeholder="— — — —" maxLength={10} autoComplete="off" spellCheck={false}
-                  style={{paddingRight:36}}
-                />
-                <button type="button" onClick={() => setShowCode(v => !v)}
-                  style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',padding:4,color:showCode?'#cc0000':'#444',outline:'none'}}>
+                <input ref={inputRef} className={`hs-cinput${errMsg ? ' hs-err' : ''}`} type={showCode ? 'text' : 'password'} value={code} onChange={e => { setCode(e.target.value); setErrMsg(''); }} placeholder="— — — —" maxLength={10} autoComplete="off" spellCheck={false} style={{paddingRight:36}}/>
+                <button type="button" onClick={() => setShowCode(v => !v)} style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',padding:4,color:showCode?'#cc0000':'#444',outline:'none'}}>
                   {showCode
                     ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                   }
                 </button>
               </div>
-              <div className={`hs-errmsg${errMsg ? ' vis' : ''}`}>{errMsg || ' '}</div>
+              <div className={`hs-errmsg${errMsg ? ' vis' : ''}`}>{errMsg || ' '}</div>
               <div className="hs-hint">Press Enter to confirm</div>
             </form>
           </motion.div>

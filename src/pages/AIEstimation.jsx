@@ -7736,6 +7736,121 @@ const EstRequestOverview = ({ requests }) => {
         </div>
       </div>
 
+      {/* ── Quotation Closed Stats ── */}
+      {(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().slice(0, 10);
+
+        // Start of current week (Monday)
+        const dow = now.getDay(); // 0=Sun
+        const diffToMon = (dow === 0 ? -6 : 1 - dow);
+        const thisWeekStart = new Date(now); thisWeekStart.setDate(now.getDate() + diffToMon); thisWeekStart.setHours(0,0,0,0);
+        const thisWeekEnd   = new Date(thisWeekStart); thisWeekEnd.setDate(thisWeekStart.getDate() + 6); thisWeekEnd.setHours(23,59,59,999);
+
+        // Previous week
+        const prevWeekStart = new Date(thisWeekStart); prevWeekStart.setDate(thisWeekStart.getDate() - 7);
+        const prevWeekEnd   = new Date(thisWeekStart); prevWeekEnd.setDate(thisWeekStart.getDate() - 1); prevWeekEnd.setHours(23,59,59,999);
+
+        // Start of current month
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        const allReqs = requests || [];
+        const closed = allReqs.filter(r => r && (r.reqStatus === 'completed' || r.directorAction === 'approved'));
+
+        const getClosedIn = (from, to) =>
+          closed.filter(r => {
+            const ts = r.directorRespondedAt || r.approvedAt;
+            if (!ts) return false;
+            const d = new Date(ts);
+            return d >= from && d <= to;
+          });
+
+        const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+        const todayEnd   = new Date(now); todayEnd.setHours(23,59,59,999);
+
+        const periods = [
+          { label: 'Closed Today',         accent: 'rgba(94,234,212,0.90)',  border: 'rgba(20,184,166,0.28)', bg: 'rgba(20,184,166,0.06)', items: getClosedIn(todayStart, todayEnd) },
+          { label: 'Closed This Week',      accent: 'rgba(129,140,248,0.90)', border: 'rgba(99,102,241,0.28)', bg: 'rgba(99,102,241,0.06)', items: getClosedIn(thisWeekStart, thisWeekEnd) },
+          { label: 'Closed Previous Week',  accent: 'rgba(251,191,36,0.90)',  border: 'rgba(217,119,6,0.28)',  bg: 'rgba(180,100,0,0.06)',  items: getClosedIn(prevWeekStart, prevWeekEnd) },
+          { label: 'Closed This Month',     accent: 'rgba(52,211,153,0.90)',  border: 'rgba(16,185,129,0.28)', bg: 'rgba(16,185,129,0.06)', items: getClosedIn(monthStart, monthEnd) },
+        ];
+
+        // Aggregate by estimator name within a list of requests
+        const byWho = (items) => {
+          const map = {};
+          items.forEach(r => {
+            const name = r.estimator || r.salesPerson || 'Unknown';
+            map[name] = (map[name] || 0) + 1;
+          });
+          return Object.entries(map).sort((a, b) => b[1] - a[1]);
+        };
+
+        return (
+          <div style={{marginBottom:28}}>
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.18em',textTransform:'uppercase',
+              color:'rgba(94,234,212,0.50)',fontWeight:700,marginBottom:12}}>
+              QUOTATION CLOSED
+            </p>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:14}}>
+              {periods.map(({ label, accent, border, bg, items }) => {
+                const who = byWho(items);
+                return (
+                  <div key={label} style={{
+                    background:'rgba(8,4,28,0.70)',
+                    border:`1px solid ${border}`,
+                    borderRadius:14, overflow:'hidden',
+                    backdropFilter:'blur(14px)', WebkitBackdropFilter:'blur(14px)',
+                    boxShadow:`0 4px 20px rgba(0,0,0,0.28), inset 0 0 0 1px ${border}`,
+                  }}>
+                    {/* Card header */}
+                    <div style={{
+                      padding:'12px 16px 10px',
+                      background:`linear-gradient(90deg,${bg},transparent)`,
+                      borderBottom:`1px solid ${border}`,
+                      display:'flex', alignItems:'center', justifyContent:'space-between',
+                    }}>
+                      <span style={{fontSize:'0.70rem',fontWeight:700,color:'rgba(255,255,255,0.75)',letterSpacing:'0.03em'}}>{label}</span>
+                      <span style={{
+                        fontSize:'1.45rem', fontWeight:800, color:accent, lineHeight:1,
+                        textShadow:`0 0 12px ${accent}`,
+                      }}>{items.length}</span>
+                    </div>
+
+                    {/* Who list */}
+                    <div style={{padding:'8px 0', minHeight:48}}>
+                      {who.length === 0 ? (
+                        <p style={{textAlign:'center',fontSize:'0.68rem',color:'rgba(255,255,255,0.18)',
+                          padding:'10px 0',fontStyle:'italic',margin:0}}>No closures</p>
+                      ) : who.map(([name, cnt]) => {
+                        const estCode = Object.entries(STAFF_NAMES).find(([,v]) => v === name)?.[0] || '';
+                        return (
+                          <div key={name} style={{
+                            display:'flex', alignItems:'center', gap:10,
+                            padding:'7px 16px',
+                            borderBottom:'1px solid rgba(255,255,255,0.04)',
+                            transition:'background 0.12s',
+                          }}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}
+                            onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                          >
+                            <EstAvatar name={name} code={estCode} size={26}/>
+                            <span style={{flex:1,fontSize:'0.74rem',fontWeight:600,
+                              color:'rgba(255,255,255,0.78)',
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</span>
+                            <span style={{fontSize:'0.88rem',fontWeight:800,color:accent,flexShrink:0}}>{cnt}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Deal group cards in a responsive grid */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:20}}>
         {sortedDeals.map(deal => {
@@ -11321,7 +11436,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://apex91-253545847030.us-west1.run.app"
+        src="https://ai92apex-338841056432.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -11348,8 +11463,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://apex91-253545847030.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://apex91-253545847030.us-west1.run.app';
+    ? `https://ai92apex-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://ai92apex-338841056432.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}

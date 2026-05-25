@@ -5,7 +5,9 @@
       "Bash(npx tsc:*)",
       "Bash(npm run:*)",
       "Bash(node -e ' *)",
-      "Bash(node -e \"const {parse}=require\\('@babel/parser'\\),fs=require\\('fs'\\);try{parse\\(fs.readFileSync\\('./src/pages/AIEstimation.jsx','utf-8'\\),{sourceType:'module',plugins:['jsx']}\\);console.log\\('OK'\\);}catch\\(e\\){console.log\\('ERR:',e.message\\);}\")"
+      "Bash(node -e \"const {parse}=require\\('@babel/parser'\\),fs=require\\('fs'\\);try{parse\\(fs.readFileSync\\('./src/pages/AIEstimation.jsx','utf-8'\\),{sourceType:'module',plugins:['jsx']}\\);console.log\\('OK'\\);}catch\\(e\\){console.log\\('ERR:',e.message\\);}\")",
+      "Bash(dir \"c:\\\\Users\\\\ganesh.shetty\\\\OneDrive - NAFFCO\\\\Desktop\\\\AI_ALEX\\\\public\")",
+      "Bash(node --input-type=module --eval \"import { readFileSync } from 'fs'; const f = readFileSync\\('src/pages/DummyHub.jsx','utf8'\\); const opens = \\(f.match\\(/<div/g\\)||[]\\).length; const closes = \\(f.match\\(/<\\\\/div>/g\\)||[]\\).length; console.log\\('open divs:', opens, 'close divs:', closes\\);\")"
     ]
   }
 }

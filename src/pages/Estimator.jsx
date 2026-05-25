@@ -1,333 +1,608 @@
-import { useState, useRef } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Bot, X, Send, FileText, Zap, RotateCcw, Copy, Check, Sparkles } from 'lucide-react';
+/**
+ * pages/Estimator.jsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * NAFFCO Fire Door Estimator — main UI
+ *
+ * Replaces the old Gemini-based Estimator.jsx.
+ * Called from App.jsx via: onNavigate(index, 'estimation')
+ *
+ * Features:
+ *   • Add / edit / remove doors in a live table
+ *   • AI extraction: upload BOQ/PDF → auto-populate table
+ *   • Live pricing via pricingEngine (dual-pricing, no hardcoded values)
+ *   • Per-door cost breakdown panel
+ *   • Project totals summary
+ *   • PDF export
+ *   • Project info (name, client, consultant, etc.)
+ *   • Admin tab: edit O&H % and Profit % (writes to Cosmos DB)
+ *
+ * Props:
+ *   onClose()   — navigate back to 3D hub
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { calculateDoorPrice, calculateQuotation } from '../utils/pricingEngine';
+import { loadPriceData, savePriceData, saveQuotation } from '../services/azureDb';
+import { extractDoorsFromFiles, isAiAvailable } from '../services/aiExtractor';
+import { downloadQuotationPDF } from '../utils/pdfGenerator';
+import DoorEntryRow, { DoorEntryHeader } from '../components/DoorEntryRow';
+import { DoorBreakdown, ProjectTotals } from '../components/PriceSummary';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.GEMINI_API_KEY);
-const model  = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// ─── BLANK DOOR TEMPLATE ──────────────────────────────────────────────────────
+const newDoor = (ref) => ({
+  doorRef:          ref || 'D-01',
+  wMm:              900,
+  hMm:              2100,
+  leafCount:        1,
+  leafThickMm:      1.2,
+  frameMm:          1.5,
+  jambDepthMm:      300,
+  sheetCode:        'A',
+  infill:           'HC',
+  sealType:         'teardrop',
+  fireRatedSealant: true,
+  standard:         'UL',
+  fireRating:       60,
+  stcRating:        null,
+  glassType:        null,
+  glassCount:       0,
+  finishType:       'powderCoat',
+  louverType:       null,
+  hardwareSetName:  null,
+  warrantyYears:    0,
+  includeInstallation: false,
+  includeDelivery:  false,
+  qty:              1,
+});
 
-const SYSTEM = `You are APEX, an expert AI estimation assistant for NAFFCO — a world-leading fire protection and fire safety company.
-Help with: BOQ analysis, material cost breakdowns, sprinkler/suppression/alarm system estimates, rate analysis, NFPA/FM Global compliance, labour costs, margin strategy.
-Respond in structured professional format using sections, bullet points, and tables where helpful.`;
+const nextRef = (doors) => `D-${String(doors.length + 1).padStart(2, '0')}`;
 
-const CHIPS = [
-  'Estimate a 5-floor office sprinkler system (2000 m² per floor)',
-  'Analyze BOQ and flag pricing anomalies',
-  'FM200 suppression rate breakdown — server room 80 m²',
-  'Typical margin % for a AED 2M fire alarm project?',
-  'NFPA 13 material list for a wet pipe system',
-];
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+const TABS = ['Schedule', 'Breakdown', 'Summary', 'Project Info', 'Admin'];
 
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const S = {
+  overlay: {
+    position: 'fixed', inset: 0, zIndex: 9500,
+    background: 'rgba(0,0,10,0.65)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontFamily: "'JetBrains Mono', monospace",
+  },
+  panel: {
+    width:  'min(1280px, calc(100vw - 24px))',
+    height: 'min(840px, calc(100vh - 24px))',
+    display: 'flex', flexDirection: 'column',
+    background: 'rgba(5,4,18,0.96)',
+    border: '1px solid rgba(114,206,238,0.22)',
+    borderRadius: 18,
+    boxShadow: '0 40px 100px rgba(0,0,0,0.80), 0 0 0 1px rgba(255,255,255,0.04) inset',
+    overflow: 'hidden',
+  },
+  header: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '10px 18px',
+    background: 'rgba(114,206,238,0.07)',
+    borderBottom: '1px solid rgba(114,206,238,0.15)',
+    flexShrink: 0,
+  },
+  tabBar: {
+    display: 'flex', gap: 0,
+    borderBottom: '1px solid rgba(114,206,238,0.12)',
+    flexShrink: 0,
+  },
+  tab: (active) => ({
+    padding: '8px 20px',
+    fontSize: '0.68rem',
+    fontWeight: active ? 700 : 400,
+    letterSpacing: '0.10em',
+    textTransform: 'uppercase',
+    color: active ? '#72CEEE' : 'rgba(255,255,255,0.30)',
+    background: active ? 'rgba(114,206,238,0.08)' : 'transparent',
+    borderBottom: active ? '2px solid #72CEEE' : '2px solid transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: "'JetBrains Mono', monospace",
+    transition: 'all 0.15s',
+  }),
+  body: {
+    flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+  },
+  scrollArea: {
+    flex: 1, overflowY: 'auto', overflowX: 'auto',
+    scrollbarWidth: 'thin',
+    scrollbarColor: 'rgba(114,206,238,0.18) transparent',
+  },
+  actionBar: {
+    display: 'flex', gap: 8, padding: '8px 14px',
+    borderTop: '1px solid rgba(114,206,238,0.10)',
+    background: 'rgba(0,0,0,0.30)',
+    flexShrink: 0, flexWrap: 'wrap', alignItems: 'center',
+  },
+  btn: (variant) => {
+    const base = {
+      padding: '7px 16px', borderRadius: 8, border: 'none',
+      cursor: 'pointer', fontSize: '0.70rem', fontWeight: 700,
+      letterSpacing: '0.08em', textTransform: 'uppercase',
+      fontFamily: "'JetBrains Mono', monospace",
+      transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
+    };
+    if (variant === 'primary')  return { ...base, background: 'linear-gradient(135deg,#1e4070,#2a6bb0)', color: '#72CEEE', border: '1px solid rgba(114,206,238,0.30)' };
+    if (variant === 'success')  return { ...base, background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.30)' };
+    if (variant === 'danger')   return { ...base, background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' };
+    if (variant === 'ai')       return { ...base, background: 'linear-gradient(135deg,rgba(167,85,247,0.18),rgba(109,40,217,0.10))', color: '#c4b5fd', border: '1px solid rgba(168,85,247,0.28)' };
+    if (variant === 'pdf')      return { ...base, background: 'rgba(255,204,0,0.10)', color: '#FFCC00', border: '1px solid rgba(255,204,0,0.25)' };
+    return { ...base, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.10)' };
+  },
+  inp: {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 7, color: '#e2e8f0',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '0.78rem', padding: '7px 12px',
+    outline: 'none', width: '100%',
+  },
+  label: {
+    fontSize: '0.62rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+    color: 'rgba(114,206,238,0.55)', marginBottom: 5, display: 'block',
+    fontFamily: "'JetBrains Mono', monospace",
+  },
+};
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function Estimator({ onClose }) {
-  const [input,    setInput]    = useState('');
-  const [output,   setOutput]   = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [file,     setFile]     = useState(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [copied,   setCopied]   = useState(false);
+  const [tab, setTab]           = useState('Schedule');
+  const [doors, setDoors]       = useState([newDoor('D-01')]);
+  const [priceData, setPriceData] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [selectedDoor, setSelectedDoor] = useState(0);
+  const [aiStatus, setAiStatus] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const fileRef = useRef(null);
 
-  const run = async (query = input, attachedFile = file) => {
-    const q = (query || '').trim();
-    if (!q && !attachedFile) return;
-    setLoading(true);
-    setOutput('');
+  const [projectInfo, setProjectInfo] = useState({
+    projectRef: '', projectName: '', client: '', consultant: '',
+    mainContractor: '', preparedBy: '', validDays: 30, date: '',
+  });
 
+  const [adminEdit, setAdminEdit] = useState({ ohPercent: 15, profitPercent: 35 });
+  const [adminSaving, setAdminSaving] = useState(false);
+  const [adminMsg, setAdminMsg] = useState('');
+
+  // ── Load priceData from Cosmos on mount ──────────────────────────────────────
+  useEffect(() => {
+    loadPriceData().then(pd => {
+      setPriceData(pd);
+      setAdminEdit({
+        ohPercent:     pd.margins.ohPercent,
+        profitPercent: pd.margins.profitPercent,
+      });
+      setLoading(false);
+    });
+  }, []);
+
+  // ── Quotation calculation ─────────────────────────────────────────────────────
+  const quotation = useMemo(() => {
+    if (!priceData || !doors.length) return null;
+    try { return calculateQuotation(doors, priceData); }
+    catch { return null; }
+  }, [doors, priceData]);
+
+  // ── Selected door result ──────────────────────────────────────────────────────
+  const selectedResult = useMemo(() => {
+    if (!priceData || !doors[selectedDoor]) return null;
+    try { return calculateDoorPrice(doors[selectedDoor], priceData); }
+    catch { return null; }
+  }, [doors, selectedDoor, priceData]);
+
+  // ── Door CRUD ─────────────────────────────────────────────────────────────────
+  const addDoor = () => {
+    setDoors(prev => [...prev, newDoor(nextRef(prev))]);
+    setSelectedDoor(doors.length);
+  };
+
+  const updateDoor = useCallback((index, updated) => {
+    setDoors(prev => prev.map((d, i) => i === index ? updated : d));
+  }, []);
+
+  const removeDoor = useCallback((index) => {
+    setDoors(prev => prev.filter((_, i) => i !== index));
+    setSelectedDoor(prev => Math.max(0, prev > index ? prev - 1 : prev));
+  }, []);
+
+  const duplicateDoor = (index) => {
+    const copy = { ...doors[index], doorRef: nextRef(doors) };
+    setDoors(prev => [...prev, copy]);
+  };
+
+  // ── AI Extraction ─────────────────────────────────────────────────────────────
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setAiLoading(true);
+    setAiStatus(`Reading ${files.length} file(s)…`);
     try {
-      let parts = [];
-      if (attachedFile) {
-        const b64 = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload  = () => res(r.result.split(',')[1]);
-          r.onerror = rej;
-          r.readAsDataURL(attachedFile);
-        });
-        parts.push({ inlineData: { mimeType: attachedFile.type || 'application/octet-stream', data: b64 } });
+      const { doors: extracted, fileCount } = await extractDoorsFromFiles(files, setAiStatus);
+      if (extracted.length) {
+        setDoors(prev => [...prev, ...extracted]);
+        setAiStatus(`✓ Added ${extracted.length} door(s) from ${fileCount} file(s)`);
+        setTab('Schedule');
+      } else {
+        setAiStatus('No doors found — please add manually');
       }
-      parts.push({ text: `${SYSTEM}\n\nUser request: ${q || 'Analyze the attached document and provide an estimation breakdown.'}` });
-
-      const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-      setOutput(result.response.text());
     } catch (err) {
-      console.error(err);
-      setOutput('⚠ Could not reach the AI engine. Please check your connection and try again.');
+      setAiStatus(`Error: ${err.message}`);
     }
-    setLoading(false);
+    setAiLoading(false);
+    e.target.value = '';
   };
 
-  const copy = () => {
-    if (!output) return;
-    navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+  // ── PDF Export ────────────────────────────────────────────────────────────────
+  const exportPDF = () => {
+    if (!quotation) return;
+    const lines = quotation.lines.map((l, i) => ({ ...doors[i], ...l }));
+    downloadQuotationPDF({ ...quotation, lines }, projectInfo, priceData.margins);
   };
 
-  const clear = () => { setOutput(''); setInput(''); setFile(null); };
+  // ── Save to Cosmos ────────────────────────────────────────────────────────────
+  const saveToCloud = async () => {
+    if (!quotation) return;
+    await saveQuotation({
+      projectId:   projectInfo.projectRef || `q-${Date.now()}`,
+      projectName: projectInfo.projectName,
+      doors,
+      totals:      quotation,
+      createdBy:   projectInfo.preparedBy,
+    });
+  };
 
+  // ── Admin: save margins ───────────────────────────────────────────────────────
+  const saveMargins = async () => {
+    setAdminSaving(true);
+    const updated = {
+      ...priceData,
+      margins: { ohPercent: Number(adminEdit.ohPercent), profitPercent: Number(adminEdit.profitPercent) },
+    };
+    const ok = await savePriceData(updated);
+    if (ok) {
+      setPriceData(updated);
+      setAdminMsg('✓ Margins saved to Cosmos DB');
+    } else {
+      setAdminMsg('✗ Save failed — check Cosmos connection');
+    }
+    setAdminSaving(false);
+    setTimeout(() => setAdminMsg(''), 3000);
+  };
+
+  const hardwareSetNames = priceData ? Object.keys(priceData.hardwareSets) : [];
+
+  // ─── RENDER ────────────────────────────────────────────────────────────────────
   return (
-    <>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{
-        position:'fixed',inset:0,zIndex:9600,
-        background:'rgba(0,0,10,0.58)',
-        backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',
-        animation:'estFade 0.2s ease',
-      }}/>
+    <div style={S.overlay}>
+      <div style={S.panel}>
 
-      {/* Glass Panel */}
-      <div
-        style={{
-          position:'fixed',top:'50%',left:'50%',
-          transform:'translate(-50%,-50%)',
-          zIndex:9700,
-          width:'min(700px,calc(100vw - 24px))',
-          height:'min(680px,calc(100vh - 40px))',
-          display:'flex',flexDirection:'column',
-          background:'rgba(6,3,22,0.80)',
-          backdropFilter:'blur(40px) saturate(200%)',
-          WebkitBackdropFilter:'blur(40px) saturate(200%)',
-          border:'1px solid rgba(168,85,247,0.28)',
-          borderRadius:22,
-          boxShadow:'0 32px 90px rgba(0,0,0,0.72),0 0 0 1px rgba(255,255,255,0.05) inset,0 8px 40px rgba(109,40,217,0.28)',
-          overflow:'hidden',
-          animation:'estSlide 0.28s cubic-bezier(0.22,1,0.36,1)',
-        }}
-        onDragOver={e=>{e.preventDefault();setDragOver(true)}}
-        onDragLeave={()=>setDragOver(false)}
-        onDrop={e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)setFile(f);}}
-      >
-        {/* Drag highlight */}
-        {dragOver && (
-          <div style={{
-            position:'absolute',inset:0,zIndex:30,pointerEvents:'none',
-            background:'rgba(109,40,217,0.15)',
-            border:'2px dashed rgba(168,85,247,0.65)',borderRadius:22,
-            display:'flex',alignItems:'center',justifyContent:'center',
-            fontSize:'0.92rem',fontFamily:"'Inter',sans-serif",fontWeight:600,
-            color:'rgba(196,181,253,0.85)',letterSpacing:'0.06em',
-          }}>Drop file to attach</div>
-        )}
-
-        {/* ── Header ── */}
-        <div style={{
-          display:'flex',alignItems:'center',justifyContent:'space-between',
-          padding:'14px 18px',flexShrink:0,
-          borderBottom:'1px solid rgba(168,85,247,0.14)',
-          background:'rgba(109,40,217,0.10)',
-        }}>
-          <div style={{display:'flex',alignItems:'center',gap:9}}>
-            <Bot size={16} color="#a855f7"/>
-            <span style={{
-              fontFamily:"'Inter',sans-serif",fontWeight:800,fontSize:'0.74rem',letterSpacing:'0.14em',
-              background:'linear-gradient(135deg,#c4b5fd,#f9a8d4,#fdba74)',
-              WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
-            }}>APEX AI ESTIMATION WORKSPACE</span>
+        {/* ── HEADER ── */}
+        <div style={S.header}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Logo mark */}
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'linear-gradient(135deg,rgba(114,206,238,0.25),rgba(114,206,238,0.08))',
+              border: '1px solid rgba(114,206,238,0.30)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#72CEEE" strokeWidth="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="8" y1="13" x2="16" y2="13"/>
+                <line x1="8" y1="17" x2="12" y2="17"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.12em', color: '#72CEEE', textTransform: 'uppercase' }}>
+                NAFFCO · Fire Door Estimator
+              </div>
+              <div style={{ fontSize: '0.60rem', color: 'rgba(255,255,255,0.30)', letterSpacing: '0.06em' }}>
+                {loading ? 'Loading price data…' : `${doors.length} door(s) · ${quotation ? `Grand Total: AED ${quotation.grandTotal.toLocaleString()}` : 'calculating…'}`}
+              </div>
+            </div>
           </div>
-          <div style={{display:'flex',gap:6}}>
-            {output && <>
-              <Btn icon={copied?<Check size={13} color="#4ade80"/>:<Copy size={13}/>} onClick={copy} title="Copy output"/>
-              <Btn icon={<RotateCcw size={13}/>} onClick={clear} title="Clear"/>
-            </>}
-            <Btn icon={<X size={14}/>} onClick={onClose} title="Close"/>
+
+          {/* Right actions */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {aiStatus && (
+              <span style={{ fontSize: '0.62rem', color: 'rgba(196,181,253,0.70)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {aiStatus}
+              </span>
+            )}
+            <button style={S.btn('default')} onClick={onClose}>✕ Close</button>
           </div>
         </div>
 
-        {/* ── Output / Empty state ── */}
-        <div style={{
-          flex:1,overflowY:'auto',padding:'24px 26px',
-          scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.18) transparent',
-        }}>
-          {/* Empty */}
-          {!output && !loading && (
-            <div style={{
-              height:'100%',display:'flex',flexDirection:'column',
-              alignItems:'center',justifyContent:'center',gap:22,
-            }}>
-              <div style={{
-                width:76,height:76,borderRadius:'50%',
-                background:'radial-gradient(circle,rgba(168,85,247,0.18) 0%,rgba(109,40,217,0.06) 70%)',
-                border:'1px solid rgba(168,85,247,0.22)',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                boxShadow:'0 0 30px rgba(168,85,247,0.14)',
-              }}>
-                <Sparkles size={30} color="#a855f7"/>
+        {/* ── TAB BAR ── */}
+        <div style={S.tabBar}>
+          {TABS.map(t => (
+            <button key={t} style={S.tab(tab === t)} onClick={() => setTab(t)}>{t}</button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <span style={{ fontSize: '0.60rem', color: 'rgba(255,255,255,0.18)', padding: '0 12px', alignSelf: 'center' }}>
+            {priceData ? `O&H ${priceData.margins.ohPercent}% · Profit ${priceData.margins.profitPercent}%` : ''}
+          </span>
+        </div>
+
+        {/* ── BODY ── */}
+        <div style={S.body}>
+
+          {/* ════════════ SCHEDULE TAB ════════════ */}
+          {tab === 'Schedule' && (
+            <>
+              <div style={S.scrollArea}>
+                {loading ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'rgba(114,206,238,0.40)', fontSize: '0.80rem' }}>
+                    Loading price data from Cosmos DB…
+                  </div>
+                ) : (
+                  <>
+                    <DoorEntryHeader />
+                    {doors.map((door, i) => (
+                      <DoorEntryRow
+                        key={i}
+                        door={door}
+                        index={i}
+                        onChange={updateDoor}
+                        onRemove={removeDoor}
+                        priceData={priceData}
+                        hardwareSetNames={hardwareSetNames}
+                      />
+                    ))}
+                    {!doors.length && (
+                      <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.20)', fontSize: '0.76rem' }}>
+                        No doors yet — click "Add Door" or upload a BOQ document
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-              <div style={{textAlign:'center'}}>
-                <div style={{
-                  fontFamily:"'Inter',sans-serif",fontWeight:900,
-                  fontSize:'1.30rem',color:'#f1f5f9',marginBottom:8,
-                }}>Intelligence Engine Ready.</div>
-                <div style={{
-                  fontFamily:"'Inter',sans-serif",fontSize:'0.78rem',
-                  color:'rgba(148,163,184,0.55)',lineHeight:1.65,maxWidth:380,
-                }}>
-                  Describe your project, paste a BOQ, or drop a document.<br/>The AI will return a full estimation breakdown.
+
+              {/* Action bar */}
+              <div style={S.actionBar}>
+                <button style={S.btn('primary')} onClick={addDoor}>＋ Add Door</button>
+                {selectedDoor < doors.length && (
+                  <button style={S.btn('default')} onClick={() => duplicateDoor(selectedDoor)}>⧉ Duplicate</button>
+                )}
+
+                {/* AI Upload */}
+                {isAiAvailable() && (
+                  <>
+                    <button
+                      style={S.btn('ai')}
+                      onClick={() => fileRef.current?.click()}
+                      disabled={aiLoading}
+                    >
+                      {aiLoading ? '⟳ Extracting…' : '✦ Upload BOQ (AI)'}
+                    </button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.txt,.csv,.xlsx,.xls" multiple
+                      style={{ display: 'none' }}
+                      onChange={handleFileUpload}
+                    />
+                  </>
+                )}
+
+                <div style={{ flex: 1 }} />
+
+                {/* Grand total pill */}
+                {quotation && (
+                  <div style={{
+                    background: 'rgba(114,206,238,0.10)',
+                    border: '1px solid rgba(114,206,238,0.25)',
+                    borderRadius: 100,
+                    padding: '5px 14px',
+                    fontSize: '0.72rem', fontWeight: 700, color: '#72CEEE',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    TOTAL: AED {quotation.grandTotal.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+                  </div>
+                )}
+
+                <button style={S.btn('pdf')} onClick={exportPDF} disabled={!quotation}>
+                  ⬇ Export PDF
+                </button>
+                <button style={S.btn('success')} onClick={saveToCloud} disabled={!quotation}>
+                  ☁ Save
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ════════════ BREAKDOWN TAB ════════════ */}
+          {tab === 'Breakdown' && (
+            <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+              {/* Door selector sidebar */}
+              <div style={{
+                width: 200, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)',
+                overflowY: 'auto',
+              }}>
+                <div style={{ padding: '10px 12px', fontSize: '0.58rem', letterSpacing: '0.14em', color: 'rgba(114,206,238,0.45)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  Select Door
+                </div>
+                {doors.map((d, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedDoor(i)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '9px 12px',
+                      background: selectedDoor === i ? 'rgba(114,206,238,0.10)' : 'transparent',
+                      borderLeft: selectedDoor === i ? '3px solid #72CEEE' : '3px solid transparent',
+                      border: 'none', cursor: 'pointer',
+                      color: selectedDoor === i ? '#72CEEE' : 'rgba(255,255,255,0.45)',
+                      fontSize: '0.72rem',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    <div style={{ fontWeight: 700 }}>{d.doorRef || `D-${i+1}`}</div>
+                    <div style={{ fontSize: '0.60rem', opacity: 0.6 }}>{d.wMm}×{d.hMm} {d.leafCount===2?'DD':'SD'}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Breakdown panel */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <DoorBreakdown
+                  result={selectedResult}
+                  door={doors[selectedDoor]}
+                  margins={priceData?.margins}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ════════════ SUMMARY TAB ════════════ */}
+          {tab === 'Summary' && (
+            <div style={{ ...S.scrollArea, padding: 16 }}>
+              <ProjectTotals quotation={quotation} margins={priceData?.margins} />
+
+              {/* Per-door summary table */}
+              {quotation && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: '0.62rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(114,206,238,0.50)', marginBottom: 8, fontFamily: "'JetBrains Mono', monospace" }}>
+                    Per-Door Summary
+                  </div>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, overflow: 'hidden' }}>
+                    {/* header */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '60px 80px 1fr 80px 80px 90px 100px', gap: 8, padding: '7px 12px', background: 'rgba(114,206,238,0.06)', fontSize: '0.58rem', letterSpacing: '0.10em', textTransform: 'uppercase', color: 'rgba(114,206,238,0.50)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {['#', 'Ref', 'Spec', 'Qty', 'Base', 'Unit Price', 'Line Total'].map((h,i) => (
+                        <div key={i} style={{ textAlign: i > 2 ? 'right' : 'left' }}>{h}</div>
+                      ))}
+                    </div>
+                    {quotation.lines.map((line, i) => (
+                      <div key={i} style={{
+                        display: 'grid', gridTemplateColumns: '60px 80px 1fr 80px 80px 90px 100px',
+                        gap: 8, padding: '7px 12px', alignItems: 'center',
+                        background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                        borderTop: '1px solid rgba(255,255,255,0.04)',
+                        fontSize: '0.72rem', color: 'rgba(226,232,240,0.75)',
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}>
+                        <div style={{ color: 'rgba(114,206,238,0.50)' }}>{line.lineNo}</div>
+                        <div style={{ fontWeight: 700, color: '#72CEEE' }}>{doors[i]?.doorRef || `D-${i+1}`}</div>
+                        <div style={{ fontSize: '0.64rem', color: 'rgba(255,255,255,0.40)' }}>
+                          {doors[i]?.wMm}×{doors[i]?.hMm}mm {doors[i]?.leafCount===2?'DD':'SD'} {doors[i]?.infill} {doors[i]?.standard||''}
+                        </div>
+                        <div style={{ textAlign: 'right' }}>{line.qty}</div>
+                        <div style={{ textAlign: 'right', color: 'rgba(255,255,255,0.45)' }}>
+                          {line.finalBaseTotal?.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+                        </div>
+                        <div style={{ textAlign: 'right', fontWeight: 700 }}>
+                          AED {line.unitDoorSetPrice?.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+                        </div>
+                        <div style={{ textAlign: 'right', fontWeight: 700, color: '#72CEEE' }}>
+                          AED {line.lineTotal?.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ════════════ PROJECT INFO TAB ════════════ */}
+          {tab === 'Project Info' && (
+            <div style={{ ...S.scrollArea, padding: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 700 }}>
+                {[
+                  { key: 'projectRef',    label: 'Quote Reference',  placeholder: 'Q-2025-001' },
+                  { key: 'projectName',   label: 'Project Name',     placeholder: 'NAFFCO HQ Expansion' },
+                  { key: 'client',        label: 'Client',           placeholder: 'Client name' },
+                  { key: 'consultant',    label: 'Consultant',       placeholder: 'Consultant firm' },
+                  { key: 'mainContractor',label: 'Main Contractor',  placeholder: 'Contractor name' },
+                  { key: 'preparedBy',    label: 'Prepared By',      placeholder: 'Your name' },
+                  { key: 'validDays',     label: 'Valid for (days)', placeholder: '30', type: 'number' },
+                  { key: 'date',          label: 'Date',             placeholder: 'Auto', type: 'date' },
+                ].map(({ key, label, placeholder, type }) => (
+                  <div key={key}>
+                    <label style={S.label}>{label}</label>
+                    <input
+                      style={S.inp}
+                      type={type || 'text'}
+                      value={projectInfo[key] || ''}
+                      onChange={e => setProjectInfo(p => ({ ...p, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <button style={S.btn('pdf')} onClick={exportPDF} disabled={!quotation}>
+                  ⬇ Generate PDF with This Info
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════ ADMIN TAB ════════════ */}
+          {tab === 'Admin' && (
+            <div style={{ ...S.scrollArea, padding: 24 }}>
+              <div style={{ maxWidth: 440 }}>
+                <div style={{ fontSize: '0.62rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(114,206,238,0.50)', marginBottom: 16, fontFamily: "'JetBrains Mono', monospace" }}>
+                  Commercial Margins — Admin Only
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                  <div>
+                    <label style={S.label}>Overhead & Handling (%)</label>
+                    <input
+                      style={S.inp}
+                      type="number"
+                      min={0} max={100}
+                      value={adminEdit.ohPercent}
+                      onChange={e => setAdminEdit(p => ({ ...p, ohPercent: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label style={S.label}>Profit Margin (%)</label>
+                    <input
+                      style={S.inp}
+                      type="number"
+                      min={0} max={100}
+                      value={adminEdit.profitPercent}
+                      onChange={e => setAdminEdit(p => ({ ...p, profitPercent: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <button
+                    style={S.btn('success')}
+                    onClick={saveMargins}
+                    disabled={adminSaving}
+                  >
+                    {adminSaving ? '⟳ Saving…' : '☁ Save to Cosmos DB'}
+                  </button>
+                  {adminMsg && (
+                    <span style={{ fontSize: '0.68rem', color: adminMsg.startsWith('✓') ? '#34d399' : '#f87171', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {adminMsg}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 24, padding: 14, background: 'rgba(255,204,0,0.05)', border: '1px solid rgba(255,204,0,0.15)', borderRadius: 8, fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.7 }}>
+                  ⚠ Changes to margins affect ALL new quotations immediately.<br/>
+                  Existing saved quotations are not retroactively updated.<br/>
+                  All other rates are managed in the Cosmos DB pricemaster document.
                 </div>
               </div>
-              {/* Quick chips */}
-              <div style={{display:'flex',flexWrap:'wrap',gap:7,justifyContent:'center',maxWidth:520}}>
-                {CHIPS.map((c,i)=>(
-                  <button key={i} onClick={()=>run(c,null)} style={{
-                    fontFamily:"'Inter',sans-serif",fontSize:'0.70rem',fontWeight:500,
-                    padding:'6px 13px',borderRadius:100,cursor:'pointer',
-                    background:'rgba(255,255,255,0.04)',border:'1px solid rgba(168,85,247,0.20)',
-                    color:'rgba(196,181,253,0.65)',transition:'all 0.15s',letterSpacing:'0.02em',
-                  }}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(109,40,217,0.22)';e.currentTarget.style.color='#e2d9ff';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.color='rgba(196,181,253,0.65)';}}
-                  >{c}</button>
-                ))}
-              </div>
             </div>
           )}
 
-          {/* Loading */}
-          {loading && (
-            <div style={{
-              height:'100%',display:'flex',flexDirection:'column',
-              alignItems:'center',justifyContent:'center',gap:16,
-            }}>
-              <div style={{display:'flex',gap:7,alignItems:'center'}}>
-                {[0,1,2,3].map(i=>(
-                  <span key={i} style={{
-                    width:8,height:8,borderRadius:'50%',
-                    background:'rgba(168,85,247,0.80)',display:'inline-block',
-                    animation:`estDot 1.3s ease-in-out ${i*0.18}s infinite`,
-                  }}/>
-                ))}
-              </div>
-              <div style={{
-                fontFamily:"'Inter',sans-serif",fontSize:'0.76rem',
-                color:'rgba(148,163,184,0.45)',letterSpacing:'0.08em',
-              }}>Analyzing parameters...</div>
-            </div>
-          )}
-
-          {/* Output */}
-          {output && !loading && (
-            <div>
-              <div style={{
-                display:'flex',alignItems:'center',gap:7,marginBottom:16,
-              }}>
-                <Bot size={13} color="#a855f7"/>
-                <span style={{
-                  fontFamily:"'Inter',sans-serif",fontSize:'0.60rem',fontWeight:800,
-                  letterSpacing:'0.18em',color:'rgba(168,85,247,0.75)',textTransform:'uppercase',
-                }}>AI Analysis Output</span>
-                <div style={{flex:1,height:1,background:'rgba(168,85,247,0.15)'}}/>
-              </div>
-              <div style={{
-                fontFamily:"'Inter',sans-serif",fontSize:'0.86rem',
-                lineHeight:1.78,color:'#cbd5e1',whiteSpace:'pre-wrap',wordBreak:'break-word',
-              }}>{output}</div>
-            </div>
-          )}
-        </div>
-
-        {/* ── File badge ── */}
-        {file && (
-          <div style={{
-            display:'flex',alignItems:'center',gap:7,
-            margin:'0 16px 2px',padding:'6px 12px',
-            background:'rgba(109,40,217,0.12)',border:'1px solid rgba(168,85,247,0.25)',
-            borderRadius:9,flexShrink:0,
-          }}>
-            <FileText size={12} color="#a855f7"/>
-            <span style={{
-              flex:1,fontFamily:"'Inter',sans-serif",fontSize:'0.72rem',
-              color:'rgba(196,181,253,0.80)',
-              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-            }}>{file.name}</span>
-            <button onClick={()=>setFile(null)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.30)',padding:2,display:'flex'}}>
-              <X size={11}/>
-            </button>
-          </div>
-        )}
-
-        {/* ── Input bar ── */}
-        <div style={{
-          padding:'10px 14px 13px',flexShrink:0,
-          borderTop:'1px solid rgba(168,85,247,0.12)',
-          background:'rgba(0,0,0,0.22)',
-        }}>
-          <div style={{
-            display:'flex',gap:8,alignItems:'flex-end',
-            background:'rgba(255,255,255,0.04)',
-            border:'1px solid rgba(168,85,247,0.24)',
-            borderRadius:14,padding:'8px 10px',
-          }}>
-            <button onClick={()=>fileRef.current.click()} title="Attach document" style={{
-              background:'none',border:'none',cursor:'pointer',flexShrink:0,
-              color:'rgba(168,85,247,0.50)',padding:'4px',display:'flex',
-              transition:'color 0.15s',
-            }}
-              onMouseEnter={e=>e.currentTarget.style.color='rgba(168,85,247,0.90)'}
-              onMouseLeave={e=>e.currentTarget.style.color='rgba(168,85,247,0.50)'}
-            ><FileText size={16}/></button>
-            <input ref={fileRef} type="file" style={{display:'none'}} onChange={e=>setFile(e.target.files[0]||null)}/>
-
-            <textarea
-              autoFocus
-              value={input}
-              onChange={e=>setInput(e.target.value)}
-              onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();run();}}}
-              placeholder="Describe the estimation task, paste BOQ, or drop a file…"
-              rows={2}
-              style={{
-                flex:1,resize:'none',background:'none',border:'none',outline:'none',
-                color:'#e2e8f0',fontFamily:"'Inter',sans-serif",
-                fontSize:'0.83rem',lineHeight:1.55,padding:'4px 2px',
-                maxHeight:100,
-                scrollbarWidth:'thin',scrollbarColor:'rgba(168,85,247,0.15) transparent',
-              }}
-            />
-
-            <button
-              onClick={()=>run()}
-              disabled={loading||(!input.trim()&&!file)}
-              style={{
-                flexShrink:0,alignSelf:'flex-end',
-                width:36,height:36,borderRadius:10,
-                display:'flex',alignItems:'center',justifyContent:'center',
-                background:loading||(!input.trim()&&!file)
-                  ?'rgba(109,40,217,0.15)'
-                  :'linear-gradient(135deg,#6d28d9,#a855f7)',
-                border:'1px solid rgba(168,85,247,0.35)',
-                color:loading||(!input.trim()&&!file)?'rgba(255,255,255,0.22)':'#fff',
-                cursor:loading||(!input.trim()&&!file)?'default':'pointer',
-                transition:'all 0.15s',
-              }}
-            >
-              {loading ? <Zap size={14} style={{opacity:0.4}}/> : <Send size={14}/>}
-            </button>
-          </div>
-
-          <div style={{
-            textAlign:'center',marginTop:7,
-            fontFamily:"'Inter',sans-serif",fontSize:'0.58rem',
-            color:'rgba(71,85,105,0.60)',letterSpacing:'0.10em',textTransform:'uppercase',
-          }}>Encrypted APEX Workspace · Gemini Powered</div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes estFade  { from{opacity:0} to{opacity:1} }
-        @keyframes estSlide { from{opacity:0;transform:translate(-50%,-46%)} to{opacity:1;transform:translate(-50%,-50%)} }
-        @keyframes estDot   { 0%,80%,100%{opacity:0.15} 40%{opacity:1} }
-      `}</style>
-    </>
-  );
-}
-
-function Btn({ icon, onClick, title }) {
-  return (
-    <button onClick={onClick} title={title} style={{
-      background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.09)',
-      borderRadius:7,color:'rgba(255,255,255,0.45)',cursor:'pointer',
-      width:27,height:27,display:'flex',alignItems:'center',justifyContent:'center',
-      transition:'all 0.14s',
-    }}
-      onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.13)';e.currentTarget.style.color='#fff';}}
-      onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='rgba(255,255,255,0.45)';}}
-    >{icon}</button>
+    </div>
   );
 }

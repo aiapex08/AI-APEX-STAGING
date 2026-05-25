@@ -22,7 +22,7 @@ import NewShowroom from './pages/NewShowroom.jsx';
 import AIContract from './pages/AIContract.jsx';
 import DummyHub from './pages/DummyHub.jsx';
 import AIHeroSection from './pages/AIHeroSection.jsx';
-
+import Estimator from './pages/Estimator.jsx';
 const ARScene = React.lazy(() => import('./ARScene.jsx'));
 
 // --- CONFIGURATION ---
@@ -1340,10 +1340,14 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
   ];
 
   const pickDept = (dept, qv = null) => {
-    if (dept.id === 'contracts' || dept.id === 'engineering') {
-      onDirect('construction', dept.id);
-      return;
-    }
+if (dept.id === 'contracts') {
+  onDirect('construction', dept.id);
+  return;
+}
+if (dept.id === 'engineering') {
+  onDirect('fireDoor', null);
+  return;
+}
     if (dept.id === 'estimation') {
       onDirect('estimation', null);
       return;
@@ -2180,7 +2184,8 @@ function AppContent() {
     const routes = { 
         arViewer: '/ar', 
         construction: '/construction', 
-        estimation: '/estimation' 
+        estimation: '/estimation',
+        fireDoor: '/fire-door'     
     };
     navigate(routes[dest] || '/');
   }, [navigate]);
@@ -2273,7 +2278,9 @@ function AppContent() {
         <Route path="/virtual-showroom" element={<VirtualShowroomDashboard onBack={backToHome} />} />
         <Route path="/new-showroom" element={<NewShowroom onBack={backToHome} />} />
         <Route path="/contracts" element={<AIContract onBack={backToHome} />} />
-        
+        <Route path="/fire-door" element={
+  <Estimator onClose={backToHome} />
+} />
         {/* Empty dashboard route because the Canvas is rendered conditionally outside of Routes below */}
         <Route path="/dashboard" element={<div />} />
 
