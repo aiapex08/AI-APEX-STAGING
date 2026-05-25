@@ -251,6 +251,11 @@ export default function DummyHub() {
   const [typedDef, setTypedDef]     = useState('');
   const [isTyping, setIsTyping]     = useState(false);
   const typingRef                   = useRef(null);
+  const [typedBrief, setTypedBrief] = useState('');
+  const [isBriefTyping, setIsBriefTyping] = useState(false);
+  const [typedStats, setTypedStats] = useState(['', '']);
+  const [briefStep, setBriefStep]   = useState(0);
+  const briefTypingRef              = useRef(null);
   const inputRef                    = useRef(null);
   const [activeIdx, setActiveIdx]   = useState(2);
   const touchStartX                 = useRef(null);
@@ -274,6 +279,61 @@ export default function DummyHub() {
     }
     return () => clearInterval(typingRef.current);
   }, [expandedCard]);
+
+  React.useEffect(() => {
+    clearInterval(briefTypingRef.current);
+    setTypedBrief(''); setIsBriefTyping(false);
+    setTypedStats(['', '']); setBriefStep(0);
+
+    const meta = Object.values(DEPT_META)[activeIdx];
+    if (!meta) return;
+    const def = meta.definition || '';
+    const v0  = meta.stats[0]?.v || '';
+    const v1  = meta.stats[1]?.v || '';
+
+    // 1 — name slides in
+    const tName = setTimeout(() => setBriefStep(1), 80);
+
+    // 2 — stat values type one after the other, then definition
+    const tStats = setTimeout(() => {
+      setBriefStep(2);
+      let i0 = 0;
+      briefTypingRef.current = setInterval(() => {
+        i0++;
+        setTypedStats([v0.slice(0, i0), '']);
+        if (i0 >= v0.length) {
+          clearInterval(briefTypingRef.current);
+          let i1 = 0;
+          briefTypingRef.current = setInterval(() => {
+            i1++;
+            setTypedStats([v0, v1.slice(0, i1)]);
+            if (i1 >= v1.length) {
+              clearInterval(briefTypingRef.current);
+              // 3 — definition types
+              setBriefStep(3); setIsBriefTyping(true);
+              let id = 0;
+              briefTypingRef.current = setInterval(() => {
+                id++;
+                setTypedBrief(def.slice(0, id));
+                if (id >= def.length) {
+                  clearInterval(briefTypingRef.current);
+                  setIsBriefTyping(false); setBriefStep(4);
+                }
+              }, 16);
+            }
+          }, 55);
+        }
+      }, 55);
+    }, 260);
+
+    // 4 — chips guaranteed visible after 1.4 s regardless
+    const tChips = setTimeout(() => setBriefStep(s => Math.max(s, 4)), 1400);
+
+    return () => {
+      clearTimeout(tName); clearTimeout(tStats); clearTimeout(tChips);
+      clearInterval(briefTypingRef.current);
+    };
+  }, [activeIdx]);
  
   const depts = [
     {
@@ -566,7 +626,17 @@ export default function DummyHub() {
  
       {/* global dim overlay */}
       <div style={{position:'absolute',inset:0,zIndex:1,background:'rgba(1,1,6,0.28)',pointerEvents:'none'}}/>
- 
+
+      {/* ── N logo watermark ── */}
+      <img src="/logo.png" alt="" aria-hidden="true" style={{
+        position:'absolute', top:'50%', left:'50%',
+        transform:'translate(-50%,-50%)',
+        zIndex:2, height:72, objectFit:'contain',
+        opacity:0.045,
+        filter:'grayscale(1) brightness(3)',
+        pointerEvents:'none', userSelect:'none',
+      }}/>
+
       {/* ══ LAYER 2: AI BOT IMAGE — sits above aurora (zIndex:4) ══ */}
       <div style={{position:'absolute',inset:0,zIndex:4,pointerEvents:'none'}}>
         <img src="/AIBOT.png" alt="AI Bot" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',pointerEvents:'none'}}/>
@@ -673,7 +743,7 @@ export default function DummyHub() {
             onClick={() => { if (expandedCard) setExpandedCard(null); }}
             style={{
               position:'absolute',
-              top:210, left:0, right:0, bottom:0,
+              top:180, left:0, right:55, bottom:15,
               perspective:`${RADIUS * 1.1}px`,
               perspectiveOrigin:'33% 68%',
               zIndex: expandedCard ? 60 : 20,
@@ -701,22 +771,22 @@ export default function DummyHub() {
                   style={{
                     '--tc': dept.color,
                     position:'absolute',
-                    left:'30%', bottom:80,
+                    left:'30%', bottom:140,
                     originX:'50%', originY:'50%',
-                    borderRadius:'20px',
+                    borderRadius:'0px',
                     cursor:'pointer', overflow: relIdx === 0 ? 'visible' : 'hidden',
-                    backdropFilter: isExpanded ? 'blur(20px) saturate(160%) brightness(1.12)' : 'blur(6px) saturate(130%)',
+                    backdropFilter: isExpanded ? 'blur(1.5px) saturate(100%) brightness(1.06)' : 'blur(1.5px) saturate(100%) brightness(1.06)',
                     zIndex: isExpanded ? 22 : (expandedCard ? 4 : Math.max(1, 12 - Math.abs(relIdx))),
                   }}
                   initial={false}
                   animate={isExpanded ? {
-                    x: -240, rotateY: 0, z: 300,
+                    x: -140, rotateY: 0, z: 300,
                     scale: 1,
                     width: 800, height: 450,
                     opacity: 1,
-                    background:'rgba(6,16,58,0.72)',
-                    border:'1px solid rgba(160,200,255,0.45)',
-                    boxShadow:'0 48px 140px rgba(0,4,24,0.85), 0 20px 60px rgba(0,8,48,0.65), 0 6px 20px rgba(0,4,28,0.50), inset 0 2px 0 rgba(220,235,255,0.50), inset 0 -1px 0 rgba(100,160,255,0.18), inset 1px 0 0 rgba(170,205,255,0.30), inset -1px 0 0 rgba(170,205,255,0.25), 0 0 100px rgba(40,100,220,0.30)',
+                    background:'rgba(255,255,255,0.018)',
+                    border:'1px solid rgba(200,225,255,0.14)',
+                    boxShadow:'0 8px 32px rgba(0,8,40,0.12), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(180,210,255,0.06), inset 1px 0 0 rgba(255,255,255,0.08), inset -1px 0 0 rgba(180,210,255,0.04)',
                     transition:{
                       type:'spring', stiffness:280, damping:26, mass:0.80,
                       opacity:{ type:'tween', duration:0.22, ease:'easeOut' },
@@ -731,9 +801,9 @@ export default function DummyHub() {
                     width: PW,
                     height: PH,
                     opacity: isHidden ? 0 : (relIdx === 0 ? 1 : Math.max(0.65, 0.95 - Math.abs(relIdx) * 0.12)),
-                    background: 'rgba(8,24,80,0.06)',
-                    border: `1px solid rgba(140,185,255,${relIdx === 0 ? 0.16 : Math.max(0.08, 0.14 - Math.abs(relIdx) * 0.02)})`,
-                    boxShadow: `0 8px 40px rgba(0,10,60,0.10), inset 0 1px 0 rgba(160,200,255,0.14), inset 0 -1px 0 rgba(100,160,255,0.07), inset 1px 0 0 rgba(140,190,255,0.10), inset -1px 0 0 rgba(140,190,255,0.07), 0 0 18px 3px rgba(30,80,200,0.06)`,
+                    background: 'rgba(255,255,255,0.018)',
+                    border: `1px solid rgba(200,225,255,${relIdx === 0 ? 0.14 : Math.max(0.05, 0.10 - Math.abs(relIdx) * 0.02)})`,
+                    boxShadow: `0 8px 32px rgba(0,8,40,0.12), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(180,210,255,0.06), inset 1px 0 0 rgba(255,255,255,0.08), inset -1px 0 0 rgba(180,210,255,0.04)`,
                     transition:{
                       type:'tween', duration:0.55, ease:[0.22,1,0.36,1],
                       opacity:{ duration:0.28, ease:'easeOut' },
@@ -743,12 +813,14 @@ export default function DummyHub() {
                   whileTap={!expandedCard ? { scale: relIdx === 0 ? 1.05 : Math.max(0.46, 1 - Math.abs(relIdx) * 0.26) - 0.04 } : {}}
                   onClick={(e) => { e.stopPropagation(); if (isExpanded) { pickDept(dept); } else if (relIdx === 0) { setExpandedCard(dept.id); } else { setActiveIdx(idx); } }}
                 >
-                  {/* ── VIRTUAL LIGHT EDGES ── */}
-                  <div style={{ position:'absolute', top:0, left:0, right:0, height:1.5, zIndex:30, background:`linear-gradient(90deg, transparent 0%, rgba(100,160,255,0.12) 12%, rgba(140,195,255,0.28) 35%, rgba(140,195,255,0.28) 65%, rgba(100,160,255,0.12) 88%, transparent 100%)`, boxShadow:`0 0 5px 1px rgba(80,140,255,0.10)`, animation:'hs-edge-pulse 4s ease-in-out infinite', animationDelay:`${idx * 0.6}s`, pointerEvents:'none' }}/>
-                  <div style={{ position:'absolute', bottom:0, left:0, right:0, height:1, zIndex:30, background:`linear-gradient(90deg, transparent, rgba(80,140,255,0.10) 30%, rgba(100,160,255,0.18) 50%, rgba(80,140,255,0.10) 70%, transparent)`, pointerEvents:'none' }}/>
-                  <div style={{ position:'absolute', top:0, left:0, bottom:0, width:1.5, zIndex:30, background:`linear-gradient(to bottom, rgba(120,175,255,0.20) 0%, rgba(80,140,255,0.08) 45%, rgba(60,110,255,0.02) 80%, transparent 100%)`, boxShadow:`2px 0 8px rgba(80,140,255,0.08)`, pointerEvents:'none' }}/>
-                  <div style={{ position:'absolute', top:0, right:0, bottom:0, width:1.5, zIndex:30, background:`linear-gradient(to bottom, rgba(100,160,255,0.16) 0%, rgba(70,125,255,0.06) 50%, rgba(50,100,255,0.02) 80%, transparent 100%)`, boxShadow:`-2px 0 8px rgba(80,140,255,0.06)`, pointerEvents:'none' }}/>
-                  <div style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none', background:`radial-gradient(ellipse 80% 50% at 50% 15%, rgba(80,130,255,0.04) 0%, transparent 70%)` }}/>
+                  {/* ── LIQUID GLASS: top specular streak (real glass catches light on one edge) ── */}
+                  <div style={{ position:'absolute', top:0, left:'18%', right:'18%', height:1, zIndex:30, background:`linear-gradient(90deg, transparent, rgba(255,255,255,0.10) 30%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.10) 70%, transparent)`, pointerEvents:'none' }}/>
+                  {/* subtle left-edge glint — like sunlight catching one rim */}
+                  <div style={{ position:'absolute', top:'6%', left:0, height:'28%', width:1, zIndex:30, background:`linear-gradient(to bottom, transparent, rgba(255,255,255,0.14) 40%, rgba(255,255,255,0.08) 70%, transparent)`, pointerEvents:'none' }}/>
+                  {/* inner lens refraction — very faint diagonal highlight like real curved glass */}
+                  <div style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none', background:`linear-gradient(128deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 28%, transparent 55%)`, borderRadius:'inherit' }}/>
+                  {/* bottom-edge depth shadow — glass rests on a surface */}
+                  <div style={{ position:'absolute', bottom:0, left:'8%', right:'8%', height:1, zIndex:30, background:`linear-gradient(90deg, transparent, rgba(0,10,60,0.18) 40%, rgba(0,10,60,0.22) 50%, rgba(0,10,60,0.18) 60%, transparent)`, pointerEvents:'none' }}/>
  
                   {/* ── NORMAL card face ── */}
                   <AnimatePresence>
@@ -764,7 +836,7 @@ export default function DummyHub() {
                       >
                         {relIdx === 0 ? (
                           <>
-                            <div style={{ position:'absolute', top:0, left:0, right:0, height:'50%', background:'linear-gradient(180deg,rgba(120,170,255,0.10) 0%,rgba(80,130,255,0.04) 40%,transparent 100%)', borderRadius:'20px 20px 0 0', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:0, left:0, right:0, height:'50%', background:'linear-gradient(180deg,rgba(120,170,255,0.10) 0%,rgba(80,130,255,0.04) 40%,transparent 100%)', borderRadius:'0', pointerEvents:'none' }}/>
                             <div style={{ position:'absolute', top:0, left:'10%', right:'10%', height:1, background:'linear-gradient(90deg,transparent,rgba(140,190,255,0.40) 30%,rgba(160,205,255,0.55) 50%,rgba(140,190,255,0.40) 70%,transparent)', pointerEvents:'none' }}/>
                             <div style={{ position:'absolute', top:'4%', left:0, bottom:'15%', width:'45%', background:'linear-gradient(90deg,rgba(100,160,255,0.08) 0%,transparent 100%)', pointerEvents:'none' }}/>
                             <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'35%', background:'linear-gradient(0deg,rgba(20,60,160,0.12) 0%,transparent 100%)', pointerEvents:'none' }}/>
@@ -796,7 +868,7 @@ export default function DummyHub() {
                           </>
                         ) : (
                           <>
-                            <div style={{ position:'absolute', top:0, left:0, right:0, height:'42%', background:'linear-gradient(180deg,rgba(255,255,255,0.055) 0%,transparent 100%)', borderRadius:'20px 20px 0 0', pointerEvents:'none' }}/>
+                            <div style={{ position:'absolute', top:0, left:0, right:0, height:'42%', background:'linear-gradient(180deg,rgba(255,255,255,0.055) 0%,transparent 100%)', borderRadius:'0', pointerEvents:'none' }}/>
                             <div style={{ position:'absolute', top:'8%', left:0, bottom:'20%', width:'45%', background:'linear-gradient(90deg,rgba(255,255,255,0.028) 0%,transparent 100%)', pointerEvents:'none' }}/>
                             <div style={{ position:'absolute', top:'36%', left:'50%', transform:'translate(-50%,-50%)', opacity:Math.max(0.25,0.48-Math.abs(relIdx)*0.08) }}>
                               <svg width="38" height="26" viewBox="0 0 52 36" fill="none">
@@ -903,7 +975,7 @@ export default function DummyHub() {
  
                         <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(ellipse at 50% 52%, rgba(80,130,220,0.12) 0%, transparent 65%)' }}/>
                         {/* bottom inner glass glow */}
-                        <div style={{ position:'absolute', bottom:0, left:'-5%', right:'-5%', height:110, background:'radial-gradient(ellipse 80% 100% at 50% 100%, rgba(180,220,255,0.38) 0%, rgba(140,190,255,0.14) 45%, rgba(100,160,255,0.06) 70%, transparent 100%)', borderRadius:'0 0 20px 20px', filter:'blur(8px)', pointerEvents:'none' }}/>
+                        <div style={{ position:'absolute', bottom:0, left:'-5%', right:'-5%', height:110, background:'radial-gradient(ellipse 80% 100% at 50% 100%, rgba(180,220,255,0.38) 0%, rgba(140,190,255,0.14) 45%, rgba(100,160,255,0.06) 70%, transparent 100%)', borderRadius:'0', filter:'blur(8px)', pointerEvents:'none' }}/>
                         <div style={{ position:'absolute', bottom:0, left:'6%', right:'6%', height:1.5, background:'linear-gradient(90deg,transparent,rgba(160,210,255,0.45) 20%,rgba(200,230,255,0.85) 50%,rgba(160,210,255,0.45) 80%,transparent)', pointerEvents:'none' }}/>
                       </motion.div>
                     )}
@@ -912,6 +984,92 @@ export default function DummyHub() {
               );
             })}
  
+            {/* ── OPPOSITE GLASS PANEL (separate, right side) ── */}
+            {!expandedCard && (
+              <div style={{
+                position:'absolute',
+                right:'28%', bottom:245 ,
+                width: Math.round(PW * 0.42),
+                height: Math.round(PH * 0.58),
+                zIndex:16,
+                transform:`perspective(${RADIUS * 1.1}px) rotateY(-22deg) translateZ(90px)`,
+                transformOrigin:'50% 100%',
+                background:'rgba(255,255,255,0.015)',
+                border:'1px solid rgba(200,225,255,0.10)',
+                boxShadow:'0 12px 40px rgba(0,8,40,0.14), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(180,210,255,0.05), inset -1px 0 0 rgba(255,255,255,0.07)',
+                backdropFilter:'blur(1.5px) saturate(100%) brightness(1.05)',
+                WebkitBackdropFilter:'blur(1.5px) saturate(100%) brightness(1.05)',
+                pointerEvents:'none',
+                overflow:'hidden',
+              }}>
+                {/* top specular — light hits the right panel from the left */}
+                <div style={{ position:'absolute', top:0, left:'12%', right:'12%', height:1, background:'linear-gradient(90deg, transparent, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.26) 55%, rgba(255,255,255,0.10) 80%, transparent)', pointerEvents:'none' }}/>
+                {/* right-edge glint */}
+                <div style={{ position:'absolute', top:'4%', right:0, height:'22%', width:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.09) 70%, transparent)', pointerEvents:'none' }}/>
+                {/* inner lens refraction */}
+                <div style={{ position:'absolute', inset:0, background:'linear-gradient(142deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 32%, transparent 60%)', pointerEvents:'none' }}/>
+                {/* bottom depth shadow */}
+                <div style={{ position:'absolute', bottom:0, left:'6%', right:'6%', height:1, background:'linear-gradient(90deg, transparent, rgba(0,10,60,0.16) 40%, rgba(0,10,60,0.20) 50%, rgba(0,10,60,0.16) 60%, transparent)', pointerEvents:'none' }}/>
+
+                {/* ── ChatGPT-style active card brief ── */}
+                <div style={{ position:'absolute', inset:0, padding:'12px 9px 10px', display:'flex', flexDirection:'column', gap:7, zIndex:2, overflow:'hidden' }}>
+
+                  {/* header: pulsing dot + label */}
+                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                    <div style={{ width:4, height:4, borderRadius:'50%', background:`rgba(${activeDept.a},0.90)`, boxShadow:`0 0 6px rgba(${activeDept.a},0.75)`, flexShrink:0, animation:'hs-ticker 2s ease-in-out infinite' }}/>
+                    <span style={{ fontSize:'0.43rem', letterSpacing:'0.30em', color:'rgba(255,255,255,0.28)', textTransform:'uppercase', fontFamily:"'Inter',sans-serif", fontWeight:700 }}>AI BRIEF</span>
+                  </div>
+
+                  {/* accent line */}
+                  <div style={{ height:0.5, background:`linear-gradient(90deg, rgba(${activeDept.a},0.40), transparent 80%)`, flexShrink:0 }}/>
+
+                  {/* dept name — fades in first */}
+                  <div style={{ fontSize:'0.60rem', fontWeight:700, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:"'Cinzel',serif", lineHeight:1.2, background:`linear-gradient(100deg,rgba(${activeDept.a},1) 0%,rgba(255,255,255,0.75) 100%)`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', flexShrink:0, opacity: briefStep >= 1 ? 1 : 0, transform: briefStep >= 1 ? 'translateY(0)' : 'translateY(4px)', transition:'opacity 0.28s ease, transform 0.28s ease' }}>
+                    {activeDept.label}
+                  </div>
+
+                  {/* 2 key stats — values type char by char */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:4, flexShrink:0 }}>
+                    {activeMeta.stats.slice(0,2).map((s,i) => (
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:5, opacity: briefStep >= 2 ? 1 : 0, transition:`opacity 0.20s ease ${i*0.08}s` }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={`rgba(${activeDept.a},0.65)`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+                          <path d={s.d}/>
+                        </svg>
+                        <span style={{ fontSize:'0.55rem', fontWeight:700, color:`rgba(${activeDept.a},0.92)`, fontFamily:"'Inter',sans-serif", letterSpacing:'0.04em' }}>
+                          {typedStats[i]}
+                          {briefStep >= 2 && typedStats[i].length < s.v.length && (
+                            <span className="hs-type-cursor" style={{ color:`rgba(${activeDept.a},0.85)`, WebkitTextFillColor:`rgba(${activeDept.a},0.85)` }}/>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* divider */}
+                  <div style={{ height:0.5, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
+
+                  {/* clipped definition — typing style */}
+                  <div style={{ fontSize:'0.43rem', lineHeight:1.75, color:'rgba(255,255,255,0.36)', fontFamily:"'Inter',sans-serif", fontWeight:400, letterSpacing:'0.01em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:4, WebkitBoxOrient:'vertical', flex:1, minHeight:0 }}>
+                    {typedBrief}
+                    {isBriefTyping && <span className="hs-type-cursor" style={{ color:`rgba(${activeDept.a},0.85)`, WebkitTextFillColor:`rgba(${activeDept.a},0.85)` }}/>}
+                  </div>
+
+                  {/* divider */}
+                  <div style={{ height:0.5, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
+
+                  {/* module chips — staggered fade in last */}
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:3, flexShrink:0 }}>
+                    {activeMeta.items.slice(0,4).map((item,i) => (
+                      <div key={i} style={{ padding:'2px 5px', border:`0.5px solid rgba(${activeDept.a},0.28)`, fontSize:'0.38rem', color:`rgba(${activeDept.a},0.70)`, letterSpacing:'0.09em', textTransform:'uppercase', fontFamily:"'Inter',sans-serif", fontWeight:600, opacity: briefStep >= 4 ? 1 : 0, transform: briefStep >= 4 ? 'translateY(0)' : 'translateY(3px)', transition:`opacity 0.22s ease ${i*0.07}s, transform 0.22s ease ${i*0.07}s` }}>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
             {/* ── floor depth fade ── */}
             <div style={{ position:'absolute', bottom:0, left:0, right:0, height:220, zIndex:8, background:'linear-gradient(to bottom, transparent 0%, rgba(1,1,6,0.55) 70%, rgba(1,1,6,0.88) 100%)', pointerEvents:'none' }}/>
           </motion.div>

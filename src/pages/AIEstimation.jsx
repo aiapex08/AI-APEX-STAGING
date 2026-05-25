@@ -5908,13 +5908,13 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
   const isSales = userRole === 'sales';
   const salesName = isSales ? (STAFF_NAMES[userCode?.toUpperCase()] || '') : '';
 
-  // Sales: pre-filter to own requests; others: empty until search
+  // Sales: pre-filter to own approved requests only; others: empty until search
   const baseList = isSales
     ? requests.filter(r =>
         salesName && (
           (r.salesPerson||'').toLowerCase() === salesName.toLowerCase() ||
           (r.submittedBy||'').toLowerCase() === salesName.toLowerCase()
-        )
+        ) && (r.directorAction === 'approved' || r.reqStatus === 'completed')
       )
     : [];
 
@@ -6211,7 +6211,7 @@ const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}
         salesName && (
           (r.salesPerson||'').toLowerCase() === salesName.toLowerCase() ||
           (r.submittedBy||'').toLowerCase() === salesName.toLowerCase()
-        )
+        ) && (r.directorAction === 'approved' || r.reqStatus === 'completed')
       )
     : [];
 
@@ -7991,6 +7991,11 @@ const Dashboard = ({
     return () => document.removeEventListener('mousedown', close);
   }, [showDashAddPpl]);
   const [dsearch, setDsearch] = useState('');
+  const [layoutView, setLayoutView] = useState('list'); // 'list' | 'cards'
+  const [colFilters, setColFilters]   = useState({});   // per-column text filters
+  const [colFilterOpen, setColFilterOpen] = useState(null); // key of open filter input
+  const [sortCol, setSortCol] = useState(null);   // active sort column key
+  const [sortDir, setSortDir] = useState('asc');  // 'asc' | 'desc'
   const [, setTick] = useState(0);
   const lockViewMode = !!initialViewMode; // hide view switcher when role is set externally
   const [viewMode, setViewMode] = useState(initialViewMode || 'requester'); // 'requester' | 'estimator' | 'director'
@@ -8002,6 +8007,7 @@ const Dashboard = ({
   const [oosMode, setOosMode]     = useState(false);   // show OOS remark input
   const [oosRemark, setOosRemark] = useState('');       // draft remark
   const [dashFilter, setDashFilter] = useState('');    // '' | 'pending-estimation' | 'pending-approval' | 'unassigned' | 'out-of-scope'
+  const [pendingEstDealFilter, setPendingEstDealFilter] = useState(''); // '' | 'Job In Hand' | 'Tender'
   const [estTeamPage, setEstTeamPage] = useState(false);
   const [estTeamDetail, setEstTeamDetail] = useState(null); // {code,name} | null
   const [estTeamPin, setEstTeamPin] = useState('');
@@ -8356,6 +8362,8 @@ const Dashboard = ({
                           <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.estimator||'Unassigned'}</div>
                           {viewMode==='director' && <button onClick={()=>{setReassignField('estimator');setReassignValue(req.estimator||'');}}
                             style={{fontSize:'0.58rem',padding:'2px 7px',borderRadius:5,background:'rgba(99,200,255,0.08)',border:'1px solid rgba(99,200,255,0.22)',color:'rgba(99,200,255,0.70)',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>Reassign</button>}
+                          {viewMode==='director' && req.estimator && <button onClick={()=>{const nowMs=Date.now(); onUpdate(req.id,{estimator:'',taggedAt:null,timeline:[...(req.timeline||[]),{event:'unassigned',ts:new Date(nowMs).toISOString(),tsMs:nowMs,label:`Estimator removed — unassigned`,by:'Cost-Artist'}],_immediate:true});}}
+                            style={{fontSize:'0.58rem',padding:'2px 7px',borderRadius:5,background:'rgba(220,60,60,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,90,90,0.75)',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>Remove</button>}
                         </div>
                       )}
                     </div>
@@ -8384,6 +8392,8 @@ const Dashboard = ({
                           <div style={{fontSize:'0.74rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1}}>{req.salesPerson}</div>
                           {viewMode==='director' && <button onClick={()=>{setReassignField('salesPerson');setReassignValue(req.salesPerson||'');}}
                             style={{fontSize:'0.58rem',padding:'2px 7px',borderRadius:5,background:'rgba(168,85,247,0.08)',border:'1px solid rgba(168,85,247,0.22)',color:'rgba(168,85,247,0.70)',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>Reassign</button>}
+                          {viewMode==='director' && <button onClick={()=>{const nowMs=Date.now(); onUpdate(req.id,{salesPerson:'',timeline:[...(req.timeline||[]),{event:'unassigned-sales',ts:new Date(nowMs).toISOString(),tsMs:nowMs,label:`Sales removed — unassigned`,by:'Cost-Artist'}],_immediate:true});}}
+                            style={{fontSize:'0.58rem',padding:'2px 7px',borderRadius:5,background:'rgba(220,60,60,0.08)',border:'1px solid rgba(220,60,60,0.22)',color:'rgba(220,90,90,0.75)',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>Remove</button>}
                         </div>
                       )}
                     </div>
@@ -10201,14 +10211,165 @@ const Dashboard = ({
       if (!fields.some(f => f.includes(lo))) return false;
     }
     if (viewMode === 'requester' && requesterFilter && r.submittedBy !== requesterFilter) return false;
-    if (dashFilter === 'pending-estimation') { if (r.status !== 'Pending Estimation') return false; }
+    if (dashFilter === 'pending-estimation') {
+      if (r.status !== 'Pending Estimation') return false;
+      if (pendingEstDealFilter && r.deal !== pendingEstDealFilter) return false;
+    }
     else if (dashFilter === 'pending-approval') { if (r.reqStatus !== 'pending-director') return false; }
     else if (dashFilter === 'unassigned') { if (r.estimator) return false; }
     else if (dashFilter === 'out-of-scope') { if (r.reqStatus !== 'out-of-scope') return false; }
     else if (dashFilter === 'approved') { if (r.directorAction !== 'approved' && r.reqStatus !== 'completed') return false; }
+    // per-column filters
+    const cf = colFilters;
+    const cfMatch = (val, key) => !cf[key] || (val||'').toLowerCase().includes(cf[key].toLowerCase());
+    if (!cfMatch(r.id,             'id'))            return false;
+    if (!cfMatch(r.status,         'status'))        return false;
+    if (!cfMatch(r.proj,           'proj'))          return false;
+    if (!cfMatch(r.mainContractor, 'mainContractor'))return false;
+    if (!cfMatch(r.consultant,     'consultant'))    return false;
+    if (!cfMatch(r.client,         'client'))        return false;
+    if (!cfMatch(r.submittedBy,    'submittedBy'))   return false;
+    if (!cfMatch(r.estimator,      'estimator'))     return false;
+    if (cf.projValue && !(r.projValue||'').toString().includes(cf.projValue)) return false;
     return true;
   });
 
+  const cfSet    = (key, val) => setColFilters(prev => ({...prev, [key]: val}));
+  const cfToggle = (key) => setColFilterOpen(prev => prev === key ? null : key);
+  const cfClear  = (key) => { setColFilters(prev => ({...prev, [key]: ''})); setColFilterOpen(null); };
+  const hasAnyColFilter = Object.values(colFilters).some(v => v);
+
+  // Sort toggle: same col → flip dir; new col → asc
+  const sortToggle = (key) => {
+    if (sortCol === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(key); setSortDir('asc'); }
+  };
+  const sortClear = () => { setSortCol(null); setSortDir('asc'); };
+
+  // Extract sortable scalar for a given column key
+  const sortVal = (r, key) => {
+    const parseDate = ts => ts ? new Date(ts).getTime() : 0;
+    const parseSubmitted = r2 => {
+      if (r2.submittedAt) return new Date(r2.submittedAt).getTime();
+      if (r2.date) { const p=r2.date.split('/'); const d=p.length===3?new Date(`${p[2]}-${p[1]}-${p[0]}`):new Date(r2.date); return isNaN(d)?0:d.getTime(); }
+      return 0;
+    };
+    switch(key) {
+      case 'id':            return (r.id||'').toLowerCase();
+      case 'status':        return (r.status||'').toLowerCase();
+      case 'proj':          return (r.proj||'').toLowerCase();
+      case 'mainContractor':return (r.mainContractor||'').toLowerCase();
+      case 'consultant':    return (r.consultant||'').toLowerCase();
+      case 'client':        return (r.client||'').toLowerCase();
+      case 'submittedBy':   return (r.submittedBy||'').toLowerCase();
+      case 'estimator':     return (r.estimator||'zzz').toLowerCase();
+      case 'submittedDate': return parseSubmitted(r);
+      case 'approvedDate':  return parseDate(r.directorRespondedAt);
+      case 'timeline': {
+        const s = parseSubmitted(r);
+        const isApp = r.directorAction==='approved'||r.reqStatus==='completed';
+        const e2 = isApp && r.directorRespondedAt ? parseDate(r.directorRespondedAt) : Date.now();
+        return s ? e2 - s : 0;
+      }
+      case 'projValue': return Number(r.projValue)||0;
+      default: return '';
+    }
+  };
+
+  // Apply sort to filtered list
+  const sorted = sortCol ? [...filtered].sort((a,b) => {
+    const va = sortVal(a, sortCol), vb = sortVal(b, sortCol);
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  }) : filtered;
+
+  // Sort icon SVG
+  const SortIcon = ({ colKey }) => {
+    const isActive = sortCol === colKey;
+    const asc = isActive && sortDir === 'asc';
+    const desc = isActive && sortDir === 'desc';
+    return (
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <path d="M5 1 L2 4 L8 4 Z" fill={asc ? 'rgba(129,140,248,0.95)' : 'rgba(255,255,255,0.20)'}/>
+        <path d="M5 9 L2 6 L8 6 Z" fill={desc ? 'rgba(129,140,248,0.95)' : 'rgba(255,255,255,0.20)'}/>
+      </svg>
+    );
+  };
+
+  // Column header cell with filter + sort
+  const ColHdr = ({ colKey, label, align }) => {
+    const filterActive = !!(colFilters[colKey]);
+    const filterOpen   = colFilterOpen === colKey;
+    const isSorted     = sortCol === colKey;
+    const filterAccent = 'rgba(251,191,36,0.90)';
+    const sortAccent   = 'rgba(129,140,248,0.90)';
+    const labelColor   = isSorted ? sortAccent : filterActive ? filterAccent : 'rgba(255,255,255,0.24)';
+    return (
+      <div style={{display:'flex',flexDirection:'column',gap:3,minWidth:0}}>
+        {/* Header row: label + sort + filter icons */}
+        <div style={{display:'flex',alignItems:'center',gap:3,justifyContent:align==='right'?'flex-end':'space-between'}}>
+          <span style={{fontSize:'0.56rem',letterSpacing:'0.12em',textTransform:'uppercase',
+            fontWeight:isSorted||filterActive?700:400, color:labelColor,
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>
+            {label}
+          </span>
+          <div style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
+            {/* Sort button */}
+            <button
+              onClick={e=>{e.stopPropagation();sortToggle(colKey);}}
+              title={isSorted?(sortDir==='asc'?'Sort Z→A':'Remove sort'):'Sort A→Z'}
+              style={{display:'flex',alignItems:'center',justifyContent:'center',width:16,height:16,
+                background:isSorted?'rgba(129,140,248,0.18)':'rgba(255,255,255,0.05)',
+                border:`1px solid ${isSorted?'rgba(129,140,248,0.50)':'rgba(255,255,255,0.12)'}`,
+                borderRadius:3,cursor:'pointer',outline:'none',transition:'all 0.12s',padding:0}}>
+              <SortIcon colKey={colKey}/>
+            </button>
+            {/* Filter button */}
+            <button
+              onClick={e=>{e.stopPropagation();cfToggle(colKey);}}
+              title={`Filter ${label}`}
+              style={{display:'flex',alignItems:'center',justifyContent:'center',width:16,height:16,
+                background:filterOpen||filterActive?'rgba(251,191,36,0.16)':'rgba(255,255,255,0.05)',
+                border:`1px solid ${filterOpen||filterActive?'rgba(251,191,36,0.45)':'rgba(255,255,255,0.12)'}`,
+                borderRadius:3,cursor:'pointer',outline:'none',transition:'all 0.12s',padding:0}}>
+              <Search size={8} color={filterOpen||filterActive?filterAccent:'rgba(255,255,255,0.32)'}/>
+            </button>
+          </div>
+        </div>
+        {/* Filter input */}
+        {filterOpen && (
+          <div style={{display:'flex',alignItems:'center',gap:3}}>
+            <input
+              autoFocus
+              value={colFilters[colKey]||''}
+              onChange={e=>cfSet(colKey,e.target.value)}
+              onKeyDown={e=>{if(e.key==='Escape')cfClear(colKey);}}
+              onClick={e=>e.stopPropagation()}
+              placeholder="Filter…"
+              style={{flex:1,minWidth:0,background:'rgba(0,8,20,0.92)',border:'1px solid rgba(251,191,36,0.45)',
+                borderRadius:4,color:'rgba(255,255,255,0.88)',fontFamily:"'Inter',sans-serif",
+                fontSize:'0.66rem',padding:'3px 6px',outline:'none',boxSizing:'border-box'}}
+            />
+            {colFilters[colKey] && (
+              <button onClick={e=>{e.stopPropagation();cfClear(colKey);}}
+                style={{display:'flex',alignItems:'center',background:'transparent',border:'none',cursor:'pointer',padding:0,opacity:0.55,flexShrink:0}}>
+                <X size={9} color="#fff"/>
+              </button>
+            )}
+          </div>
+        )}
+        {/* Active filter badge */}
+        {filterActive && !filterOpen && (
+          <div style={{fontSize:'0.52rem',color:filterAccent,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+            background:'rgba(251,191,36,0.10)',borderRadius:3,padding:'1px 5px',cursor:'pointer'}}
+            onClick={e=>{e.stopPropagation();cfClear(colKey);}}>
+            ✕ {colFilters[colKey]}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Unified column layout
   const COL = '100px 160px minmax(150px,1fr) 130px 130px 130px 130px 120px 110px 110px 110px 110px';
@@ -10299,6 +10460,19 @@ const Dashboard = ({
             </select>
           )}
 
+          {/* Filtered count badge */}
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,
+            background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',
+            borderRadius:8,padding:'5px 12px',lineHeight:1}}>
+            <span style={{fontSize:'1.05rem',fontWeight:800,color:'rgba(255,255,255,0.88)',fontFamily:"'Inter',sans-serif",lineHeight:1}}>
+              {filtered.length}
+            </span>
+            <span style={{fontSize:'0.48rem',letterSpacing:'0.14em',textTransform:'uppercase',
+              color:'rgba(255,255,255,0.28)',fontWeight:600,marginTop:3}}>
+              {filtered.length === requests.length ? 'Requests' : `of ${requests.length}`}
+            </span>
+          </div>
+
           {/* Search */}
           <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,overflow:'hidden',flex:1,minWidth:320,maxWidth:760}}>
             <span style={{padding:'0 14px',display:'flex',alignItems:'center',opacity:0.30,flexShrink:0}}><Search size={15} color="#fff"/></span>
@@ -10306,12 +10480,38 @@ const Dashboard = ({
               style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.82)',fontFamily:F,fontSize:'0.84rem',padding:'12px 0'}}/>
             {dsearch && <button onClick={()=>setDsearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.4}}><X size={13} color="#fff"/></button>}
           </div>
+
+          {/* List / Cards toggle */}
+          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:8,padding:3,gap:2,flexShrink:0}}>
+            {/* List view */}
+            <button title="List view" onClick={()=>setLayoutView('list')}
+              style={{display:'flex',alignItems:'center',justifyContent:'center',width:30,height:30,borderRadius:6,border:layoutView==='list'?'1px solid rgba(100,180,255,0.50)':'1px solid transparent',background:layoutView==='list'?'rgba(100,180,255,0.15)':'transparent',cursor:'pointer',outline:'none',transition:'all 0.15s',padding:0}}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="2" width="14" height="2.5" rx="1" fill={layoutView==='list'?'rgba(100,180,255,0.90)':'rgba(255,255,255,0.35)'}/>
+                <rect x="1" y="6.75" width="14" height="2.5" rx="1" fill={layoutView==='list'?'rgba(100,180,255,0.90)':'rgba(255,255,255,0.35)'}/>
+                <rect x="1" y="11.5" width="14" height="2.5" rx="1" fill={layoutView==='list'?'rgba(100,180,255,0.90)':'rgba(255,255,255,0.35)'}/>
+              </svg>
+            </button>
+            {/* Card/dashboard view */}
+            <button title="Dashboard view" onClick={()=>setLayoutView('cards')}
+              style={{display:'flex',alignItems:'center',justifyContent:'center',width:30,height:30,borderRadius:6,border:layoutView==='cards'?'1px solid rgba(168,85,247,0.50)':'1px solid transparent',background:layoutView==='cards'?'rgba(168,85,247,0.15)':'transparent',cursor:'pointer',outline:'none',transition:'all 0.15s',padding:0}}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="1" width="6" height="6" rx="1.5" fill={layoutView==='cards'?'rgba(168,85,247,0.90)':'rgba(255,255,255,0.35)'}/>
+                <rect x="9" y="1" width="6" height="6" rx="1.5" fill={layoutView==='cards'?'rgba(168,85,247,0.90)':'rgba(255,255,255,0.35)'}/>
+                <rect x="1" y="9" width="6" height="6" rx="1.5" fill={layoutView==='cards'?'rgba(168,85,247,0.90)':'rgba(255,255,255,0.35)'}/>
+                <rect x="9" y="9" width="6" height="6" rx="1.5" fill={layoutView==='cards'?'rgba(168,85,247,0.90)':'rgba(255,255,255,0.35)'}/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Filter chips + Export Excel ── */}
       {(() => {
-        const pendingEstCount  = requests.filter(r => r.status === 'Pending Estimation').length;
+        const pendingEstAll    = requests.filter(r => r.status === 'Pending Estimation');
+        const pendingEstCount  = pendingEstAll.length;
+        const jihCount         = pendingEstAll.filter(r => r.deal === 'Job In Hand').length;
+        const tenderCount      = pendingEstAll.filter(r => r.deal === 'Tender').length;
         const pendingApprCount = requests.filter(r => r.reqStatus === 'pending-director').length;
         const unassignedCount  = requests.filter(r => !r.estimator).length;
         const oosCount         = requests.filter(r => r.reqStatus === 'out-of-scope').length;
@@ -10322,6 +10522,10 @@ const Dashboard = ({
           { key:'unassigned',         label:'Unassigned',         count:unassignedCount,  c:'rgba(150,190,255,0.85)',bg:'rgba(60,100,200,0.10)', bd:'rgba(100,160,255,0.28)'},
           { key:'out-of-scope',       label:'Out of Scope',       count:oosCount,         c:'rgba(255,80,80,0.90)',  bg:'rgba(200,40,40,0.09)',  bd:'rgba(220,60,60,0.35)'  },
           { key:'approved',           label:'Approved',           count:approvedDashCount,c:'rgba(0,220,130,0.90)', bg:'rgba(0,180,100,0.09)',  bd:'rgba(0,200,120,0.35)'  },
+        ];
+        const dealSubChips = [
+          { deal:'Job In Hand', count:jihCount,    c:'rgba(255,210,60,0.90)',  bg:'rgba(200,150,0,0.12)',  bd:'rgba(220,170,0,0.40)'  },
+          { deal:'Tender',      count:tenderCount, c:'rgba(80,200,255,0.90)',  bg:'rgba(30,140,255,0.10)', bd:'rgba(60,180,255,0.38)'  },
         ];
         const exportCsv = () => {
           const headers = ['ID','Status','Req Status','Project','Client','Main Contractor','Consultant','Estimator','Deal','Value (AED)','Lead Time','Submitted By','Submitted Date','Approved Date','Total Timeline'];
@@ -10343,11 +10547,13 @@ const Dashboard = ({
           URL.revokeObjectURL(url);
         };
         return (
-          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16}}>
+            {/* Main filter chips row */}
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             {chips.map(ch => {
               const active = dashFilter === ch.key;
               return (
-                <button key={ch.key} onClick={()=>setDashFilter(active ? '' : ch.key)}
+                <button key={ch.key} onClick={()=>{ setDashFilter(active ? '' : ch.key); setPendingEstDealFilter(''); }}
                   style={{display:'flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:100,border:`1px solid ${active?ch.bd:'rgba(255,255,255,0.10)'}`,background:active?ch.bg:'rgba(255,255,255,0.03)',color:active?ch.c:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.72rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}>
                   {ch.label}
                   <span style={{fontSize:'0.68rem',fontWeight:800,padding:'1px 6px',borderRadius:100,background:active?ch.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.07)',color:active?ch.c:'rgba(255,255,255,0.35)'}}>{ch.count}</span>
@@ -10362,6 +10568,43 @@ const Dashboard = ({
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export Excel
             </button>
+            </div>{/* end main chips row */}
+
+            {/* Sub-filter row — only when Pending Estimation is active */}
+            {dashFilter === 'pending-estimation' && (
+              <div style={{display:'flex',alignItems:'center',gap:6,paddingLeft:4}}>
+                <span style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',
+                  color:'rgba(220,165,0,0.45)',fontWeight:700,flexShrink:0}}>Deal ›</span>
+                {dealSubChips.map(sc => {
+                  const on = pendingEstDealFilter === sc.deal;
+                  return (
+                    <button key={sc.deal}
+                      onClick={()=>setPendingEstDealFilter(on ? '' : sc.deal)}
+                      style={{display:'flex',alignItems:'center',gap:5,
+                        padding:'3px 11px',borderRadius:100,
+                        border:`1px solid ${on ? sc.bd : 'rgba(255,255,255,0.10)'}`,
+                        background: on ? sc.bg : 'rgba(255,255,255,0.03)',
+                        color: on ? sc.c : 'rgba(255,255,255,0.38)',
+                        fontFamily:F,fontSize:'0.68rem',fontWeight:on?700:500,
+                        cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}>
+                      <span style={{width:5,height:5,borderRadius:'50%',background:on?sc.c:'rgba(255,255,255,0.25)',flexShrink:0,
+                        boxShadow:on?`0 0 5px ${sc.c}`:'none',transition:'all 0.15s'}}/>
+                      {sc.deal}
+                      <span style={{fontSize:'0.64rem',fontWeight:800,padding:'0px 5px',borderRadius:100,
+                        background:on?sc.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.07)',
+                        color:on?sc.c:'rgba(255,255,255,0.35)'}}>{sc.count}</span>
+                    </button>
+                  );
+                })}
+                {pendingEstDealFilter && (
+                  <button onClick={()=>setPendingEstDealFilter('')}
+                    style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.35)',background:'transparent',
+                      border:'none',cursor:'pointer',outline:'none',fontFamily:F,padding:'2px 4px'}}>
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         );
       })()}
@@ -10728,26 +10971,133 @@ const Dashboard = ({
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No requests submitted yet.</p>
       ) : filtered.length === 0 ? (
         <p style={{color:'rgba(255,255,255,0.3)',fontSize:'0.95rem'}}>No results match your filter.</p>
+      ) : layoutView === 'cards' ? (
+        /* ── Dashboard Card View ── */
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+          {filtered.map(r => {
+            const realIdx = requests.indexOf(r);
+            const caRejected = r.directorAction === 'rejected';
+            const caRevised  = r.directorAction === 'revised';
+            const isApproved = r.directorAction === 'approved' || r.reqStatus === 'completed';
+            const dashUnread = viewMode==='estimator' ? _unreadCount(r.conversation, r.id, 'sales') : 0;
+            const dealC = r.deal==='Job In Hand'?'rgba(255,210,60,0.85)':r.deal==='Tender'?'rgba(80,190,255,0.85)':r.deal==='Budget'?'rgba(52,211,153,0.85)':'rgba(168,85,247,0.85)';
+            const dealBd = r.deal==='Job In Hand'?'rgba(200,150,0,0.30)':r.deal==='Tender'?'rgba(40,140,255,0.25)':r.deal==='Budget'?'rgba(16,185,129,0.25)':'rgba(130,60,220,0.25)';
+            const cardBg = caRejected?'rgba(200,40,40,0.08)':caRevised?'rgba(180,30,100,0.09)':isApproved?'rgba(0,180,100,0.07)':'rgba(255,255,255,0.04)';
+            const cardBd = caRejected?'rgba(220,60,60,0.38)':caRevised?'rgba(236,72,153,0.42)':isApproved?'rgba(0,200,120,0.30)':dashUnread>0?'rgba(168,85,247,0.35)':'rgba(255,255,255,0.09)';
+            const statusC = caRejected?'rgba(255,90,90,0.90)':caRevised?'rgba(255,100,180,0.90)':isApproved?'rgba(52,211,153,0.90)':'rgba(255,255,255,0.55)';
+            const statusLabel = caRejected?'Rejected':caRevised?'Correction Req.':isApproved?'Approved':r.status||'—';
+            const submittedDate = (() => {
+              let d = null;
+              if (r.submittedAt) d = new Date(r.submittedAt);
+              else if (r.date) { const p=r.date.split('/'); d=p.length===3?new Date(`${p[2]}-${p[1]}-${p[0]}`):new Date(r.date); }
+              return d && !isNaN(d) ? d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+            })();
+            return (
+              <div key={r.id}
+                onClick={()=>{ setOpen(realIdx); if(viewMode==='estimator') markDashSeen(r.id); }}
+                style={{position:'relative',background:cardBg,border:`1px solid ${cardBd}`,borderRadius:12,padding:'14px 16px',cursor:'pointer',transition:'all 0.16s',display:'flex',flexDirection:'column',gap:10}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 28px rgba(0,0,0,0.32)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background=cardBg;e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}>
+
+                {/* Top row: ID + deal tag + unread badge */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                  <span style={{fontSize:'0.68rem',color:'rgba(100,180,255,0.85)',fontWeight:700,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>
+                    {r.id||'—'}
+                  </span>
+                  {r.deal && (
+                    <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
+                      color:dealC,background:dealBd,border:`1px solid ${dealBd}`,
+                      borderRadius:100,padding:'2px 8px',flexShrink:0}}>{r.deal}</span>
+                  )}
+                  {dashUnread > 0 && (
+                    <span style={{fontSize:'0.48rem',background:'rgba(168,85,247,0.80)',color:'#fff',borderRadius:100,padding:'2px 7px',fontWeight:700,flexShrink:0}}>{dashUnread}</span>
+                  )}
+                </div>
+
+                {/* Project name */}
+                <div style={{fontSize:'0.82rem',fontWeight:700,color:'rgba(255,255,255,0.88)',lineHeight:1.3,
+                  overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>
+                  {r.proj||'—'}
+                </div>
+
+                {/* Client + Contractor */}
+                <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                  {r.client && <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.52)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>🏢 {r.client}</span>}
+                  {r.mainContractor && <span style={{fontSize:'0.66rem',color:'rgba(255,255,255,0.38)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>🏗 {r.mainContractor}</span>}
+                </div>
+
+                {/* Divider */}
+                <div style={{height:1,background:'rgba(255,255,255,0.07)'}}/>
+
+                {/* Bottom row: status + estimator + date + value */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6,flexWrap:'wrap'}}>
+                  <span style={{fontSize:'0.58rem',fontWeight:700,color:statusC,letterSpacing:'0.04em',
+                    background:statusC.replace(/[\d.]+\)$/,'0.12)'),border:`1px solid ${statusC.replace(/[\d.]+\)$/,'0.28)')}`,
+                    borderRadius:6,padding:'2px 8px',flexShrink:0}}>{statusLabel}</span>
+                  {r.projValue && (
+                    <span style={{fontSize:'0.60rem',fontWeight:700,color:'rgba(52,211,153,0.85)',marginLeft:'auto',flexShrink:0}}>
+                      AED {Number(r.projValue).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+                    {r.estimator ? (
+                      <>
+                        <EstAvatar name={r.estimator} code={Object.entries(STAFF_NAMES).find(([,v])=>v===r.estimator)?.[0]||''} size={20}/>
+                        <span style={{fontSize:'0.64rem',color:'rgba(100,180,255,0.80)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.estimator}</span>
+                      </>
+                    ) : (
+                      <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.22)',fontStyle:'italic'}}>Unassigned</span>
+                    )}
+                  </div>
+                  <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.28)',flexShrink:0}}>{submittedDate}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:6,overflowX:'auto'}}>
           {/* ── Column headers ── */}
-          <div style={{display:'grid',gridTemplateColumns:COL,gap:10,padding:'6px 16px',paddingRight:viewMode==='director'?44:16,fontSize:'0.56rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.24)',minWidth:'fit-content'}}>
-            <span>Req #</span>
-            <span>Status</span>
-            <span>Project</span>
-            <span>Main Contractor</span>
-            <span>Consultant</span>
-            <span>Client</span>
-            <span>Requested By</span>
-            <span>Estimator</span>
-            <span>Submitted Date</span>
-            <span>Approved Date</span>
-            <span>Total Timeline</span>
-            <span style={{textAlign:'right'}}>Value (AED)</span>
+          <div style={{display:'grid',gridTemplateColumns:COL,gap:10,padding:'6px 16px',paddingRight:viewMode==='director'?44:16,minWidth:'fit-content',alignItems:'start'}}>
+            <ColHdr colKey="id"            label="Req #"/>
+            <ColHdr colKey="status"        label="Status"/>
+            <ColHdr colKey="proj"          label="Project"/>
+            <ColHdr colKey="mainContractor"label="Main Contractor"/>
+            <ColHdr colKey="consultant"    label="Consultant"/>
+            <ColHdr colKey="client"        label="Client"/>
+            <ColHdr colKey="submittedBy"   label="Requested By"/>
+            <ColHdr colKey="estimator"     label="Estimator"/>
+            <ColHdr colKey="submittedDate" label="Submitted Date"/>
+            <ColHdr colKey="approvedDate"  label="Approved Date"/>
+            <ColHdr colKey="timeline"      label="Total Timeline"/>
+            <ColHdr colKey="projValue"     label="Value (AED)" align="right"/>
           </div>
+          {(hasAnyColFilter || sortCol) && (
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'4px 16px',flexWrap:'wrap'}}>
+              {hasAnyColFilter && <>
+                <span style={{fontSize:'0.60rem',color:'rgba(251,191,36,0.65)',fontFamily:"'Inter',sans-serif"}}>Filters active</span>
+                <button onClick={()=>{setColFilters({});setColFilterOpen(null);}}
+                  style={{fontSize:'0.58rem',color:'rgba(251,191,36,0.80)',background:'rgba(251,191,36,0.10)',border:'1px solid rgba(251,191,36,0.30)',borderRadius:4,padding:'2px 8px',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>
+                  Clear filters
+                </button>
+              </>}
+              {sortCol && <>
+                <span style={{fontSize:'0.60rem',color:'rgba(129,140,248,0.70)',fontFamily:"'Inter',sans-serif"}}>
+                  Sorted by <strong style={{color:'rgba(129,140,248,0.95)'}}>{sortCol}</strong> {sortDir==='asc'?'A→Z':'Z→A'}
+                </span>
+                <button onClick={sortClear}
+                  style={{fontSize:'0.58rem',color:'rgba(129,140,248,0.85)',background:'rgba(129,140,248,0.10)',border:'1px solid rgba(129,140,248,0.30)',borderRadius:4,padding:'2px 8px',cursor:'pointer',outline:'none',fontFamily:"'Inter',sans-serif"}}>
+                  Clear sort
+                </button>
+              </>}
+            </div>
+          )}
 
           {/* ── Rows ── */}
-          {filtered.map(r => {
+          {sorted.map(r => {
             const realIdx = requests.indexOf(r);
             const dashUnread = viewMode==='estimator' ? _unreadCount(r.conversation, r.id, 'sales') : 0;
             const caRejected = r.directorAction === 'rejected';
@@ -10897,7 +11247,7 @@ const Dashboard = ({
 
                 {/* Value (AED) */}
                 <span style={{fontSize:'0.72rem',color:r.projValue?'rgba(255,230,100,0.85)':'rgba(255,255,255,0.2)',fontWeight:r.projValue?600:400,textAlign:'right',whiteSpace:'nowrap',fontFamily:'monospace'}}>
-                  {r.projValue ? Number(r.projValue).toLocaleString('en-AE') : '—'}
+                  {r.projValue ? Math.round(Number(r.projValue)).toLocaleString('en-AE') : '—'}
                 </span>
               </div>
 
