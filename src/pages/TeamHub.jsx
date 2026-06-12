@@ -5,7 +5,7 @@ const DATA_URL = `https://apexfilestorage2.blob.core.windows.net/estimation-docs
 
 const MEMBERS = [
   { id:'u001', name:'XYZ',                          role:'Cost Artist', photo:null     },
-  { id:'u002', name:'Emelaine Jane',                role:'Cost Artist', photo:'/S.jpg' },
+  { id:'u002', name:'Nour Alyazji',                role:'Cost Artist', photo:'/S.jpg' },
   { id:'u003', name:'Sachin Poojary',               role:'Estimator',   photo:'/g.jpg' },
   { id:'u004', name:'Mohammad Samee Hamid Khan',    role:'Estimator',   photo:'/h.jpg' },
   { id:'u005', name:'Moazzam Ali',                  role:'Estimator',   photo:'/i.jpg' },

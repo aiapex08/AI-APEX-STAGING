@@ -2086,13 +2086,13 @@ function AppContent() {
     }
   }, [navigate]);
 
-  // Back from any dept view → return to home hub
+  // Back from any view → return to the previous page (browser history)
   const backToHome = () => {
     setInitialRole(null);
     setInitialCode('');
     setInitialView(null);
     setTargetIndex(null);
-    navigate('/');
+    navigate(-1);
   };
 
   const handleNavigation = (index, destination) => {
@@ -2168,17 +2168,17 @@ function AppContent() {
           />
         } />
 
-        <Route path="/estimation-hub/team-access"  element={<TeamAccess  onBack={() => navigate('/estimation-hub')} currentUser={currentUser} />} />
-        <Route path="/estimation-hub/team"         element={<TeamHub     onBack={() => navigate('/estimation-hub')} />} />
-        <Route path="/estimation-hub/customers"    element={<Customers   onBack={() => navigate('/estimation-hub')} />} />
-        <Route path="/estimation-hub/ai-analysis"  element={<AIAnalysis  onBack={() => navigate('/estimation-hub')} />} />
-        <Route path="/estimation-hub/costing-art"  element={<CostingArt  onBack={() => navigate('/estimation-hub')} />} />
-        <Route path="/estimation-hub/project-list" element={<ProjectList onBack={() => navigate('/estimation-hub')} />} />
-        <Route path="/estimation-hub/fire-door"    element={<Estimator   onClose={() => navigate('/estimation-hub')} />} />
+        <Route path="/estimation-hub/team-access"  element={<TeamAccess  onBack={() => navigate(-1)} currentUser={currentUser} />} />
+        <Route path="/estimation-hub/team"         element={<TeamHub     onBack={() => navigate(-1)} />} />
+        <Route path="/estimation-hub/customers"    element={<Customers   onBack={() => navigate(-1)} />} />
+        <Route path="/estimation-hub/ai-analysis"  element={<AIAnalysis  onBack={() => navigate(-1)} />} />
+        <Route path="/estimation-hub/costing-art"  element={<CostingArt  onBack={() => navigate(-1)} />} />
+        <Route path="/estimation-hub/project-list" element={<ProjectList onBack={() => navigate(-1)} />} />
+        <Route path="/estimation-hub/fire-door"    element={<Estimator   onClose={() => navigate(-1)} />} />
 
         <Route path="/estimation-hub/estimation/*" element={
           <AIEstimation
-            onBack={() => navigate('/estimation-hub')}
+            onBack={() => navigate(-1)}
             onNavigate={(state) => navigate('/' + state)}
             initialRole={initialRole}
             initialCode={initialCode}

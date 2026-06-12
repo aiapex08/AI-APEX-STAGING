@@ -11,6 +11,8 @@ const DEFAULT_TIMER = { enabled:true, startHour:7, endHour:19, days:[1,2,3,4,5] 
 const TEAMS        = ['Estimation','Sales','Engineering','Contracts','Sales Order','Admin','Supplier'];
 const DESIGNATIONS = ["Director's Hub",'Cost Artist Lead','Cost Artist','Senior Estimator','Estimator','Estimation Engineer','Sales Account Manager','Sales Engineer','Sales Manager','Sales Executive','Senior Engineer','Engineer','Technical Engineer','Project Engineer','Contract Manager','Procurement Officer','Supervisor','Administrator'];
 const STATUS_OPTS  = ['Active','On Leave','Resigned'];
+// Hide the "Cost Artist" designation in the display (data/access stays intact)
+const showDesig = d => (d === 'Cost Artist' ? '' : d);
 
 const SALARY_FIELDS = [
   {key:'basic',         label:'Basic'},
@@ -60,7 +62,7 @@ const EMPTY_SAL = {basic:0,hra:0,car:0,mobile:0,transportation:0,food:0,others:0
 const SEED = [
   // ── Admins / Directors (L1) ──────────────────────────────────────────────────────────────────────
   {id:'u001',photo:null,    name:'Ganesh Shetty',                    empNo:'EST-ADM',designation:'Cost Artist Lead',     team:'Estimation', salary:{...EMPTY_SAL},doj:'',          status:'Active',level:1,accessCode:'EST-ADM'},
-  {id:'u002',photo:'/S.jpg',name:'Emelaine Jane',                    empNo:'NA2569', designation:'Cost Artist',          team:'Estimation', salary:{basic:2300,hra:600, car:0,   mobile:50, transportation:0,   food:0,others:1050,bonus:0},doj:'2022-09-26',status:'Active',level:1,accessCode:'STAR'},
+  {id:'u002',photo:'/S.jpg',name:'Nour Alyazji',                    empNo:'NA2569', designation:'Cost Artist',          team:'Estimation', salary:{basic:2300,hra:600, car:0,   mobile:50, transportation:0,   food:0,others:1050,bonus:0},doj:'2022-09-26',status:'Active',level:1,accessCode:'STAR'},
   {id:'u023',photo:null,    name:'Nour Alyazji',                     empNo:'7STAR',  designation:"Director's Hub",       team:'Admin',      salary:{...EMPTY_SAL},doj:'',          status:'Active',level:1,accessCode:'7STAR'},
   // ── Estimation Engineers (L2) ────────────────────────────────────────────────────────────────────
   {id:'u003',photo:'/g.jpg',name:'Sachin Poojary',                   empNo:'NF10603',designation:'Estimation Engineer',  team:'Estimation', salary:{basic:5400,hra:1800,car:0,   mobile:150,transportation:900, food:0,others:750, bonus:0},doj:'2023-10-03',status:'Active',level:2,accessCode:'EX552'},
@@ -352,14 +354,14 @@ function TeamsDirectory({ employees, setEmployees }) {
             ? <InpField value={d.name} onChange={v=>setDraftField('name',v)} placeholder="Full Name*"/>
             : <div>
                 <div style={{fontSize:'0.78rem',fontWeight:600,color:TXT,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.name}</div>
-                <div style={{fontSize:'0.58rem',color:TXT3,marginTop:1}}>{emp.designation}</div>
+                <div style={{fontSize:'0.58rem',color:TXT3,marginTop:1}}>{showDesig(emp.designation)}</div>
               </div>
           }
 
           {/* Designation */}
           {isEditing
             ? <Sel value={d.designation} onChange={v=>setDraftField('designation',v)}>{DESIGNATIONS.map(x=><option key={x}>{x}</option>)}</Sel>
-            : <span style={{fontSize:'0.68rem',color:TXT2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.designation}</span>
+            : <span style={{fontSize:'0.68rem',color:TXT2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{showDesig(emp.designation)}</span>
           }
 
           {/* Team */}
@@ -564,7 +566,7 @@ function AccessControl({ employees, setEmployees, levelPerms, setLevelPerms }) {
                 <div style={{fontSize:'0.75rem',fontWeight:600,color:TXT,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.name}</div>
                 {isEditing
                   ? <Sel value={d.designation} onChange={v=>setAccDraft(x=>({...x,designation:v}))} style={{width:'100%'}}>{DESIGNATIONS.map(x=><option key={x}>{x}</option>)}</Sel>
-                  : <span style={{fontSize:'0.68rem',color:TXT2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.designation||'—'}</span>
+                  : <span style={{fontSize:'0.68rem',color:TXT2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{showDesig(emp.designation)||'—'}</span>
                 }
                 <span style={{fontSize:'0.68rem',color:TXT2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.team||'—'}</span>
                 <StatusBadge status={emp.status}/>

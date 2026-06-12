@@ -3027,7 +3027,7 @@ const STAFF_NAMES = {
   'EX471':'Pranav Manjalam Kandiyil','EX856':'Saeem Sajid Gadkari',
   'EX392':'Jaffar Shaik',
   // Costing Art Lead
-  'STAR':'Emelaine Jane',
+  'STAR':'Nour Alyazji',
 };
 
 const EST_ROSTER = [
@@ -3041,7 +3041,7 @@ const EST_ROSTER = [
 ];
 
 const COSTING_ROSTER = [
-  {code:'STAR', name:'Emelaine Jane'},
+  {code:'STAR', name:'Nour Alyazji'},
 ];
 
 // Photo URLs keyed by estimator code — add entries here when photos are available
@@ -3078,7 +3078,7 @@ const PROFILE_PICS = {
   'pranav manjalam kandiyil':'/K.jpg','saeem sajid gadkari':'/L.jpg',
   'jaffar shaik':'/M.jpg',
   // Cost Artist name key
-  'Emelaine Jane':'/R.jpg',
+  'Nour Alyazji':'/R.jpg',
 };
 
 const EstAvatar = ({ name, size=40, code='' }) => {
@@ -10320,7 +10320,7 @@ const Dashboard = ({
                         </div>
                       </div>
                       <div>
-                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Emelaine Jane Remarks</div>
+                        <div style={{fontSize:'0.44rem',color:'rgba(0,220,255,0.45)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:600,marginBottom:4}}>Nour Alyazji Remarks</div>
                         <textarea value={req.directorNote||''} onChange={e=>onUpdate(req.id,{directorNote:e.target.value})} placeholder="Notes…" rows={2}
                           style={{width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:7,color:'rgba(255,255,255,0.80)',fontFamily:F2,fontSize:'0.78rem',padding:'5px 9px',outline:'none',resize:'none',boxSizing:'border-box',lineHeight:1.4}}
                           onFocus={e=>e.target.style.borderColor='rgba(255,255,255,0.28)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.10)'}/>
@@ -10701,7 +10701,7 @@ const Dashboard = ({
                                 e.preventDefault();
                                 const txt=dirConvoMsg.trim();
                                 if(!txt)return;
-                                const msg={role:'director',from:'Emelaine Jane',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+                                const msg={role:'director',from:'Nour Alyazji',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
                                 onUpdate(req.id,{conversation:[...(req.conversation||[]),msg]});
                                 setDirConvoMsg('');
                               }
@@ -10716,7 +10716,7 @@ const Dashboard = ({
                             onClick={()=>{
                               const txt=dirConvoMsg.trim();
                               if(!txt)return;
-                              const msg={role:'director',from:'Emelaine Jane',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+                              const msg={role:'director',from:'Nour Alyazji',text:txt,ts:new Date().toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
                               onUpdate(req.id,{conversation:[...(req.conversation||[]),msg]});
                               setDirConvoMsg('');
                             }}
@@ -12001,7 +12001,7 @@ const Dashboard = ({
           <div style={{background:'rgba(12,8,28,0.98)',border:'1px solid rgba(220,60,60,0.40)',borderRadius:14,padding:'28px 32px',maxWidth:380,width:'90%',boxShadow:'0 20px 60px rgba(0,0,0,0.80)',display:'flex',flexDirection:'column',gap:16}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <span style={{width:10,height:10,borderRadius:'50%',background:'rgba(220,60,60,0.90)',boxShadow:'0 0 10px rgba(220,60,60,0.60)',flexShrink:0}}/>
-              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.80)',fontWeight:700}}>Emelaine Jane · Delete Request</span>
+              <span style={{fontSize:'0.62rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(220,80,80,0.80)',fontWeight:700}}>Nour Alyazji · Delete Request</span>
             </div>
             <p style={{fontSize:'0.88rem',color:'rgba(255,255,255,0.80)',lineHeight:1.55,margin:0}}>
               Permanently delete <strong style={{color:'rgba(100,180,255,0.95)',fontFamily:'monospace'}}>{requests[deleteConfirm]?.id}</strong>? This cannot be undone.

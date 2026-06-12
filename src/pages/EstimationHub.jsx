@@ -428,9 +428,7 @@ export default function EstimationHub({ onNavigate, onBack, currentUser }) {
   // 1. Calculate default layout matching Image 2 perfectly
   const defaultPositions = useMemo(() => {
     const cw  = sc.cardW;
-    const ch  = sc.cardH;
     const aiW = Math.round(cw * 1.28);
-    const aiH = Math.round(ch * 0.52);
 
     // Horizontal spacing columns
     const hPad   = Math.max(20, Math.round(w * 0.04));
@@ -442,12 +440,12 @@ export default function EstimationHub({ onNavigate, onBack, currentUser }) {
     const xInnerRight = xFarRight - cw - colGap;
     const aiCenX      = Math.round((w - aiW) / 2);
 
-    // Vertical spacing rows
-    const yTop    = Math.round(h * 0.20);
-    const yMidTop = Math.round(h * 0.35);
-    const yMid    = Math.round(h * 0.50);
-    const yLow    = Math.round(h * 0.66);                      // Costing Art / AI Analysis — nudged up
-    const aiYBot  = yLow + Math.round((ch - aiH) / 2) + Math.round(h * 0.18); // AI Tool — nudged down
+    // Vertical spacing rows — tuned to match the reference layout (4 rows per side)
+    const yTop    = Math.round(h * 0.14);   // Quotations / Team Access (top)
+    const yMidTop = Math.round(h * 0.31);   // Customers / Team
+    const yMid    = Math.round(h * 0.48);   // Competitors / Project List
+    const yLow    = Math.round(h * 0.65);   // Costing Art / AI Analysis (bottom)
+    const aiYBot  = Math.round(h * 0.90);   // AI Estimation Tool — anchored bottom-center
 
     return [
       { x: xFarLeft,    y: yTop },     // 0: Quotations (Far Left, Top)
@@ -460,7 +458,7 @@ export default function EstimationHub({ onNavigate, onBack, currentUser }) {
       { x: xFarRight,   y: yTop },     // 7: Team Access (Far Right, Top)
       { x: aiCenX,      y: aiYBot },   // 8: AI Estimation Tool (Center, Bottom)
     ];
-  }, [w, h, sc.cardW, sc.cardH]);
+  }, [w, h, sc.cardW]);
 
   // 2. Initialize State
   const [cardPositions, setCardPositions] = useState(defaultPositions);

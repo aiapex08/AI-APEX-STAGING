@@ -9,7 +9,7 @@ const MASTER_ADMIN = {
 const AUTH_SEED = [
   // ── Admins / Directors (L1) ──────────────────────────────────────────────
   { id:'u001', name:'Ganesh Shetty',                    designation:'Cost Artist Lead',     team:'Estimation',  level:1, accessCode:'EST-ADM', status:'Active' },
-  { id:'u002', name:'Emelaine Jane',                    designation:'Cost Artist',          team:'Estimation',  level:1, accessCode:'STAR',    status:'Active' },
+  { id:'u002', name:'Nour Alyazji',                    designation:'Cost Artist',          team:'Estimation',  level:1, accessCode:'STAR',    status:'Active' },
   { id:'u023', name:'Nour Alyazji',                     designation:"Director's Hub",       team:'Admin',       level:1, accessCode:'7STAR',   status:'Active' },
 
   // ── Estimation Engineers (L2) ─────────────────────────────────────────────

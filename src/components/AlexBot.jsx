@@ -298,10 +298,10 @@ export default function AlexBot() {
             flexDirection: 'column',
             borderRadius: '22px',
             overflow: 'hidden',
-            background: 'linear-gradient(160deg, rgba(40,80,150,0.16), rgba(10,24,55,0.12))',
-            backdropFilter: 'blur(30px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(30px) saturate(160%)',
-            border: '1px solid rgba(150,200,255,0.18)',
+            background: 'linear-gradient(160deg, rgba(40,80,150,0.07), rgba(10,24,55,0.05))',
+            backdropFilter: 'blur(22px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+            border: '1px solid rgba(150,200,255,0.12)',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
             animation: 'apexa-rise .28s ease-out',
             fontFamily: 'system-ui, sans-serif',
@@ -310,7 +310,7 @@ export default function AlexBot() {
         >
           {/* header — no divider border */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px' }}>
-            <Avatar resting={false} size={34} />
+            <Avatar resting={false} width={34} height={34} />
             <div style={{ flex: 1, lineHeight: 1.15 }}>
               <div style={{ color: '#eaf3ff', fontWeight: 600, fontSize: '15px', letterSpacing: '.5px' }}>{BOT_NAME}</div>
               <div style={{ color: ACCENT, fontSize: '11px', opacity: 0.9 }}>
@@ -395,13 +395,13 @@ export default function AlexBot() {
           position: 'fixed',
           bottom: '24px',
           [sideKey]: '24px',
-          width: '150px', height: '150px', borderRadius: '50%',
+          width: '200px', height: '160px', borderRadius: '20px',
           border: 'none', cursor: 'pointer', padding: 0,
           background: 'transparent',
           zIndex: 100000,
         }}
       >
-        <Avatar resting={!open} size={150} />
+        <Avatar resting={!open} width={200} height={160} />
       </button>
     </>
   );
@@ -410,7 +410,7 @@ export default function AlexBot() {
 // ─── GREEN-SCREEN VIDEO ─────────────────────────────────────────────────────────
 // Plays APEXA.mp4 (green background) onto a canvas and keys out the green per-frame
 // so the bot is truly transparent over any page.
-function GreenScreenVideo({ size }) {
+function GreenScreenVideo({ width, height }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -432,7 +432,13 @@ function GreenScreenVideo({ size }) {
     const draw = () => {
       raf = requestAnimationFrame(draw);
       if (video.readyState < 2) return;
-      ctx.drawImage(video, 0, 0, W, H);
+      // cover-fit the source video into the canvas (no stretching/distortion)
+      const vw = video.videoWidth || W, vh = video.videoHeight || H;
+      const target = W / H, src = vw / vh;
+      let sx = 0, sy = 0, sw = vw, sh = vh;
+      if (src > target) { sw = vh * target; sx = (vw - sw) / 2; }
+      else              { sh = vw / target; sy = (vh - sh) / 2; }
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
       let frame;
       try { frame = ctx.getImageData(0, 0, W, H); } catch { return; }
       const d = frame.data;
@@ -468,25 +474,26 @@ function GreenScreenVideo({ size }) {
   return (
     <canvas
       ref={canvasRef}
-      width={256}
-      height={256}
-      style={{ display: 'block', width: size, height: size }}
+      width={Math.round(width)}
+      height={Math.round(height)}
+      style={{ display: 'block', width, height }}
     />
   );
 }
 
 // ─── AVATAR ─────────────────────────────────────────────────────────────────────
 // resting → APEXA.mp4 green background keyed out to transparent (canvas)
-// selected → APEXX.jpg still image, same size
-function Avatar({ resting, size }) {
+// selected → APEXX.jpg still image
+function Avatar({ resting, width, height }) {
+  const w = width, h = height ?? width;
   if (resting) {
-    return <GreenScreenVideo size={size} />;
+    return <GreenScreenVideo width={w} height={h} />;
   }
   return (
     <img
       src="/APEXX.jpg" alt={BOT_NAME}
       style={{
-        display: 'block', width: size, height: size, borderRadius: '50%', objectFit: 'cover',
+        display: 'block', width: w, height: h, borderRadius: '50%', objectFit: 'cover',
         border: 'none', boxShadow: 'none',
       }}
     />
