@@ -407,23 +407,80 @@ export default function AlexBot() {
   );
 }
 
+// ─── GREEN-SCREEN VIDEO ─────────────────────────────────────────────────────────
+// Plays APEXA.mp4 (green background) onto a canvas and keys out the green per-frame
+// so the bot is truly transparent over any page.
+function GreenScreenVideo({ size }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const W = canvas.width, H = canvas.height;
+
+    const video = document.createElement('video');
+    video.src = '/APEXA.mp4';
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.crossOrigin = 'anonymous';
+    const tryPlay = () => video.play().catch(() => {});
+    tryPlay();
+
+    let raf;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      if (video.readyState < 2) return;
+      ctx.drawImage(video, 0, 0, W, H);
+      let frame;
+      try { frame = ctx.getImageData(0, 0, W, H); } catch { return; }
+      const d = frame.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        // Strong green → fully transparent
+        if (g > 90 && g > r * 1.35 && g > b * 1.35) {
+          d[i + 3] = 0;
+          continue;
+        }
+        // Soft green fringe on the edges → fade + suppress green spill
+        if (g > r && g > b) {
+          const avg = (r + b) / 2;
+          const spill = g - avg;
+          if (spill > 18) {
+            d[i + 1] = avg;                                  // de-green the pixel
+            d[i + 3] = Math.max(0, d[i + 3] - spill * 2);    // fade the halo
+          }
+        }
+      }
+      ctx.putImageData(frame, 0, 0);
+    };
+    draw();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={256}
+      height={256}
+      style={{ display: 'block', width: size, height: size }}
+    />
+  );
+}
+
 // ─── AVATAR ─────────────────────────────────────────────────────────────────────
-// resting → APEXA.mp4 with black background removed (mix-blend screen)
+// resting → APEXA.mp4 green background keyed out to transparent (canvas)
 // selected → APEXX.jpg still image, same size
 function Avatar({ resting, size }) {
   if (resting) {
-    return (
-      <video
-        src="/APEXA.mp4"
-        autoPlay muted loop playsInline
-        style={{
-          display: 'block', width: size, height: size, objectFit: 'contain',
-          background: 'transparent',
-          mixBlendMode: 'screen',          // black → transparent
-          filter: 'contrast(1.15) brightness(1.05)',
-        }}
-      />
-    );
+    return <GreenScreenVideo size={size} />;
   }
   return (
     <img
