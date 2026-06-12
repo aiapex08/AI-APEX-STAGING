@@ -1,5 +1,6 @@
-import React, { useRef, useEffect, useState, Suspense, useMemo, useCallback } from 'react';
+﻿import React, { useRef, useEffect, useState, Suspense, useMemo, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { findEmployeeByCode } from './utils/authEmployees.js';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -15,15 +16,17 @@ import {
 import { EffectComposer, Bloom, DepthOfField } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import AIEstimation from './pages/AIEstimation.jsx';
-import DataDashboard from './pages/DataDashboard.jsx';
-import SalesForm from './pages/SalesForm.jsx';
-import VirtualShowroomDashboard from './pages/VirtualShowroomDashboard.jsx';
-import NewShowroom from './pages/NewShowroom.jsx';
 import AIContract from './pages/AIContract.jsx';
 import DummyHub from './pages/DummyHub.jsx';
-import AIHeroSection from './pages/AIHeroSection.jsx';
 import Estimator from './pages/Estimator.jsx';
-const ARScene = React.lazy(() => import('./ARScene.jsx'));
+import EstimationHub from './pages/EstimationHub.jsx';
+import TeamAccess from './pages/TeamAccess.jsx';
+import TeamHub from './pages/TeamHub.jsx';
+import Customers from './pages/Customers.jsx';
+import AIAnalysis from './pages/AIAnalysis.jsx';
+import CostingArt from './pages/CostingArt.jsx';
+import ProjectList from './pages/ProjectList.jsx';
+import AlexBot from './components/AlexBot.jsx';
 
 // --- CONFIGURATION ---
 const CIRCLE_POSITION = [0, 0, 0]; 
@@ -1251,52 +1254,17 @@ const ConstructionScreen = ({ deptId, onBack }) => {
 };
 
 // --- HOME SCREEN ---
-const HomeScreen = ({ onAccepted, onDirect }) => {
+const HomeScreen = ({ onAccepted, onDirect, currentUser }) => {
   const [phase, setPhase]       = useState('select'); // 'select' | 'code'
   const [selDept, setSelDept]   = useState(null);
   const [quickView, setQuickView] = useState(null);
-  const [showAR, setShowAR] = useState(false);
   const [code, setCode]         = useState('');
   const [showCode, setShowCode] = useState(false);
   const [shake, setShake]       = useState(false);
   const [errMsg, setErrMsg]     = useState('');
   const inputRef = useRef(null);
 
-  // ── Shortcut code prompts (logo / AR / My Dashboard) ──
-  const [codePrompt, setCodePrompt] = useState(null); // 'costArtist'|'arViewer'|'myDash'
-  const [promptCode, setPromptCode] = useState('');
-  const [promptShow, setPromptShow] = useState(false);
-  const [promptShake, setPromptShake] = useState(false);
-  const [promptErr, setPromptErr]   = useState('');
-  const promptRef = useRef(null);
-
-  const PROMPT_CFG = {
-    costArtist: { label:'Cost Artist',   hint:'Enter cost-artist code', correct:'STAR',
-      onSuccess: () => onAccepted('estimation','director','STAR','Cost Artist',null) },
-    arViewer:   { label:'AR Viewer',     hint:'Enter AR viewer code',   correct:'ARV',
-      onSuccess: () => onDirect('arViewer', null) },
-  };
-
-  const openPrompt = (type) => {
-    setCodePrompt(type); setPromptCode(''); setPromptErr(''); setPromptShow(false);
-    setTimeout(() => promptRef.current?.focus(), 80);
-  };
-  const closePrompt = () => { setCodePrompt(null); setPromptCode(''); setPromptErr(''); };
-  const submitPrompt = (e) => {
-    e?.preventDefault();
-    const entered = promptCode.trim().toUpperCase();
-    if (!entered) return;
-    const cfg = PROMPT_CFG[codePrompt];
-    if (entered === cfg.correct) { closePrompt(); cfg.onSuccess(); }
-    else {
-      setPromptErr('Invalid code');
-      setPromptShake(true);
-      setTimeout(() => { setPromptShake(false); setPromptCode(''); setPromptErr(''); }, 620);
-    }
-  };
-
-  const SALES_CODES = ['SX985','SX417','SE628','SE842','SE519','SM386'];
-  const EST_CODES   = ['EX552','EX719','EX638','EX904','EX471','EX856','EX392','EX681','EX547','EX903','EX764'];
+  const SALES_CODES = ['SX985','SX417','SE628','SE842','SE519','SM386','SE421'];
 
   const depts = [
     {
@@ -1340,16 +1308,31 @@ const HomeScreen = ({ onAccepted, onDirect }) => {
   ];
 
   const pickDept = (dept, qv = null) => {
-if (dept.id === 'contracts') {
-  onDirect('construction', dept.id);
-  return;
-}
-if (dept.id === 'engineering') {
-  onDirect('fireDoor', null);
-  return;
-}
+    if (dept.id === 'contracts') {
+      onDirect('construction', dept.id);
+      return;
+    }
+    if (dept.id === 'engineering') {
+      onDirect('fireDoor', null);
+      return;
+    }
+    if (dept.id === 'sales') {
+      onDirect('sales', null);
+      return;
+    }
     if (dept.id === 'estimation') {
-      onDirect('estimation', null);
+      if (currentUser) {
+        // Already authenticated via gate — go directly with user context
+        onAccepted('estimation-hub', null, currentUser.accessCode || '', currentUser.name || '', null, currentUser);
+      } else {
+        // Fallback: show code entry (unauthenticated direct URL access)
+        setSelDept(dept);
+        setQuickView(qv);
+        setCode('');
+        setErrMsg('');
+        setPhase('code');
+        setTimeout(() => inputRef.current?.focus(), 80);
+      }
       return;
     }
     setSelDept(dept);
@@ -1371,14 +1354,16 @@ if (dept.id === 'engineering') {
     const entered = code.trim().toUpperCase();
     if (!entered) return;
     if (entered === '9993') { onAccepted('active', null, '9993', '', null); return; }
-    if (entered === 'ARV')  { onDirect('arViewer', null); return; }
     if (selDept.id === 'sales') {
       if (SALES_CODES.includes(entered) || entered === 'MYD') onAccepted('estimation', 'sales', entered, '', quickView);
       else doShake('Invalid sales code');
     } else if (selDept.id === 'estimation') {
-      if (EST_CODES.includes(entered))   onAccepted('estimation', 'estimator', entered, 'Estimator',  quickView);
-      else if (entered === 'STAR')       onAccepted('estimation', 'director',  entered, 'Cost Artist', quickView);
-      else doShake('Invalid code');
+      const user = findEmployeeByCode(entered);
+      if (user) {
+        onAccepted('estimation-hub', null, entered, user.name, null, user);
+      } else {
+        doShake('Invalid access code');
+      }
     }
   };
 
@@ -1604,77 +1589,13 @@ if (dept.id === 'engineering') {
           .hs-left  { padding:16px 14px 20px }
         }
 
-        /* AR Viewer pill — bottom-right */
-        .hs-ar-btn {
-          position:absolute; bottom:24px; right:24px; z-index:40;
-          display:inline-flex; align-items:center; gap:7px;
-          background:rgba(0,0,0,0.45);
-          border:1px solid rgba(255,255,255,0.20);
-          border-radius:100px;
-          padding:7px 16px;
-          cursor:pointer; color:rgba(255,255,255,0.82);
-          font-size:0.70rem; font-weight:600; font-family:'Inter',sans-serif;
-          letter-spacing:0.10em; text-transform:uppercase;
-          backdrop-filter:blur(8px);
-          transition:background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
-          white-space:nowrap;
-        }
-        .hs-ar-btn:hover {
-          background:rgba(0,200,255,0.12);
-          border-color:rgba(0,200,255,0.45);
-          color:#fff;
-          box-shadow:0 0 16px rgba(0,200,255,0.22);
-        }
-        .hs-ar-dot {
-          width:6px; height:6px; border-radius:50%;
-          background:#00cfff; box-shadow:0 0 6px #00cfff;
-          animation:hs-ar-pulse 1.6s ease-in-out infinite;
-        }
-        @keyframes hs-ar-pulse {
-          0%,100%{opacity:1;transform:scale(1)}
-          50%{opacity:0.35;transform:scale(0.55)}
-        }
-
       `}</style>
 
       {/* Dark veil */}
       <div style={{position:'absolute',inset:0,background:'rgba(0,1,3,0.70)',pointerEvents:'none'}}/>
 
-      {/* ── SHORTCUT CODE PROMPT MODAL ── */}
-      {codePrompt && (
-        <div style={{position:'fixed',inset:0,zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,8,0.72)',backdropFilter:'blur(12px)'}}>
-          <div className={promptShake ? 'hs-cform hs-shake' : 'hs-cform'}
-            style={{background:'rgba(6,4,22,0.98)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:20,padding:'36px 32px',display:'flex',flexDirection:'column',alignItems:'center',gap:18,boxShadow:'0 30px 80px rgba(0,0,0,0.7)',minWidth:300}}>
-            <p style={{fontSize:'0.50rem',letterSpacing:'0.24em',textTransform:'uppercase',color:'rgba(255,255,255,0.35)',margin:0,fontWeight:700,fontFamily:"'Inter',sans-serif"}}>{PROMPT_CFG[codePrompt]?.label}</p>
-            <p style={{fontSize:'0.76rem',color:'rgba(255,255,255,0.45)',margin:0,fontFamily:"'Inter',sans-serif",letterSpacing:'0.06em'}}>{PROMPT_CFG[codePrompt]?.hint}</p>
-            <form onSubmit={submitPrompt} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0,width:'100%'}}>
-              <div style={{position:'relative',display:'inline-flex',alignItems:'center',width:'100%',justifyContent:'center'}}>
-                <input ref={promptRef} className={`hs-cinput${promptErr ? ' hs-err' : ''}`}
-                  type={promptShow ? 'text' : 'password'}
-                  value={promptCode} onChange={e=>{setPromptCode(e.target.value);setPromptErr('');}}
-                  placeholder="— — — —" maxLength={10} autoComplete="off" spellCheck={false}
-                  style={{paddingRight:36}}/>
-                <button type="button" onClick={()=>setPromptShow(v=>!v)}
-                  style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',padding:4,color:promptShow?'#cc0000':'#444',outline:'none',lineHeight:0,transition:'color 0.2s'}}>
-                  {promptShow
-                    ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  }
-                </button>
-              </div>
-              <div className={`hs-errmsg${promptErr ? ' vis' : ''}`}>{promptErr || ' '}</div>
-              <div className="hs-hint">Press Enter to confirm</div>
-            </form>
-            <button onClick={closePrompt} style={{marginTop:4,background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.28)',fontFamily:"'Inter',sans-serif",fontSize:'0.72rem',letterSpacing:'0.14em',textTransform:'uppercase',padding:'4px 12px',transition:'color 0.2s'}}
-              onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,0.65)'}
-              onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.28)'}>Cancel</button>
-          </div>
-        </div>
-      )}
-
       {/* ── BOTTOM-LEFT LOGO — click to prompt for Cost-Artist code ── */}
       <img src="/logo.png" alt="NAFFCO"
-        onClick={() => openPrompt('costArtist')}
         style={{
           position:'absolute', bottom:24, left:36, zIndex:30,
           height:32, width:'auto', objectFit:'contain',
@@ -1688,13 +1609,6 @@ if (dept.id === 'engineering') {
         <div className="hs-topbrand-naffco">NAFFCO AI APEX</div>
         <div className="hs-topbrand-sub">Passion to Protect</div>
       </div>
-
-      {/* ── BOTTOM-RIGHT: AR Viewer ── */}
-      <button className="hs-ar-btn" onClick={() => openPrompt('arViewer')}>
-        <span className="hs-ar-dot"/>
-        AR Viewer
-      </button>
-
       <div className="hs-land">
         {/* ── LEFT COLUMN ── */}
         <div className="hs-left">
@@ -1797,28 +1711,7 @@ if (dept.id === 'engineering') {
                 <div className="hs-hint">Press Enter to confirm</div>
               </form>
             </div>
-          )}
-        {showAR && (
-  <div style={{
-    position: 'fixed', inset: 0, zIndex: 9999,
-  }}>
-    <button
-      onClick={() => setShowAR(false)}
-      style={{
-        position: 'absolute', top: 16, right: 16,
-        zIndex: 10000, padding: '8px 18px',
-        background: 'rgba(0,0,0,0.6)',
-        border: '1px solid rgba(255,255,255,0.2)',
-        borderRadius: 20, color: '#fff',
-        fontSize: '0.8rem', cursor: 'pointer',
-        fontFamily: "'Inter', sans-serif",
-      }}
-    >
-      ✕ Close
-    </button>
-    <ARScene />
-  </div>
-)}</div>
+          )}</div>
 
         {/* ── RIGHT COLUMN — AIBOT identical to Landing ── */}
         <div className="hs-right" style={{position:'relative',background:'transparent'}}>
@@ -1847,183 +1740,144 @@ if (dept.id === 'engineering') {
   );
 };
 
-// --- ACCESS CODE SCREEN ---
-const AccessCodeScreen = ({ onAccepted }) => {
+// --- ACCESS CODE SCREEN (glass login gate) ---
+const AccessCodeScreen = ({ onGateAccepted }) => {
   const [code, setCode] = useState('');
   const [shake, setShake] = useState(false);
-  const [error, setError] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
   const [showCode, setShowCode] = useState(false);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (inputRef.current) inputRef.current.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const SALES_CODES = ['SX985','SX417','SE628','SE842','SE519','SM386'];
-  const EST_CODES   = ['EX552','EX719','EX638','EX904','EX471','EX856','EX392','EX681','EX547','EX903','EX764'];
+  const doShake = (msg) => {
+    setErrMsg(msg); setShake(true);
+    setTimeout(() => { setShake(false); setCode(''); }, 620);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const entered = code.trim().toUpperCase();
-    if (EST_CODES.includes(entered)) {
-      onAccepted('estimation', 'estimator', entered, 'Estimator');
-    } else if (SALES_CODES.includes(entered)) {
-      onAccepted('estimation', 'sales', entered, '');
-    } else if (entered === 'STAR') {
-      onAccepted('estimation', 'director', entered, 'Cost Artist');
-    } else if (entered === '9993') {
-      onAccepted('active', null, '9993', '');
-    // } else if (entered === 'JAFZA') {
-    //   onAccepted('mainScene', null, '', '');
-    } else {
-      setShake(true);
-      setError(true);
-      setTimeout(() => setShake(false), 600);
-      setTimeout(() => setError(false), 2000);
-      setCode('');
-    }
+    if (!entered) return;
+    const user = findEmployeeByCode(entered);
+    if (user) { onGateAccepted(user); }
+    else { doShake('Invalid access code'); }
   };
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999999,
-      background: '#000',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      gap: '32px',
+      position:'fixed', inset:0, zIndex:9999999,
+      background:"url('/AI_ESTIMATION1.jpeg') center/cover no-repeat",
+      display:'flex', alignItems:'center', justifyContent:'center',
+      fontFamily:"'Inter',sans-serif",
     }}>
       <style>{`
-        @keyframes access-shake {
-          0%   { transform: translateX(0); }
-          15%  { transform: translateX(-10px); }
-          30%  { transform: translateX(10px); }
-          45%  { transform: translateX(-8px); }
-          60%  { transform: translateX(8px); }
-          75%  { transform: translateX(-4px); }
-          90%  { transform: translateX(4px); }
-          100% { transform: translateX(0); }
+        @keyframes gate-aurora { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        @keyframes gate-shake  { 0%{transform:translateX(0)} 15%{transform:translateX(-10px)} 30%{transform:translateX(10px)} 45%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 75%{transform:translateX(-4px)} 90%{transform:translateX(4px)} 100%{transform:translateX(0)} }
+        @keyframes gate-fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes gate-glow   { 0%,100%{box-shadow:0 0 0 rgba(0,229,255,0)} 50%{box-shadow:0 0 32px rgba(0,229,255,0.30)} }
+        .gate-card { animation: gate-fadeUp 0.65s ease both; }
+        .gate-shake { animation: gate-shake 0.6s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+        .gate-input {
+          background: transparent; border: none; outline: none;
+          color: #e8eeff;
+          font-family: 'Rajdhani','Orbitron','Segoe UI',sans-serif;
+          font-size: clamp(22px,3vw,38px); font-weight:700;
+          letter-spacing: 0.32em; text-align: center; text-transform: uppercase;
+          width: clamp(220px,28vw,360px); padding: 10px 36px 10px 0;
+          border-bottom: 2px solid rgba(255,255,255,0.18);
+          transition: border-color 0.25s; caret-color: #00e5ff;
         }
-        @keyframes error-pulse {
-          0%   { box-shadow: 0 0 0px rgba(220,30,30,0); }
-          50%  { box-shadow: 0 0 22px rgba(220,30,30,0.7); }
-          100% { box-shadow: 0 0 8px rgba(220,30,30,0.3); }
-        }
-        .access-naffco {
-          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
-          font-size: clamp(56px, 9vw, 120px);
-          font-weight: 900;
-          letter-spacing: -0.03em;
-          line-height: 1;
-          color: #cc0000;
-          text-shadow: 0 0 40px rgba(200,0,0,0.5);
-        }
-        .access-label {
-          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
-          font-size: clamp(11px, 1.3vw, 17px);
-          font-weight: 500;
-          letter-spacing: 0.4em;
-          text-transform: uppercase;
-          color: #505060;
-          margin-bottom: 6px;
-        }
-        .access-input {
-          background: transparent;
-          border: none;
-          border-bottom: 2px solid #333;
-          outline: none;
-          color: #e0e0e0;
-          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
-          font-size: clamp(20px, 3vw, 36px);
-          font-weight: 600;
-          letter-spacing: 0.3em;
-          text-align: center;
-          text-transform: uppercase;
-          width: clamp(200px, 30vw, 360px);
-          padding: 8px 0;
-          transition: border-color 0.3s;
-          caret-color: #cc0000;
-        }
-        .access-input:focus {
-          border-bottom-color: #cc0000;
-        }
-        .access-input.error {
-          border-bottom-color: #dc1e1e;
-          color: #dc1e1e;
-          animation: error-pulse 0.5s ease forwards;
-        }
-        .access-form.shake {
-          animation: access-shake 0.6s cubic-bezier(0.36,0.07,0.19,0.97) both;
-        }
-        .access-error-msg {
-          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
-          font-size: clamp(11px, 1.2vw, 15px);
-          letter-spacing: 0.25em;
-          text-transform: uppercase;
-          color: #dc1e1e;
-          margin-top: 8px;
-          opacity: 0;
-          transition: opacity 0.2s;
-        }
-        .access-error-msg.visible {
-          opacity: 1;
-        }
-        .access-hint {
-          font-family: 'Rajdhani', 'Orbitron', 'Segoe UI', sans-serif;
-          font-size: clamp(10px, 1vw, 13px);
-          letter-spacing: 0.3em;
-          color: #2a2a2a;
-          text-transform: uppercase;
-          margin-top: 28px;
-        }
+        .gate-input:focus { border-bottom-color: rgba(0,229,255,0.65); }
+        .gate-input.err   { border-bottom-color: #dc1e1e; color:#f87171; }
       `}</style>
 
-      <div className="access-naffco">NAFFCO</div>
+      {/* dark veil */}
+      <div style={{position:'absolute',inset:0,background:'rgba(0,1,8,0.72)',backdropFilter:'blur(2px)',pointerEvents:'none'}}/>
 
-      <form
-        className={`access-form${shake ? ' shake' : ''}`}
-        onSubmit={handleSubmit}
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}
-      >
-        <div className="access-label">Enter Access Code</div>
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <input
-            ref={inputRef}
-            className={`access-input${error ? ' error' : ''}`}
-            type={showCode ? 'text' : 'password'}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="— — — — —"
-            maxLength={10}
-            autoComplete="off"
-            spellCheck={false}
-            style={{ paddingRight: '36px' }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowCode(v => !v)}
-            style={{
-              position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-              color: showCode ? '#cc0000' : '#444', outline: 'none', lineHeight: 0,
-              transition: 'color 0.2s',
-            }}
-          >
-            {showCode ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
-              </svg>
-            )}
-          </button>
+      {/* aurora orbs */}
+      <div style={{position:'absolute',top:'8%',left:'15%',width:380,height:380,borderRadius:'50%',background:'radial-gradient(circle,rgba(124,58,237,0.28) 0%,transparent 70%)',filter:'blur(40px)',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',bottom:'10%',right:'12%',width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,255,0.20) 0%,transparent 70%)',filter:'blur(36px)',pointerEvents:'none'}}/>
+
+      {/* glass card */}
+      <div className="gate-card" style={{
+        position:'relative', zIndex:10,
+        background:'rgba(255,255,255,0.06)',
+        backdropFilter:'blur(22px) saturate(150%)',
+        WebkitBackdropFilter:'blur(22px) saturate(150%)',
+        border:'1px solid rgba(255,255,255,0.15)',
+        borderRadius:24,
+        padding:'clamp(36px,5vw,60px) clamp(32px,5vw,70px)',
+        display:'flex', flexDirection:'column', alignItems:'center', gap:0,
+        boxShadow:'0 32px 80px rgba(0,0,0,0.55), inset 0 1.5px 0 rgba(255,255,255,0.18)',
+        minWidth:'clamp(320px,38vw,460px)',
+        animation:'gate-glow 4s ease-in-out infinite',
+      }}>
+        {/* NAFFCO logo */}
+        <img src="/logo.png" alt="NAFFCO" style={{height:46,objectFit:'contain',marginBottom:22,filter:'brightness(1.15) drop-shadow(0 2px 12px rgba(0,229,255,0.28))'}}/>
+
+        {/* Aurora title */}
+        <div style={{
+          fontSize:'clamp(0.58rem,1vw,0.72rem)', fontWeight:700, letterSpacing:'0.38em',
+          textTransform:'uppercase', marginBottom:6,
+          background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 30%,#a855f7 55%,#06b6d4 80%,#00e5ff 100%)',
+          backgroundSize:'300% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          backgroundClip:'text', animation:'gate-aurora 5s ease infinite',
+        }}>NAFFCO AI APEX</div>
+
+        <div style={{fontSize:'0.60rem',letterSpacing:'0.26em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',marginBottom:32}}>
+          Passion to Protect
         </div>
-        <div className={`access-error-msg${error ? ' visible' : ''}`}>Invalid access code</div>
-      </form>
 
-      <div className="access-hint">Press Enter to confirm</div>
+        {/* divider */}
+        <div style={{width:'100%',height:1,background:'linear-gradient(90deg,transparent,rgba(0,229,255,0.30),transparent)',marginBottom:28}}/>
+
+        <div style={{fontSize:'0.60rem',letterSpacing:'0.30em',textTransform:'uppercase',color:'rgba(255,255,255,0.35)',marginBottom:16,fontWeight:600}}>
+          Enter Access Code
+        </div>
+
+        <form className={shake ? 'gate-shake' : ''} onSubmit={handleSubmit}
+          style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0,width:'100%'}}>
+          <div style={{position:'relative',display:'inline-flex',alignItems:'center'}}>
+            <input
+              ref={inputRef}
+              className={`gate-input${errMsg ? ' err' : ''}`}
+              type={showCode ? 'text' : 'password'}
+              value={code}
+              onChange={e => { setCode(e.target.value); setErrMsg(''); }}
+              placeholder="· · · · ·"
+              maxLength={10}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="button" onClick={() => setShowCode(v => !v)}
+              style={{position:'absolute',right:0,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',padding:4,color:showCode?'rgba(0,229,255,0.80)':'rgba(255,255,255,0.25)',outline:'none',lineHeight:0,transition:'color 0.2s'}}>
+              {showCode
+                ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              }
+            </button>
+          </div>
+
+          {/* error msg */}
+          <div style={{height:20,marginTop:8,fontSize:'0.62rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'#f87171',opacity:errMsg?1:0,transition:'opacity 0.2s'}}>
+            {errMsg || ' '}
+          </div>
+
+          <div style={{fontSize:'0.52rem',letterSpacing:'0.26em',textTransform:'uppercase',color:'rgba(255,255,255,0.18)',marginTop:4}}>
+            Press Enter to confirm
+          </div>
+        </form>
+      </div>
+
+      {/* bottom-left NAFFCO text */}
+      <div style={{position:'absolute',bottom:24,left:36,zIndex:10,display:'flex',flexDirection:'column',gap:1}}>
+        <div style={{fontSize:'0.64rem',fontWeight:600,letterSpacing:'0.28em',textTransform:'uppercase',
+          background:'linear-gradient(105deg,#00e5ff,#4f46e5,#a855f7,#00e5ff)',backgroundSize:'300% auto',
+          WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+          animation:'gate-aurora 5s ease infinite'}}>NAFFCO GROUP</div>
+        <div style={{fontSize:'0.48rem',letterSpacing:'0.32em',textTransform:'uppercase',color:'rgba(255,255,255,0.20)'}}>Passion to Protect · AI APEX</div>
+      </div>
     </div>
   );
 };
@@ -2139,41 +1993,74 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Show intro immediately on launch (splash)
-  const [showIntro, setShowIntro]     = useState(true);
+  // Clear stale employee data when seed version changes
+  useEffect(() => {
+    const VER = 'v6_unique_codes';
+    if (localStorage.getItem('ta_seed_ver') !== VER) {
+      localStorage.removeItem('ta_v5_emp');
+      localStorage.setItem('ta_seed_ver', VER);
+    }
+  }, []);
+
+  // Show intro only on the very first visit — persisted in localStorage
+  const [showIntro, setShowIntro]     = useState(() => !localStorage.getItem('naffco_intro_seen'));
   const [welcomeName, setWelcomeName] = useState('');
-  
+  // Gate: true = user authenticated, show HomeScreen; false = show AccessCodeScreen
+  const [gateOpen, setGateOpen]       = useState(false);
+
   // Keep these states so data persists across route changes
   const [targetIndex, setTargetIndex] = useState(null);
   const [initialRole, setInitialRole] = useState(null);
   const [initialCode, setInitialCode] = useState('');
   const [initialView, setInitialView] = useState(null);
-  
+  const [currentUser, setCurrentUser] = useState(null);
+
   const pendingDestRef = useRef(null);
 
   // Called by HomeScreen after code is validated
-  const handleAccessAccepted = useCallback((destination, role, code, welcome, iv = null) => {
+  const handleAccessAccepted = useCallback((destination, role, code, welcome, iv = null, user = null) => {
     setWelcomeName(welcome);
     setInitialRole(role);
     setInitialCode(code);
     setInitialView(iv);
-    
+    setCurrentUser(user);
+
     // UPDATED: Check if the role is sales, send them to /sales instead of /estimation
     let finalPath = '/';
     if (role === 'sales') {
         finalPath = '/sales';
     } else {
-        const routes = { 
-            home: '/', 
-            active: '/dashboard', 
-            estimation: '/estimation' 
+        const routes = {
+            home: '/',
+            active: '/dashboard',
+            estimation: '/estimation-hub/estimation',
+            'estimation-hub': '/estimation-hub',
         };
         finalPath = routes[destination] || '/';
     }
-    
+
     pendingDestRef.current = finalPath;
-    setShowIntro(true);
-  }, []);
+    navigate(finalPath);
+  }, [navigate]);
+
+  // Called by AccessCodeScreen — identifies the user and routes appropriately
+  const handleGateAccepted = useCallback((user) => {
+    setCurrentUser(user);
+    setInitialCode(user.accessCode || '');
+    if (user.id === 'master' || user.accessCode === '9993') {
+      // Special admin → 3D dashboard
+      setGateOpen(true);
+      navigate('/dashboard');
+    } else if (user.team === 'Sales') {
+      setInitialRole('sales');
+      setGateOpen(true);
+      navigate('/sales');
+    } else {
+      // Estimation / Engineering / Admin → open gate, show DummyHub carousel
+      setGateOpen(true);
+      // stay at '/' which now renders DummyHub
+    }
+  }, [navigate]);
 
   // Called by HomeScreen for quick-actions
   const handleDirectNav = useCallback((dest, iv) => {
@@ -2181,16 +2068,17 @@ function AppContent() {
     setInitialCode('');
     setInitialView(iv);
     
-    const routes = { 
-        arViewer: '/ar', 
-        construction: '/construction', 
-        estimation: '/estimation',
-        fireDoor: '/fire-door'     
+    const routes = {
+        construction: '/construction',
+        estimation: '/estimation-hub',
+        fireDoor: '/estimation-hub/fire-door',
+        sales: '/sales',
     };
     navigate(routes[dest] || '/');
   }, [navigate]);
 
   const handleIntroDone = useCallback(() => {
+    localStorage.setItem('naffco_intro_seen', '1');
     setShowIntro(false);
     if (pendingDestRef.current !== null) {
       navigate(pendingDestRef.current);
@@ -2211,10 +2099,7 @@ function AppContent() {
     setTargetIndex(index);
     setTimeout(() => {
       const routes = { 
-        'estimation': '/estimation', 
-        'dataAnalysis': '/data-analysis', 
-        'VIRTUAL SHOWROOM': '/virtual-showroom',
-        'New SHOWROOM': '/new-showroom', 
+        'estimation': '/estimation-hub/estimation', 
         'AI CONTRACTS': '/contracts' 
       };
       navigate(routes[destination] || '/');
@@ -2222,8 +2107,8 @@ function AppContent() {
     }, 2500);
   };
 
-  // UPDATED: Added /sales and /salesView to the active animation routes
-  const activeRoutesForAnimation = ['/dashboard', '/estimation', '/sales', '/data-analysis', '/virtual-showroom', '/new-showroom', '/contracts'];
+  // Routes where the 3D background animations are active
+  const activeRoutesForAnimation = ['/dashboard', '/estimation-hub/estimation', '/sales', '/contracts'];
   const startAnimations = activeRoutesForAnimation.includes(location.pathname);
   
   const isZooming = targetIndex !== null;
@@ -2240,74 +2125,69 @@ function AppContent() {
       {/* REACT ROUTER DEFINITIONS */}
       <Routes>
         <Route path="/" element={
-          <HomeScreen onAccepted={handleAccessAccepted} onDirect={handleDirectNav} />
+          !gateOpen
+            ? <AccessCodeScreen onGateAccepted={handleGateAccepted} />
+            : <DummyHub currentUser={currentUser} />
         } />
-        <Route path="/dummy" element={<DummyHub />} />
-        <Route path="/hero" element={<AIHeroSection />} />
-        
+
         <Route path="/construction" element={
           <ConstructionScreen deptId={initialView} onBack={backToHome} />
         } />
-        
-        {/* Route for Estimator role */}
-        <Route path="/estimation/*" element={
-          <AIEstimation
-            onBack={backToHome}
-            onNavigate={(state) => navigate(`/${state}`)}
-            initialRole={initialRole}
-            initialCode={initialCode}
-            initialView={initialView}
-          />
-        } />
 
-        {/* UPDATED: Route for Sales role (Shares the AIEstimation dashboard component) */}
+        <Route path="/contracts" element={<AIContract onBack={backToHome} />} />
+
         <Route path="/sales/*" element={
           <AIEstimation
             onBack={backToHome}
-            onNavigate={(state) => navigate(`/${state}`)}
+            onNavigate={(state) => navigate('/' + state)}
             initialRole={initialRole}
             initialCode={initialCode}
             initialView={initialView}
           />
         } />
-        
-        {/* UPDATED: The actual Sales Form is now on /salesView */}
-        <Route path="/salesView" element={<SalesForm onBack={backToHome} />} />
-        
-        <Route path="/data-analysis" element={<DataDashboard onBack={backToHome} />} />
-        <Route path="/virtual-showroom" element={<VirtualShowroomDashboard onBack={backToHome} />} />
-        <Route path="/new-showroom" element={<NewShowroom onBack={backToHome} />} />
-        <Route path="/contracts" element={<AIContract onBack={backToHome} />} />
-        <Route path="/fire-door" element={
-  <Estimator onClose={backToHome} />
-} />
-        {/* Empty dashboard route because the Canvas is rendered conditionally outside of Routes below */}
-        <Route path="/dashboard" element={<div />} />
 
-        <Route path="/ar" element={
-          <Suspense fallback={<div style={{position:'fixed',inset:0,background:'#111',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:14,fontFamily:'Inter,sans-serif',zIndex:300}}>Loading AR Viewer…</div>}>
-            <div style={{position:'fixed',inset:0,zIndex:300}}>
-              <ARScene />
-              <button
-                onClick={backToHome}
-                style={{
-                  position:'absolute',top:16,left:16,zIndex:400,
-                  display:'flex',alignItems:'center',gap:6,
-                  background:'rgba(0,0,0,0.55)',backdropFilter:'blur(8px)',
-                  border:'1px solid rgba(255,255,255,0.25)',borderRadius:100,
-                  padding:'8px 16px',color:'#fff',
-                  fontSize:13,fontWeight:600,fontFamily:"'Inter',sans-serif",
-                  cursor:'pointer',letterSpacing:'0.06em',
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6"/>
-                </svg>
-                Back
-              </button>
-            </div>
-          </Suspense>
+        {/* ── ESTIMATION HUB + ALL NESTED PAGES ── */}
+        <Route path="/estimation-hub" element={
+          <EstimationHub
+            onBack={backToHome}
+            currentUser={currentUser}
+            onNavigate={(dest) => {
+              const routes = {
+                estimation:             '/estimation-hub/estimation',
+                estimationOpenRequests: '/estimation-hub/estimation/open-requests',
+                teamAccess:             '/estimation-hub/team-access',
+                team:                   '/estimation-hub/team',
+                customers:              '/estimation-hub/customers',
+                aiAnalysis:             '/estimation-hub/ai-analysis',
+                aiTool:                 '/estimation-hub/fire-door',
+                costingArt:             '/estimation-hub/costing-art',
+                projectList:            '/estimation-hub/project-list',
+              };
+              navigate(routes[dest] || '/estimation-hub');
+            }}
+          />
         } />
+
+        <Route path="/estimation-hub/team-access"  element={<TeamAccess  onBack={() => navigate('/estimation-hub')} currentUser={currentUser} />} />
+        <Route path="/estimation-hub/team"         element={<TeamHub     onBack={() => navigate('/estimation-hub')} />} />
+        <Route path="/estimation-hub/customers"    element={<Customers   onBack={() => navigate('/estimation-hub')} />} />
+        <Route path="/estimation-hub/ai-analysis"  element={<AIAnalysis  onBack={() => navigate('/estimation-hub')} />} />
+        <Route path="/estimation-hub/costing-art"  element={<CostingArt  onBack={() => navigate('/estimation-hub')} />} />
+        <Route path="/estimation-hub/project-list" element={<ProjectList onBack={() => navigate('/estimation-hub')} />} />
+        <Route path="/estimation-hub/fire-door"    element={<Estimator   onClose={() => navigate('/estimation-hub')} />} />
+
+        <Route path="/estimation-hub/estimation/*" element={
+          <AIEstimation
+            onBack={() => navigate('/estimation-hub')}
+            onNavigate={(state) => navigate('/' + state)}
+            initialRole={initialRole}
+            initialCode={initialCode}
+            initialView={initialView}
+          />
+        } />
+
+        {/* Empty dashboard route — Canvas rendered outside Routes */}
+        <Route path="/dashboard" element={<div />} />
       </Routes>
 
       {/* 3D CANVAS REMAINS OUTSIDE ROUTES SO IT CAN UNMOUNT GRACEFULLY */}
@@ -2370,6 +2250,9 @@ function AppContent() {
           </Canvas>
         </div>
       )}
+
+      {/* Alex — global voice assistant, present on every page */}
+      {!showIntro && <AlexBot />}
     </>
   );
 }

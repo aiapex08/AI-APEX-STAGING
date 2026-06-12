@@ -81,6 +81,7 @@ const S = {
     overflow: 'hidden',
   },
   header: {
+    position: 'relative',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '10px 18px',
     background: 'rgba(114,206,238,0.07)',
@@ -284,6 +285,15 @@ export default function Estimator({ onClose }) {
 
         {/* ── HEADER ── */}
         <div style={S.header}>
+          {/* Centered ESTIMATION title */}
+          <div style={{position:'absolute',left:0,right:0,textAlign:'center',pointerEvents:'none',userSelect:'none',zIndex:0}}>
+            <span style={{fontFamily:"'Cinzel',Georgia,'Times New Roman',serif",fontSize:'clamp(0.78rem,1.0vw,0.96rem)',fontWeight:400,letterSpacing:'0.40em',textTransform:'uppercase',
+              background:'linear-gradient(105deg,rgba(255,255,255,0.92) 0%,rgba(114,206,238,0.85) 35%,rgba(255,255,255,0.65) 55%,rgba(114,206,238,0.88) 80%,rgba(255,255,255,0.82) 100%)',
+              backgroundSize:'250% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+              filter:'drop-shadow(0 1px 8px rgba(114,206,238,0.28))'}}>
+              ESTIMATION
+            </span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Logo mark */}
             <div style={{

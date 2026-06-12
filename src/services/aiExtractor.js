@@ -9,7 +9,7 @@
 import * as XLSX from 'xlsx';
 
 const API_URL = '/api/anthropic/v1/messages';
-const MODEL   = 'claude-3-5-sonnet-20241022';
+const MODEL   = 'claude-sonnet-4-6';
 
 // ─── EXTRACTION PROMPT ────────────────────────────────────────────────────────
 const EXTRACTION_SYSTEM = `You are a NAFFCO fire door estimation assistant.

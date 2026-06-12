@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { uploadFile, deleteFile } from "../utils/sp-upload";
 
 const STAGES = [
   { key:"A", label:"Quotation"           },{ key:"B", label:"Costing"             },
@@ -464,18 +465,33 @@ function ProjectModal({project,onClose,onUpdate}) {
   const [activeStage,setActiveStage]=useState(null);
   const [docs,setDocs]=useState(project.docs||{});
   const [stageStatus,setStageStatus]=useState({...project.stageStatus});
+  const [uploading,setUploading]=useState({});
   const fileRef=useRef(null);
   const pill=derivePill(stageStatus);
   const GOLD="#d4a030",CYAN="#00bfff";
   const done=STAGES.filter(s=>stageStatus[s.key]==="completed").length;
   const pct=Math.round((done/STAGES.length)*100);
-  const handleUpload=(sk,files)=>{
+  const handleUpload=async(sk,files)=>{
     if(!files||!files.length)return;
-    const nd={...docs};if(!nd[sk])nd[sk]=[];
-    Array.from(files).forEach(f=>{nd[sk]=[...(nd[sk]||[]),{name:f.name,date:new Date().toLocaleDateString("en-AE")}];});
+    setUploading(p=>({...p,[sk]:true}));
+    const date=new Date().toLocaleDateString("en-AE");
+    for(const f of Array.from(files)){
+      try{
+        const url=await uploadFile(f,`${project.id}/${sk}`,f.name);
+        setDocs(prev=>{const nd={...prev,[sk]:[...(prev[sk]||[]),{name:f.name,url,date}]};onUpdate(project.id,stageStatus,nd);return nd;});
+      }catch(err){
+        console.error("SharePoint upload failed:",err);
+        setDocs(prev=>{const nd={...prev,[sk]:[...(prev[sk]||[]),{name:f.name,url:null,date}]};onUpdate(project.id,stageStatus,nd);return nd;});
+      }
+    }
+    setUploading(p=>({...p,[sk]:false}));
+  };
+  const rmDoc=(sk,idx)=>{
+    const entry=(docs[sk]||[])[idx];
+    if(entry?.url)deleteFile(entry.url);
+    const nd={...docs,[sk]:docs[sk].filter((_,i)=>i!==idx)};
     setDocs(nd);onUpdate(project.id,stageStatus,nd);
   };
-  const rmDoc=(sk,idx)=>{const nd={...docs,[sk]:docs[sk].filter((_,i)=>i!==idx)};setDocs(nd);onUpdate(project.id,stageStatus,nd);};
   return (
     <div style={{position:"fixed",inset:0,zIndex:9000,background:"rgba(0,0,0,0.92)",backdropFilter:"blur(8px)",display:"flex",flexDirection:"column",animation:"modalFadeIn 0.18s ease"}}>
       <div style={{flexShrink:0,height:50,background:"rgba(0,0,0,0.97)",borderBottom:"1px solid rgba(0,160,255,0.18)",display:"flex",alignItems:"center",padding:"0 14px",gap:9}}>
@@ -562,7 +578,12 @@ function ProjectModal({project,onClose,onUpdate}) {
                 <div style={{fontFamily:FONT,fontSize:13,fontWeight:600,color:activeStage?"rgba(255,255,255,0.80)":"rgba(255,255,255,0.25)",marginBottom:4}}>{activeStage?`Drop files for ${STAGES.find(s=>s.key===activeStage)?.label}`:"Select a stage first to upload"}</div>
                 <div style={{fontFamily:FONT,fontSize:10,color:"rgba(255,255,255,0.25)"}}>PDF · DOCX · JPG · PNG · XLSX</div>
               </div>
-              {activeStage&&<div style={{padding:"6px 18px",borderRadius:6,background:"rgba(0,191,255,0.14)",border:"1px solid rgba(0,191,255,0.40)",fontFamily:FONT,fontSize:11,fontWeight:600,color:"#00bfff"}}>Browse Files</div>}
+              {activeStage&&(uploading[activeStage]
+                ?<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 18px",borderRadius:6,background:"rgba(0,191,255,0.08)",border:"1px solid rgba(0,191,255,0.25)",fontFamily:FONT,fontSize:11,color:"rgba(0,191,255,0.70)"}}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{animation:"spin 0.8s linear infinite"}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Uploading…
+                  </div>
+                :<div style={{padding:"6px 18px",borderRadius:6,background:"rgba(0,191,255,0.14)",border:"1px solid rgba(0,191,255,0.40)",fontFamily:FONT,fontSize:11,fontWeight:600,color:"#00bfff"}}>Browse Files</div>
+              )}
               <input ref={fileRef} type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xlsx,.xls" style={{display:"none"}} onChange={e=>{if(activeStage){handleUpload(activeStage,e.target.files);}e.target.value="";}}/>
             </div>
           </div>
@@ -584,7 +605,10 @@ function ProjectModal({project,onClose,onUpdate}) {
                 {fl.map((f,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 5px",borderRadius:4,background:"rgba(0,28,76,0.36)",border:"1px solid rgba(0,160,255,0.06)",marginBottom:2}}>
                     <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="rgba(0,191,255,0.40)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    <span style={{fontFamily:FONT,fontSize:9,color:"rgba(255,255,255,0.68)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
+                    {f.url
+                      ?<a href={f.url} target="_blank" rel="noopener noreferrer" style={{fontFamily:FONT,fontSize:9,color:"rgba(0,191,255,0.85)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textDecoration:"none"}} onMouseEnter={e=>e.currentTarget.style.textDecoration="underline"} onMouseLeave={e=>e.currentTarget.style.textDecoration="none"}>{f.name}</a>
+                      :<span style={{fontFamily:FONT,fontSize:9,color:"rgba(255,255,255,0.68)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
+                    }
                     <span style={{fontFamily:MONO,fontSize:7,color:"rgba(255,255,255,0.20)"}}>{f.date}</span>
                     <button onClick={()=>rmDoc(s.key,i)} style={{width:12,height:12,borderRadius:3,border:"none",cursor:"pointer",background:"rgba(255,45,85,0.12)",color:"rgba(255,100,120,0.70)",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center",outline:"none"}}
                       onMouseEnter={e=>e.currentTarget.style.background="rgba(255,45,85,0.28)"}
@@ -741,6 +765,7 @@ export default function Dashboard({ onBack }) {
         .hsplit-handle:hover{background:rgba(124,58,237,0.22)!important;}
         .hsplit-handle:active{background:rgba(124,58,237,0.35)!important;cursor:row-resize;}
         @keyframes handlePulse{0%,100%{opacity:0.55}50%{opacity:1.0}}
+        @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       `}</style>
 
       {openProject&&<ProjectModal project={openProject} onClose={()=>setOpenProject(null)} onUpdate={updateProject}/>}

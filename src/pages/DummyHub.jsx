@@ -1,5 +1,65 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { findEmployeeByCode } from '../utils/authEmployees.js';
+
+/* ── Responsive window-width hook ── */
+function useWindowSize() {
+  const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1440);
+  useEffect(() => {
+    const fn = () => setW(window.innerWidth);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return w;
+}
+
+/* ── Compute all layout constants from viewport width ── */
+function getLayout(vw) {
+  // xs <480 | sm 480-767 | md 768-1023 | lg 1024-1439 | xl ≥1440
+  // cardLeft: % from left where active card sits
+  // expandX: translateX to centre the expanded card (positive = right)
+  if (vw < 480) return {
+    RADIUS:480,  PW:148, PH:240, STAGE_H:280,
+    stageTop:100, cardBottom:60, cardLeft:'5%',
+    expandW:Math.min(vw - 16, 340), expandH:230, expandX:0,
+    titleMarginTop:50, logoH:22,
+    brandTop:12, brandLeft:10, navLeft:8,
+    arBottom:12, arRight:12,
+  };
+  if (vw < 768) return {
+    RADIUS:640,  PW:178, PH:290, STAGE_H:350,
+    stageTop:130, cardBottom:85, cardLeft:'6%',
+    expandW:Math.min(vw - 32, 460), expandH:290, expandX:40,
+    titleMarginTop:75, logoH:26,
+    brandTop:14, brandLeft:14, navLeft:12,
+    arBottom:14, arRight:14,
+  };
+  if (vw < 1024) return {
+    RADIUS:800,  PW:210, PH:340, STAGE_H:420,
+    stageTop:155, cardBottom:105, cardLeft:'8%',
+    expandW:600, expandH:350, expandX:70,
+    titleMarginTop:100, logoH:28,
+    brandTop:18, brandLeft:18, navLeft:16,
+    arBottom:18, arRight:18,
+  };
+  if (vw < 1440) return {
+    RADIUS:960,  PW:238, PH:390, STAGE_H:500,
+    stageTop:168, cardBottom:126, cardLeft:'9%',
+    expandW:714, expandH:416, expandX:130,
+    titleMarginTop:122, logoH:30,
+    brandTop:20, brandLeft:28, navLeft:20,
+    arBottom:20, arRight:20,
+  };
+  return {
+    RADIUS:1100, PW:260, PH:420, STAGE_H:550,
+    stageTop:180, cardBottom:140, cardLeft:'10%',
+    expandW:800, expandH:450, expandX:200,
+    titleMarginTop:140, logoH:32,
+    brandTop:22, brandLeft:36, navLeft:22,
+    arBottom:24, arRight:24,
+  };
+}
  
 // Floating icons per department — each entry: { x%, y%, sz, delay, dur, path }
 const FLOATS = {
@@ -67,7 +127,7 @@ const DEPT_META = {
   },
   estimation: {
     desc: 'Precision Estimation Engine',
-    definition: 'AI-powered cost estimation that generates accurate Bills of Quantities, automates material pricing, and produces competitive tender packages in a fraction of the time. Eliminate guesswork — every scope review is backed by intelligent data, historical benchmarks, and live pricing feeds.',
+    definition: 'Hello! I am APEX-777, the Lead Architect of AI Estimation.\nWelcome to my studio.',
     stats: [
       { d:'M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M18 2h4v4M12 12l10-10', v:'89' },
       { d:'M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3', v:'96%' },
@@ -145,18 +205,13 @@ const DEPT_ICONS_LARGE = {
     </svg>
   ),
   estimation: (a) => (
-    <div style={{ width:108, height:108, display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
-      <img
-        src="/E_Estimation.png"
-        alt="Estimation"
-        style={{
-          width:100, height:100, objectFit:'contain',
-          mixBlendMode:'screen',
-          filter:`drop-shadow(0 0 10px rgba(${a},0.75)) drop-shadow(0 0 3px rgba(${a},0.50))`,
-          opacity:0.95,
-        }}
-      />
-    </div>
+    <svg width="108" height="108" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="2" width="16" height="20" rx="2" stroke={`rgba(${a},0.90)`} strokeWidth="1.5" fill={`rgba(${a},0.08)`}/>
+      <line x1="8" y1="7" x2="16" y2="7" stroke={`rgba(${a},0.80)`} strokeWidth="1.4" strokeLinecap="round"/>
+      <line x1="8" y1="11" x2="14" y2="11" stroke={`rgba(${a},0.80)`} strokeWidth="1.4" strokeLinecap="round"/>
+      <line x1="8" y1="15" x2="11" y2="15" stroke={`rgba(${a},0.80)`} strokeWidth="1.4" strokeLinecap="round"/>
+      <polyline points="13,15 15,17 19,12" stroke={`rgba(${a},1)`} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
   ),
   contracts: (a) => (
     <svg width="100" height="106" viewBox="0 0 100 106" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -239,8 +294,168 @@ const VSCREENS = [
   { title:'ACTIVITY',    color:'#fb923c', a:'251,146,60',  graph:'scatter', x:'7%',  y:'36%', dur:'20s', delay:'12s' },
   { title:'CAPACITY',    color:'#f59e0b', a:'245,158,11',  graph:'gauge',   x:'43%', y:'8%',  dur:'20s', delay:'16s' },
 ];
- 
-export default function DummyHub() {
+
+/* ─────────────────────────────────────────────
+   MINI GRAPH — different chart per department
+   All in "nav blue"  rgba(0,170,255,...)
+───────────────────────────────────────────── */
+function MiniGraph({ deptId }) {
+  const ca = (a) => `rgba(0,170,255,${a})`;
+
+  /* ── Sales: modern smooth area chart ── */
+  if (deptId === 'sales') return (
+    <svg width="100%" height="64" viewBox="0 0 88 64">
+      <defs>
+        <linearGradient id="sg-area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="rgba(0,170,255,0.32)"/>
+          <stop offset="80%"  stopColor="rgba(0,170,255,0.04)"/>
+          <stop offset="100%" stopColor="rgba(0,170,255,0)"/>
+        </linearGradient>
+        <linearGradient id="sg-line" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="rgba(0,170,255,0.60)"/>
+          <stop offset="60%"  stopColor="rgba(0,170,255,0.95)"/>
+          <stop offset="100%" stopColor="rgba(130,210,255,1)"/>
+        </linearGradient>
+      </defs>
+
+      {/* Subtle horizontal grid */}
+      {[20,38,56].map((y,i) => (
+        <line key={i} x1="4" y1={y} x2="84" y2={y}
+          stroke="rgba(200,225,255,0.07)" strokeWidth="0.6" strokeDasharray="3 6"/>
+      ))}
+      {/* Baseline */}
+      <line x1="4" y1="59" x2="84" y2="59" stroke="rgba(200,225,255,0.15)" strokeWidth="0.8"/>
+
+      {/* Gradient area fill */}
+      <path d="M4,54 C10,46 15,30 24,26 C31,22 36,38 44,32 C52,26 56,13 64,9 C70,6 76,15 84,11 L84,59 L4,59 Z"
+        fill="url(#sg-area)"/>
+
+      {/* Soft glow beneath the line */}
+      <path d="M4,54 C10,46 15,30 24,26 C31,22 36,38 44,32 C52,26 56,13 64,9 C70,6 76,15 84,11"
+        stroke="rgba(0,170,255,0.16)" strokeWidth="9" fill="none" strokeLinecap="round"/>
+
+      {/* Main smooth curve — animated draw */}
+      <path d="M4,54 C10,46 15,30 24,26 C31,22 36,38 44,32 C52,26 56,13 64,9 C70,6 76,15 84,11"
+        stroke="url(#sg-line)" strokeWidth="2" fill="none" strokeLinecap="round"
+        strokeDasharray="300" strokeDashoffset="300"
+        style={{animation:'hs-stroke 2s ease forwards'}}/>
+
+      {/* Data-point rings + dots */}
+      {[[4,54],[24,26],[44,32],[64,9],[84,11]].map(([x,y],i) => (
+        <g key={i}>
+          <circle cx={x} cy={y} r="5" fill="rgba(0,170,255,0.09)"/>
+          <circle cx={x} cy={y} r="2.2" fill="rgba(0,170,255,0.92)"
+            style={{transformOrigin:`${x}px ${y}px`, animation:`hs-ping 2.8s ease-in-out ${(i*0.40).toFixed(2)}s infinite`}}/>
+        </g>
+      ))}
+
+      {/* Trend badge — top right */}
+      <rect x="61" y="1" width="26" height="9" rx="2.5"
+        fill="rgba(52,211,153,0.16)" stroke="rgba(52,211,153,0.28)" strokeWidth="0.5"/>
+      <text x="74" y="7.8" textAnchor="middle" fill="rgba(52,211,153,0.90)"
+        fontSize="5.2" fontWeight="700" fontFamily="Inter,sans-serif">▲ +24%</text>
+    </svg>
+  );
+
+  /* ── Estimation: document + animated checkmarks ── */
+  if (deptId === 'estimation') return (
+    <svg width="100%" height="64" viewBox="0 0 88 64">
+      <rect x="22" y="3" width="44" height="58" rx="3" stroke={ca(0.28)} strokeWidth="1" fill={ca(0.05)}/>
+      {[13,22,31,40,49].map((y,i) => (
+        <line key={i} x1="30" y1={y} x2={i<4?60:48} y2={y} stroke={ca(i<4?0.50:0.20)} strokeWidth="1.5" strokeLinecap="round"/>
+      ))}
+      {[0,1,2,3].map(i => (
+        <g key={i} style={{transformOrigin:`17px ${13+i*9}px`, animation:`hs-ping 2.4s ease-in-out ${(i*0.38).toFixed(2)}s infinite`}}>
+          <circle cx="17" cy={13+i*9} r="3.5" fill={ca(i<3?0.75:0.30)}/>
+          {i < 3 && <path d={`M15.2,${13+i*9} L16.8,${14.6+i*9} L19,${11.4+i*9}`} stroke="#fff" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>}
+        </g>
+      ))}
+    </svg>
+  );
+
+  /* ── Contracts: donut, ccy=32 (vertically centred in 64) ── */
+  if (deptId === 'contracts') {
+    const r=18, ccx=26, ccy=32, circ=2*Math.PI*r;
+    return (
+      <svg width="100%" height="64" viewBox="0 0 88 64">
+        <circle cx={ccx} cy={ccy} r={r} fill="none" stroke={ca(0.10)} strokeWidth="7"/>
+        {[[0.65,0,0.55],[0.22,0.65,0.38],[0.13,0.87,0.22]].map(([pct,off,a],i) => (
+          <circle key={i} cx={ccx} cy={ccy} r={r} fill="none" stroke={ca(a)} strokeWidth="7"
+            strokeDasharray={`${(pct*circ).toFixed(1)} ${circ.toFixed(1)}`}
+            strokeDashoffset={`${-(off*circ).toFixed(1)}`}
+            style={{transform:`rotate(-90deg)`,transformOrigin:`${ccx}px ${ccy}px`}}/>
+        ))}
+        <text x={ccx} y={ccy+3} textAnchor="middle" fill={ca(0.92)} fontSize="8" fontWeight="700" fontFamily="Inter,sans-serif">98%</text>
+        {[['65%','Active',0.55],['22%','Pend.',0.38],['13%','Draft',0.22]].map(([v,l,a],i) => (
+          <g key={i}>
+            <rect x="52" y={14+i*14} width="5" height="5" rx="1.5" fill={ca(a)}/>
+            <text x="59" y={20+i*14} fill={ca(0.70)} fontSize="6" fontFamily="Inter,sans-serif">{v} {l}</text>
+          </g>
+        ))}
+      </svg>
+    );
+  }
+
+  /* ── Engineering: spinning gear, centred at 32 ── */
+  if (deptId === 'engineering') return (
+    <svg width="100%" height="64" viewBox="0 0 88 64">
+      <g style={{transformOrigin:'26px 32px', animation:'hs-spin 8s linear infinite'}}>
+        <circle cx="26" cy="32" r="15" stroke={ca(0.28)} strokeWidth="1.5" fill={ca(0.05)}/>
+        {[0,45,90,135,180,225,270,315].map((deg,i) => {
+          const rad = deg * Math.PI / 180;
+          return <line key={i}
+            x1={(26+14*Math.cos(rad)).toFixed(1)} y1={(32+14*Math.sin(rad)).toFixed(1)}
+            x2={(26+20*Math.cos(rad)).toFixed(1)} y2={(32+20*Math.sin(rad)).toFixed(1)}
+            stroke={ca(0.60)} strokeWidth="4" strokeLinecap="round"/>;
+        })}
+        <circle cx="26" cy="32" r="5.5" stroke={ca(0.35)} strokeWidth="1.2" fill={ca(0.12)}/>
+        <circle cx="26" cy="32" r="2.5" fill={ca(0.85)}/>
+      </g>
+      {[['12','Projects'],['48','Engineers'],['4.9','Rating']].map(([v,l],i) => (
+        <g key={i}>
+          <text x="54" y={16+i*15} fill={ca(0.90)} fontSize="9" fontWeight="700" fontFamily="Inter,sans-serif">{v}</text>
+          <text x="54" y={24+i*15} fill={ca(0.45)} fontSize="5.5" fontFamily="Inter,sans-serif">{l}</text>
+        </g>
+      ))}
+    </svg>
+  );
+
+  /* ── Sales Order: area chart, baseline y=60 ── */
+  if (deptId === 'salesorder') return (
+    <svg width="100%" height="64" viewBox="0 0 88 64" preserveAspectRatio="none">
+      <polygon points="4,60 16,48 28,40 40,46 52,26 64,34 76,14 76,60 4,60" fill={ca(0.12)}/>
+      <polyline points="4,60 16,48 28,40 40,46 52,26 64,34 76,14"
+        stroke={ca(0.90)} strokeWidth="1.8" fill="none" strokeLinecap="round"
+        strokeDasharray="300" strokeDashoffset="300" style={{animation:'hs-stroke 2.2s ease forwards'}}/>
+      {[{x:4,y:60},{x:16,y:48},{x:28,y:40},{x:40,y:46},{x:52,y:26},{x:64,y:34},{x:76,y:14}].map(({x,y},i) => (
+        <circle key={i} cx={x} cy={y} r="2.5" fill={ca(0.88)}
+          style={{transformOrigin:`${x}px ${y}px`, animation:`hs-ping 2.4s ease-in-out ${(i*0.25).toFixed(2)}s infinite`}}/>
+      ))}
+    </svg>
+  );
+
+  /* ── Supplier: network nodes, centred at 32 ── */
+  if (deptId === 'supplier') return (
+    <svg width="100%" height="64" viewBox="0 0 88 64">
+      {[[44,32,14,8],[44,32,74,8],[44,32,74,56],[44,32,14,56],[44,32,44,3],[44,32,44,61]].map(([x1,y1,x2,y2],i) => (
+        <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={ca(0.18)} strokeWidth="1"/>
+      ))}
+      {[[44,32,8,0.85],[14,8,5,0.60],[74,8,5,0.60],[74,56,5,0.60],[14,56,5,0.60],[44,3,4,0.45],[44,61,4,0.45]].map(([x,y,r,a],i) => (
+        <g key={i} style={{transformOrigin:`${x}px ${y}px`, animation:`hs-ping 2.6s ease-in-out ${(i*0.35).toFixed(2)}s infinite`}}>
+          <circle cx={x} cy={y} r={r} fill={ca(a)} stroke={ca(0.30)} strokeWidth="1"/>
+        </g>
+      ))}
+    </svg>
+  );
+
+  return null;
+}
+
+export default function DummyHub({ currentUser = null }) {
+  const vw = useWindowSize();
+  const L  = getLayout(vw);
+  const navigate = useNavigate();
+
   const [phase, setPhase]           = useState('select');
   const [selDept, setSelDept]       = useState(null);
   const [code, setCode]             = useState('');
@@ -260,24 +475,40 @@ export default function DummyHub() {
   const [activeIdx, setActiveIdx]   = useState(2);
   const touchStartX                 = useRef(null);
   const scrollLock                  = useRef(false);
+  const videoRef                    = useRef(null);
+  const [zooming,     setZooming]     = useState(false);
+  const [pendingDept, setPendingDept] = useState(null);
+
+  /* Force-play the background video — React's autoPlay attr is unreliable */
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.loop  = true;
+    v.play().catch(() => {});   // swallow NotAllowedError on strict browsers
+  }, []);
  
   React.useEffect(() => {
-    clearInterval(typingRef.current);
+    clearTimeout(typingRef.current);
     if (expandedCard) {
       const full = DEPT_META[expandedCard]?.definition || '';
       setTypedDef('');
       setIsTyping(true);
       let i = 0;
-      typingRef.current = setInterval(() => {
+      const typeNext = () => {
+        if (i >= full.length) { setIsTyping(false); return; }
         i++;
         setTypedDef(full.slice(0, i));
-        if (i >= full.length) { clearInterval(typingRef.current); setIsTyping(false); }
-      }, 20);
+        const ch = full[i - 1];
+        const delay = ch === '\n' ? 800 : '.!?'.includes(ch) ? 300 : ','.includes(ch) ? 180 : 72;
+        typingRef.current = setTimeout(typeNext, delay);
+      };
+      typingRef.current = setTimeout(typeNext, 72);
     } else {
       setTypedDef('');
       setIsTyping(false);
     }
-    return () => clearInterval(typingRef.current);
+    return () => clearTimeout(typingRef.current);
   }, [expandedCard]);
 
   React.useEffect(() => {
@@ -369,6 +600,15 @@ export default function DummyHub() {
   ];
  
   const pickDept = (dept) => {
+    if (dept.id === 'estimation') {
+      if (currentUser) { navigate('/estimation-hub'); return; }
+      setSelDept(dept); setCode(''); setErrMsg(''); setPhase('code');
+      setTimeout(() => inputRef.current?.focus(), 80);
+      return;
+    }
+    if (dept.id === 'sales')     { navigate('/sales');        return; }
+    if (dept.id === 'contracts') { navigate('/construction'); return; }
+    // salesorder, supplier, engineering — show code entry (coming soon)
     setSelDept(dept); setCode(''); setErrMsg(''); setPhase('code');
     setTimeout(() => inputRef.current?.focus(), 80);
   };
@@ -380,16 +620,24 @@ export default function DummyHub() {
     e?.preventDefault();
     const entered = code.trim().toUpperCase();
     if (!entered) return;
-    if (entered === 'TEST') alert(`Logged into ${selDept.label} successfully!`);
-    else doShake('Invalid code (Try "TEST")');
+    if (!selDept) return;
+    if (selDept.id === 'estimation') {
+      const user = findEmployeeByCode(entered);
+      if (user) { navigate('/estimation-hub'); }
+      else doShake('Invalid access code');
+      return;
+    }
+    if (selDept.id === 'sales') { navigate('/sales'); return; }
+    if (selDept.id === 'contracts') { navigate('/construction'); return; }
+    doShake('Module coming soon');
   };
  
-  // ── Arc constants ──
-  const N       = depts.length;   // 6
-  const RADIUS  = 1100;            // px — arc radius
-  const PW      = 260;             // panel width  px
-  const PH      = 420;             // panel height px
-  const STAGE_H = 550;             // stage container height px
+  // ── Arc constants — all driven by responsive layout ──
+  const N       = depts.length;
+  const RADIUS  = L.RADIUS;
+  const PW      = L.PW;
+  const PH      = L.PH;
+  const STAGE_H = L.STAGE_H;
  
   const CARD_ANGLES = {
     '-5': -80, '-4': -64, '-3': -48,
@@ -430,7 +678,7 @@ export default function DummyHub() {
   return (
     <div style={{
       position:'fixed', inset:0, zIndex:200,
-      background:'#010106',
+      background:'#000',
       fontFamily:"'Inter',sans-serif", color:'#e2e8f0', overflow:'hidden',
     }}>
       <style>{`
@@ -491,6 +739,8 @@ export default function DummyHub() {
         @keyframes hs-hex-rot { to{transform:rotate(360deg)} }
         @keyframes hs-node-pulse { 0%,100%{r:3;opacity:0.4} 50%{r:5.5;opacity:1} }
         @keyframes hs-data-blink { 0%,100%{opacity:0.12} 50%{opacity:0.45} }
+        @keyframes hs-boot-line { 0%{opacity:0;transform:translateX(-6px)} 100%{opacity:1;transform:translateX(0)} }
+        @keyframes hs-scan-h { 0%{top:0%;opacity:0.9} 85%{opacity:0.6} 100%{top:100%;opacity:0} }
         @keyframes hs-vscreen-cycle {
           0%,100%{ opacity:0; transform:scale(0.86) translateY(10px); }
           5%     { opacity:1; transform:scale(1) translateY(0); }
@@ -519,9 +769,8 @@ export default function DummyHub() {
         .hs-topbrand-naffco {
           font-size:clamp(0.78rem,1vw,0.95rem); font-weight:500; letter-spacing:0.28em;
           text-transform:uppercase; line-height:1;
-          background:linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%);
-          background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
-          filter:drop-shadow(0 1px 8px rgba(79,70,229,0.55)); animation:hs-aurora 5s ease infinite;
+          color:#00aaff;
+          filter:drop-shadow(0 1px 8px rgba(0,170,255,0.55));
         }
         .hs-topbrand-sub { font-size:clamp(0.52rem,0.65vw,0.62rem); font-weight:400; letter-spacing:0.38em; text-transform:uppercase; color:rgba(255,255,255,0.28); margin-bottom:10px; }
         .hs-title {
@@ -584,75 +833,122 @@ export default function DummyHub() {
         .hs-ar-btn { position:absolute; bottom:24px; right:24px; z-index:40; display:inline-flex; align-items:center; gap:7px; background:rgba(10,8,26,0.65); border:1px solid rgba(255,255,255,0.28); border-radius:100px; padding:8px 18px; cursor:pointer; color:rgba(255,255,255,0.88); font-size:0.72rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; transition:all 0.3s cubic-bezier(0.4,0,0.2,1); backdrop-filter:blur(14px); box-shadow:0 4px 15px rgba(0,0,0,0.4); }
         .hs-ar-btn:hover { background:rgba(0,229,255,0.15); border-color:rgba(0,229,255,0.60); color:#fff; box-shadow:0 0 20px rgba(0,229,255,0.35); transform:translateY(-2px); }
         .hs-ar-dot { width:7px; height:7px; border-radius:50%; background:#00e5ff; box-shadow:0 0 10px #00e5ff; }
+
+        /* ═══════════════════════════════
+           RESPONSIVE OVERRIDES
+        ═══════════════════════════════ */
+
+        /* Tablet landscape / small laptop (768–1023px) */
+        @media (max-width:1023px) {
+          .hs-topbrand { left:14px!important; }
+          .hs-title { font-size:clamp(1.5rem,3.8vw,2.8rem)!important; }
+          .hs-state-of-art { font-size:0.68rem; letter-spacing:0.28em; }
+          .hs-card-label-aurora, .hs-card-label { font-size:1.1rem!important; }
+          .hs-icon-wrap { width:42px!important; height:42px!important; }
+          .hs-ar-btn { padding:6px 14px; font-size:0.66rem; }
+        }
+
+        /* Small tablet / large mobile (480–767px) */
+        @media (max-width:767px) {
+          .hs-topbrand { left:10px!important; }
+          .hs-title { font-size:clamp(1.2rem,5.5vw,2.2rem)!important; }
+          .hs-state-of-art { font-size:0.58rem; letter-spacing:0.20em; }
+          .hs-card-label-aurora, .hs-card-label { font-size:0.90rem!important; }
+          .hs-icon-wrap { width:34px!important; height:34px!important; }
+          .hs-icon-ring { border-radius:9px!important; }
+          .hs-icon-bg   { border-radius:7px!important; }
+          .hs-ar-btn { padding:5px 11px; font-size:0.60rem; gap:5px; }
+          .hs-back { font-size:0.65rem; margin-bottom:14px; }
+          .hs-cinput { width:clamp(160px,72vw,260px)!important; font-size:clamp(16px,4.5vw,26px)!important; }
+          .hs-hint   { font-size:9px; }
+          .hs-errmsg { font-size:10px; }
+          .hs-topbrand-naffco { font-size:0.70rem; }
+          .hs-topbrand-sub    { font-size:0.48rem; margin-bottom:6px; }
+        }
+
+        /* Mobile portrait (<480px) */
+        @media (max-width:479px) {
+          .hs-topbrand { left:8px!important; }
+          .hs-title { font-size:clamp(1.0rem,6.5vw,1.7rem)!important; }
+          .hs-state-of-art { display:none; }
+          .hs-card-label-aurora, .hs-card-label { font-size:0.75rem!important; }
+          .hs-icon-wrap { width:28px!important; height:28px!important; }
+          .hs-icon-ring { border-radius:7px!important; }
+          .hs-icon-bg   { border-radius:5px!important; }
+          .hs-ar-btn { padding:4px 9px; font-size:0.55rem; gap:4px; }
+          .hs-ar-dot { width:5px; height:5px; }
+          .hs-back { font-size:0.58rem; margin-bottom:10px; }
+          .hs-cinput { width:clamp(140px,80vw,240px)!important; font-size:clamp(14px,5vw,22px)!important; letter-spacing:0.20em!important; }
+          .hs-topbrand-naffco { font-size:0.62rem; letter-spacing:0.18em; }
+          .hs-topbrand-sub    { display:none; }
+        }
+
+        /* Wide / external display (≥1440px) */
+        @media (min-width:1440px) {
+          .hs-title { font-size:clamp(2.8rem,3.5vw,4.5rem)!important; }
+          .hs-card-label-aurora, .hs-card-label { font-size:1.7rem!important; }
+          .hs-icon-wrap { width:60px!important; height:60px!important; }
+          .hs-icon-ring { border-radius:15px!important; }
+          .hs-icon-bg   { border-radius:13px!important; }
+          .hs-ar-btn { padding:9px 20px; font-size:0.76rem; }
+        }
       `}</style>
  
-      {/* ══ LAYER 1: FULL-SCREEN AURORA — fully synced with hs-aurora 5s loop ══ */}
-      {/* dark base */}
+      {/* ══ LAYER 1: DARK BASE ══ */}
       <div style={{position:'absolute',inset:0,zIndex:0,background:'#010106',pointerEvents:'none'}}/>
-      {/* solid dark left half */}
       <div style={{position:'absolute',top:0,left:0,width:'50%',height:'100%',zIndex:0,background:'#010106',pointerEvents:'none'}}/>
- 
-      {/* ── SYNCED AURORA: right half, zIndex:0 — lives entirely behind the AI bot ── */}
-      <div style={{position:'absolute',top:0,right:0,width:'55%',height:'100%',zIndex:0,overflow:'hidden',pointerEvents:'none'}}>
-        {/*
-          PRIMARY BAND — uses the exact same gradient + hs-aurora 5s ease infinite as the
-          "AI APEX HUB" title, so both cycle through cyan → indigo → violet → purple → teal
-          in perfect lockstep.
-        */}
+
+      {/* ══ LAYER 2: AURORA — right half rainbow glow ══ */}
+      <div style={{position:'absolute',top:0,right:0,width:'55%',height:'100%',zIndex:1,overflow:'hidden',pointerEvents:'none'}}>
         <div style={{
-          position:'absolute',
-          inset:'-15% -5%',                     /* slight bleed so blur doesn't show hard edge */
-          background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)',
-          backgroundSize:'300% auto',            /* same as title CSS variable */
-          animation:'hs-aurora 5s ease infinite',/* ← identical loop: duration, easing, fill */
-          opacity:0.70,
-          filter:'blur(55px)',                   /* diffuse so it reads as atmospheric glow */
+          position:'absolute',top:'-10%',left:'0%',right:'0%',bottom:'-5%',
+          background:'conic-gradient(from 0deg at 50% 50%,#ff0000,#ff7700,#ffff00,#00ff88,#00cfff,#6d28d9,#a855f7,#ec4899,#ff0000)',
+          backgroundSize:'300% 300%',
+          animation:'hs-aurora 6s ease-in-out infinite',
+          filter:'blur(55px)',opacity:0.60,
+          WebkitMaskImage:'radial-gradient(ellipse 85% 90% at 50% 50%,black 5%,rgba(0,0,0,0.50) 50%,transparent 78%)',
+          maskImage:'radial-gradient(ellipse 85% 90% at 50% 50%,black 5%,rgba(0,0,0,0.50) 50%,transparent 78%)',
         }}/>
-        {/* secondary warm drift layer — adds depth without breaking the master sync */}
         <div style={{
-          position:'absolute', inset:0,
-          background:'radial-gradient(ellipse 55% 80% at 22% 50%, rgba(0,229,255,0.20) 0%, transparent 65%)',
-          animation:'hs-aurora-drift1 18s ease-in-out infinite',
+          position:'absolute',top:'-2%',left:'8%',right:'8%',bottom:'0%',
+          background:'linear-gradient(120deg,#ff0000 0%,#ff6600 12%,#ffcc00 24%,#00ff88 36%,#00bfff 48%,#3b82f6 58%,#8b5cf6 68%,#ec4899 80%,#ff3366 90%,#ff0000 100%)',
+          backgroundSize:'300% 300%',
+          animation:'hs-aurora 4s ease-in-out infinite reverse',
+          filter:'blur(30px)',opacity:0.70,
+          WebkitMaskImage:'radial-gradient(ellipse 72% 80% at 50% 44%,black 10%,rgba(0,0,0,0.55) 52%,transparent 78%)',
+          maskImage:'radial-gradient(ellipse 72% 80% at 50% 44%,black 10%,rgba(0,0,0,0.55) 52%,transparent 78%)',
         }}/>
-        {/* secondary cool drift layer */}
         <div style={{
-          position:'absolute', inset:0,
-          background:'radial-gradient(ellipse 55% 80% at 80% 50%, rgba(168,85,247,0.20) 0%, transparent 65%)',
-          animation:'hs-aurora-drift4 24s ease-in-out infinite',
+          position:'absolute',top:'8%',left:'20%',right:'18%',bottom:'2%',
+          background:'linear-gradient(160deg,#ff4444 0%,#ff9900 20%,#ffee00 35%,#a855f7 55%,#ec4899 72%,#ff6600 88%,#ff0000 100%)',
+          backgroundSize:'250% 250%',
+          animation:'hs-aurora 3.5s ease-in-out infinite',
+          filter:'blur(16px)',opacity:0.80,
+          WebkitMaskImage:'radial-gradient(ellipse 55% 68% at 50% 42%,black 18%,rgba(0,0,0,0.45) 55%,transparent 78%)',
+          maskImage:'radial-gradient(ellipse 55% 68% at 50% 42%,black 18%,rgba(0,0,0,0.45) 55%,transparent 78%)',
         }}/>
-        {/* left-edge feather — blends aurora cleanly into the dark left half */}
         <div style={{position:'absolute',top:0,left:0,width:'28%',height:'100%',background:'linear-gradient(to right,#010106 0%,transparent 100%)',pointerEvents:'none'}}/>
       </div>
- 
-      {/* global dim overlay */}
-      <div style={{position:'absolute',inset:0,zIndex:1,background:'rgba(1,1,6,0.28)',pointerEvents:'none'}}/>
 
-      {/* ── N logo watermark ── */}
-      <img src="/logo.png" alt="" aria-hidden="true" style={{
-        position:'absolute', top:'50%', left:'50%',
-        transform:'translate(-50%,-50%)',
-        zIndex:2, height:72, objectFit:'contain',
-        opacity:0.045,
-        filter:'grayscale(1) brightness(3)',
-        pointerEvents:'none', userSelect:'none',
-      }}/>
-
-      {/* ══ LAYER 2: AI BOT IMAGE — sits above aurora (zIndex:4) ══ */}
-      <div style={{position:'absolute',inset:0,zIndex:4,pointerEvents:'none'}}>
+      {/* ══ LAYER 3: AI BOT IMAGE ══ */}
+      <div style={{position:'absolute',inset:0,zIndex:2,pointerEvents:'none'}}>
         <img src="/AIBOT.png" alt="AI Bot" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center top',pointerEvents:'none'}}/>
       </div>
- 
+
+      {/* global dim overlay */}
+      <div style={{position:'absolute',inset:0,zIndex:3,background:'rgba(1,1,6,0.22)',pointerEvents:'none'}}/>
+
       {/* ══ LAYER 3: TEXT BRANDING ══ */}
  
       {/* ── NAFFCO wordmark — extreme left ── */}
-      <div style={{ position:'absolute', top:22, left:16, zIndex:30, display:'flex', flexDirection:'column', gap:0, animation:'hs-fadeUp 0.5s ease both' }}>
+      <div style={{ position:'absolute', top:L.brandTop, left:L.brandLeft, zIndex:30, display:'flex', flexDirection:'column', gap:0, animation:'hs-fadeUp 0.5s ease both' }}>
         <div className="hs-topbrand-naffco"><span style={{ fontWeight:900, letterSpacing:'0.18em' }}>NAFFCO</span> <span style={{ fontWeight:400 }}>AI APEX</span></div>
         <div className="hs-topbrand-sub" style={{ marginTop:3 }}>Passion to Protect</div>
       </div>
  
       {/* ── AI APEX HUB title + STATE OF ART — 6% from left ── */}
       <div className="hs-topbrand">
-        <h1 className="hs-title" style={{ marginTop:140 }}>AI APEX HUB</h1>
+        <h1 className="hs-title" style={{ marginTop:L.titleMarginTop }}>AI APEX HUB</h1>
         <p className="hs-state-of-art" style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ width:7, height:9, borderRadius:'50%', background:'#cc0000', boxShadow:'0 0 6px #cc0000, 0 0 14px rgba(204,0,0,0.55)', flexShrink:0, display:'inline-block' }}/>
           <span style={{ flex:1, height:1, background:'linear-gradient(to right, rgba(204,0,0,0.70) 0%, rgba(255,255,255,0.18) 100%)', display:'inline-block' }}/>
@@ -662,8 +958,8 @@ export default function DummyHub() {
  
       {/* ── BOTTOM-LEFT LOGO ── */}
       <img src="/logo.png" alt="NAFFCO" style={{
-        position:'absolute', bottom:24, left:36, zIndex:30,
-        height:32, objectFit:'contain', opacity:0.55,
+        position:'absolute', bottom:L.arBottom, left:L.brandLeft, zIndex:30,
+        height:L.logoH, objectFit:'contain', opacity:0.55,
         filter:'drop-shadow(0 1px 8px rgba(109,40,217,0.35))',
         animation:'hs-fadeUp 0.6s ease both', cursor:'pointer',
       }} onClick={() => alert('Cost Artist Login Prompt!')} />
@@ -672,44 +968,7 @@ export default function DummyHub() {
       <button className="hs-ar-btn" onClick={() => alert('AR Viewer Activated!')}>
         <span className="hs-ar-dot"/> AR Viewer
       </button>
- 
-      {/* ── LEFT SIDE: SMALL CIRCLE + VERTICAL PILL ── */}
-      <AnimatePresence>
-        {phase === 'select' && !expandedCard && (
-          <motion.div
-            initial={{ opacity:0, x:-18 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-18 }}
-            transition={{ duration:0.4 }}
-            style={{ position:'absolute', left:22, top:'50%', transform:'translateY(-50%)', zIndex:32, display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}
-          >
-            {/* prev button */}
-            <button onClick={goPrev} style={{ width:28, height:28, borderRadius:'50%', background:'rgba(255,255,255,0.07)', backdropFilter:'blur(14px)', border:'1px solid rgba(255,255,255,0.18)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.62)' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            {/* vertical pill */}
-            <div style={{ background:'rgba(10,8,26,0.75)', backdropFilter:'blur(28px)', border:'1.2px solid rgba(255,255,255,0.18)', borderRadius:100, padding:'15px 10px', display:'flex', flexDirection:'column', gap:18, alignItems:'center', boxShadow:'0 12px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)' }}>
-              {[
-                { d:'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10', on:true  },
-                { d:'M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0',   on:false },
-                { d:'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z', on:false },
-              ].map(({ d, on }, i) => (
-                <button key={i} style={{ width:38, height:38, borderRadius:'50%', background: on ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)', border:`1px solid ${on ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)'}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: on ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.42)', transition:'all 0.3s ease', boxShadow: on ? '0 0 12px rgba(255,255,255,0.15)' : 'none' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
- 
-      {/* ── TOP-RIGHT GRID CIRCLE BUTTON ── */}
-      {phase === 'select' && (
-        <button onClick={() => alert('Grid View')} style={{ position:'absolute', top:26, right:168, zIndex:42, width:34, height:34, borderRadius:'50%', background:'rgba(255,255,255,0.07)', backdropFilter:'blur(14px)', border:'1px solid rgba(255,255,255,0.15)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.58)' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-          </svg>
-        </button>
-      )}
+
  
       {/* ══ LAYER 4.5: FULL-SCREEN LIQUID GLASS FROST — covers everything when card is expanded ══ */}
       <AnimatePresence>
@@ -743,9 +1002,9 @@ export default function DummyHub() {
             onClick={() => { if (expandedCard) setExpandedCard(null); }}
             style={{
               position:'absolute',
-              top:180, left:0, right:55, bottom:15,
+              top:L.stageTop, left:0, right:vw < 768 ? 0 : 55, bottom:15,
               perspective:`${RADIUS * 1.1}px`,
-              perspectiveOrigin:'33% 68%',
+              perspectiveOrigin: '10% 65%',
               zIndex: expandedCard ? 60 : 20,
             }}
           >
@@ -766,12 +1025,12 @@ export default function DummyHub() {
                     const sx = scaleX != null ? scaleX * s : s;
                     const sy = scaleY != null ? scaleY * s : s;
                     const tx = x == null ? '-50%' : (typeof x === 'number' ? `${x}px` : x);
-                    return `translateX(${tx}) rotateY(${rotateY ?? '0deg'}) translateZ(${z ?? '0px'}) scaleX(${sx}) scaleY(${sy})`;
+                    return `translateX(${tx}) rotateY(${rotateY ?? 'deg'}) translateZ(${z ?? '0px'}) scaleX(${sx}) scaleY(${sy})`;
                   }}
                   style={{
                     '--tc': dept.color,
                     position:'absolute',
-                    left:'30%', bottom:140,
+                    left: L.cardLeft, bottom:L.cardBottom,
                     originX:'50%', originY:'50%',
                     borderRadius:'0px',
                     cursor:'pointer', overflow: relIdx === 0 ? 'visible' : 'hidden',
@@ -780,38 +1039,62 @@ export default function DummyHub() {
                   }}
                   initial={false}
                   animate={isExpanded ? {
-                    x: -140, rotateY: 0, z: 300,
+                    x: L.expandX, rotateY: 0, z: 300,
                     scale: 1,
-                    width: 800, height: 450,
+                    width: L.expandW, height: L.expandH,
                     opacity: 1,
                     background:'rgba(255,255,255,0.018)',
                     border:'1px solid rgba(200,225,255,0.14)',
                     boxShadow:'0 8px 32px rgba(0,8,40,0.12), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(180,210,255,0.06), inset 1px 0 0 rgba(255,255,255,0.08), inset -1px 0 0 rgba(180,210,255,0.04)',
                     transition:{
-                      type:'spring', stiffness:280, damping:26, mass:0.80,
-                      opacity:{ type:'tween', duration:0.22, ease:'easeOut' },
-                      background:{ type:'tween', duration:0.50, ease:[0.22,1,0.36,1] },
-                      boxShadow:{ type:'tween', duration:0.55, ease:[0.22,1,0.36,1] },
-                      border:{ type:'tween', duration:0.50, ease:[0.22,1,0.36,1] },
+                      type:'tween', duration:0.90, ease:[0.22,1,0.36,1],
+                      opacity:{ duration:0.45, ease:'easeOut' },
+                      background:{ duration:0.80, ease:[0.22,1,0.36,1] },
+                      boxShadow:{ duration:0.85, ease:[0.22,1,0.36,1] },
+                      border:{ duration:0.80, ease:[0.22,1,0.36,1] },
                     },
-                  } : {
-                    x: -(PW / 2), rotateY: angle,
-                    z: relIdx === 0 ? 200 : RADIUS * (Math.cos(angle * Math.PI / 180) - 1) * 1.8,
-                    scale: relIdx === 0 ? 0.96 : Math.max(0.50, 1 - Math.abs(relIdx) * 0.26),
-                    width: PW,
-                    height: PH,
-                    opacity: isHidden ? 0 : (relIdx === 0 ? 1 : Math.max(0.65, 0.95 - Math.abs(relIdx) * 0.12)),
-                    background: 'rgba(255,255,255,0.018)',
-                    border: `1px solid rgba(200,225,255,${relIdx === 0 ? 0.14 : Math.max(0.05, 0.10 - Math.abs(relIdx) * 0.02)})`,
-                    boxShadow: `0 8px 32px rgba(0,8,40,0.12), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(180,210,255,0.06), inset 1px 0 0 rgba(255,255,255,0.08), inset -1px 0 0 rgba(180,210,255,0.04)`,
-                    transition:{
-                      type:'tween', duration:0.55, ease:[0.22,1,0.36,1],
-                      opacity:{ duration:0.28, ease:'easeOut' },
-                    },
-                  }}
-                  whileHover={!expandedCard && relIdx !== 0 ? { scale: Math.max(0.50, 1 - Math.abs(relIdx) * 0.26) + 0.04 } : {}}
-                  whileTap={!expandedCard ? { scale: relIdx === 0 ? 1.05 : Math.max(0.46, 1 - Math.abs(relIdx) * 0.26) - 0.04 } : {}}
-                  onClick={(e) => { e.stopPropagation(); if (isExpanded) { pickDept(dept); } else if (relIdx === 0) { setExpandedCard(dept.id); } else { setActiveIdx(idx); } }}
+                  } : (() => {
+                    // ── DEPTH QUEUE: active card left+biggest, others shrink right ──
+                    const SCALE_STEP = 0.78; // each card is 78% of the previous
+                    const GAP_RATIO  = 0.84; // gap between cards as fraction of current card width
+
+                    // Compute cumulative x offset and scale for this relIdx
+                    let qx = 0;
+                    let qScale = 1;
+                    if (relIdx > 0) {
+                      let cw = PW;
+                      for (let i = 0; i < relIdx; i++) {
+                        qx += cw * GAP_RATIO;
+                        cw *= SCALE_STEP;
+                      }
+                      qScale = Math.max(0.20, Math.pow(SCALE_STEP, relIdx));
+                    } else if (relIdx < 0) {
+                      // Cards before active: hide off-screen to the left
+                      qx = relIdx * PW * 1.1;
+                    }
+
+                    return {
+                      x: qx,
+                      rotateY: relIdx === 0 ? 33 : relIdx * 8,
+                      z: relIdx > 0 ? -(relIdx * 90) : 0,
+                      scale: relIdx === 0 ? 1 : qScale,
+                      width: PW *1.1,
+                      height: PH *1.1,
+                      opacity: isHidden ? 0 : relIdx < 0 ? 0 : relIdx === 0 ? 1 : Math.max(0.28, 1 - relIdx * 0.18),
+                      background: 'rgba(255,255,255,0.018)',
+                      border: `1px solid rgba(200,225,255,${relIdx === 0 ? 0.18 : Math.max(0.04, 0.12 - relIdx * 0.02)})`,
+                      boxShadow: relIdx === 0
+                        ? '0 24px 60px rgba(0,8,40,0.40), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(180,210,255,0.08)'
+                        : '0 8px 32px rgba(0,8,40,0.20), inset 0 1px 0 rgba(255,255,255,0.10)',
+                      transition:{
+                        type:'tween', duration:0.52, ease:[0.22,1,0.36,1],
+                        opacity:{ duration:0.26, ease:'easeOut' },
+                      },
+                    };
+                  })()}
+                  whileHover={!expandedCard && relIdx > 0 ? { scale: Math.max(0.20, Math.pow(0.78, relIdx)) + 0.05 } : {}}
+                  whileTap={!expandedCard ? { scale: relIdx === 0 ? 1.03 : Math.max(0.18, Math.pow(0.78, relIdx)) - 0.04 } : {}}
+                  onClick={(e) => { e.stopPropagation(); if (isExpanded) { if (dept.id === 'estimation') { navigate('/estimation-hub'); } else { setPendingDept(dept); setZooming(true); } } else if (relIdx === 0) { setExpandedCard(dept.id); } else { setActiveIdx(idx); } }}
                 >
                   {/* ── LIQUID GLASS: top specular streak (real glass catches light on one edge) ── */}
                   <div style={{ position:'absolute', top:0, left:'18%', right:'18%', height:1, zIndex:30, background:`linear-gradient(90deg, transparent, rgba(255,255,255,0.10) 30%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.10) 70%, transparent)`, pointerEvents:'none' }}/>
@@ -924,54 +1207,133 @@ export default function DummyHub() {
                           </svg>
                         </div>
  
-                        <div style={{ position:'absolute', top:22, left:22, right:22 }}>
-                          <span className="hs-card-label-aurora" style={{ fontSize:'1.8rem' }}>{dept.label}</span>
-                        </div>
- 
- 
-                        {/* center icons — white/glass, same for all cards */}
-                        <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-60%)', display:'flex', alignItems:'center', gap:36, pointerEvents:'none', zIndex:2 }}>
-                          <div style={{ position:'relative', width:96, height:96, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                            {[0,1,2].map(i => (
-                              <div key={i} style={{ position:'absolute', inset: i * -14, borderRadius:'50%', border:`1.5px solid rgba(140,190,255,${0.38 - i * 0.11})`, animation:`hs-ping 2.8s ease-in-out ${i * 0.55}s infinite` }}/>
-                            ))}
-                            <div style={{ width:64, height:64, borderRadius:'50%', background:'radial-gradient(circle, rgba(100,160,255,0.16) 0%, rgba(80,130,220,0.06) 60%, transparent 100%)', border:'1.5px solid rgba(140,190,255,0.38)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 28px rgba(80,130,220,0.25), inset 0 0 14px rgba(100,160,255,0.08)', backdropFilter:'blur(8px)' }}>
-                              <div style={{ transform:'scale(2.2)', filter:'drop-shadow(0 0 6px rgba(140,190,255,0.80))' }}>
-                                {dept.icon('rgba(160,205,255,0.92)')}
+                        {dept.id === 'estimation' ? (
+                          /* ESTIMATION: video bot (blended) + AI text overlay */
+                          <div style={{ position:'absolute', inset:0, overflow:'hidden', borderRadius:'inherit' }}>
+
+                            {/* BOT VIDEO — mix-blend-mode:screen makes dark bg transparent */}
+                            <video
+                              src="/BOT_tn.mp4"
+                              autoPlay loop muted playsInline
+                              style={{
+                                position:'absolute',
+                                right:'-25%',
+                                top:'54%',
+                                transform:'translateY(-50%)',
+                                height:'125%',
+                                width:'auto',
+                                mixBlendMode:'screen',
+                                pointerEvents:'none',
+                                zIndex:1,
+                              }}
+                            />
+
+                            {/* soft right-edge fade so video blends into card border */}
+                            <div style={{ position:'absolute', top:0, right:0, bottom:0, width:'16%', background:'linear-gradient(to left,rgba(0,0,8,0.70) 0%,transparent 100%)', pointerEvents:'none', zIndex:2 }}/>
+
+                            {/* LEFT: AI text panel — floats over blended video */}
+                            <div style={{ position:'absolute', left:0, top:0, bottom:0, width:'54%', display:'flex', flexDirection:'column', padding:'16px 14px 12px 16px', overflow:'hidden', zIndex:3 }}>
+                              <div style={{ position:'absolute', left:0, right:0, height:1, background:'linear-gradient(90deg,transparent,rgba(0,229,255,0.60) 35%,rgba(0,229,255,0.90) 55%,transparent)', animation:'hs-scan-h 3.6s ease-in-out 0.8s infinite', pointerEvents:'none', zIndex:10 }}/>
+                              <div style={{ display:'flex', flexDirection:'column', gap:5, marginBottom:150 }}>
+                                {[
+                                  { t:'> SYSTEM INITIALIZING...',    d:'0.35s', hi:false },
+                                  { t:'> LOADING ESTIMATION MODELS', d:'0.85s', hi:false },
+                                  { t:'> AI ENGINE CALIBRATED',      d:'1.35s', hi:false },
+                                  { t:'> SYSTEM ONLINE  \u00b7  AI READY', d:'1.85s', hi:true  },
+                                ].map(({ t, d, hi }, i) => (
+                                  <div key={i} style={{ display:'flex', alignItems:'center', gap:6, opacity:0, animation:'hs-boot-line 0.45s ease forwards', animationDelay:d }}>
+                                    {hi && <div style={{ width:5, height:5, borderRadius:'50%', flexShrink:0, background:'rgba(0,229,255,0.95)', boxShadow:'0 0 6px rgba(0,229,255,0.80)', animation:'hs-ticker 1.8s ease-in-out infinite' }}/>}
+                                    <span style={{ fontSize:'0.50rem', fontFamily:"'Inter',monospace", letterSpacing:'0.14em', fontWeight: hi ? 700 : 500, color: hi ? 'rgba(0,229,255,0.92)' : 'rgba(140,190,255,0.52)' }}>{t}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ opacity:0, animation:'hs-boot-line 0.60s ease forwards', animationDelay:'2.25s', marginBottom:8, marginTop:39 }}>
+                                <div style={{ fontSize:'clamp(0.95rem,2.2vw,1.38rem)', fontWeight:400, fontFamily:"'Cinzel',serif", letterSpacing:'0.05em', textTransform:'uppercase', lineHeight:1.18, background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)', backgroundSize:'300% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-aurora 5s ease infinite', filter:'drop-shadow(0 0 16px rgba(0,229,255,0.55))' }}>
+
+                                </div>
+                              </div>
+                              <div style={{ height:1, background:'linear-gradient(to right,rgba(0,229,255,0.35),rgba(140,190,255,0.15),transparent)', marginBottom:10, opacity:0, animation:'hs-boot-line 0.40s ease forwards', animationDelay:'2.55s' }}/>
+                              <div style={{ overflow:'hidden', marginTop:-52, opacity:0, animation:'hs-boot-line 0.60s ease forwards', animationDelay:'2.75s' }}>
+                                <p style={{ margin:0, fontFamily:"'Inter',sans-serif", overflow:'hidden' }}>
+                                  {typedDef.split('\n').map((line, i) => (
+                                    <span key={i} style={{
+                                      display:'block',
+                                      background:'linear-gradient(90deg,#00e5ff 0%,#4f46e5 18%,#7c3aed 34%,#a855f7 50%,#06b6d4 68%,#00e5ff 100%)',
+                                      backgroundSize:'300% auto',
+                                      WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text',
+                                      animation:'hs-aurora 5s ease infinite',
+                                      filter:'drop-shadow(0 0 8px rgba(0,229,255,0.30))',
+                                      fontSize: i === 1 ? '0.90rem' : '0.80rem',
+                                      fontWeight: i === 1 ? 400 : 500,
+                                      lineHeight: i === 1 ? 2.2 : 1.78,
+                                      letterSpacing: i === 1 ? '0.04em' : '0.02em',
+                                    }}>
+                                      {line}
+                                      {isTyping && i === typedDef.split('\n').length - 1 && (
+                                        <span className="hs-type-cursor" style={{ color:'rgba(0,229,255,1)', WebkitTextFillColor:'rgba(0,229,255,1)' }}/>
+                                      )}
+                                    </span>
+                                  ))}
+                                </p>
+                              </div>
+                              <div style={{ position:'absolute', bottom:14, left:16, display:'flex', flexDirection:'column', gap:4, opacity:0, animation:'hs-boot-line 0.45s ease forwards', animationDelay:'3.05s' }}>
+                                <div style={{ fontSize:'0.44rem', letterSpacing:'0.32em', textTransform:'uppercase', color:'rgba(140,190,255,0.38)', fontWeight:700, fontFamily:"'Inter',sans-serif", marginBottom:4 }}>NAFFCO · AI MODULE</div>
+                                {['SYSTEM ONLINE','AI READY','SECURE LINK'].map((txt,i) => (
+                                  <div key={i} style={{ display:'flex', alignItems:'center', gap:5, animation:`hs-ticker 2.4s ease-in-out ${i*0.6}s infinite` }}>
+                                    <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(0,229,255,0.88)', boxShadow:'0 0 5px rgba(0,229,255,0.70)' }}/>
+                                    <span style={{ fontSize:'0.48rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(0,229,255,0.60)', fontWeight:600, fontFamily:"'Inter',sans-serif" }}>{txt}</span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>
-                          <div style={{ transform:'scale(1.65)', filter:'drop-shadow(0 0 18px rgba(140,190,255,0.55)) drop-shadow(0 0 6px rgba(100,160,255,0.35)) brightness(1.4)', flexShrink:0 }}>
-                            {DEPT_ICONS_LARGE[dept.id]?.('140,190,255')}
-                          </div>
-                          <div style={{ position:'relative', width:96, height:96, flexShrink:0 }}>
-                            <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:20, height:20, borderRadius:'50%', background:'rgba(140,190,255,0.90)', boxShadow:'0 0 20px rgba(100,160,255,0.65), 0 0 7px rgba(80,140,255,0.40)' }}/>
-                            <div style={{ position:'absolute', inset:4, borderRadius:'50%', border:'1.5px solid rgba(140,190,255,0.22)', animation:'hs-spin 4s linear infinite' }}>
-                              <div style={{ position:'absolute', top:-5, left:'50%', marginLeft:-5, width:10, height:10, borderRadius:'50%', background:'rgba(160,205,255,0.92)', boxShadow:'0 0 10px rgba(140,190,255,0.70)' }}/>
-                              <div style={{ position:'absolute', bottom:-5, left:'50%', marginLeft:-5, width:6, height:6, borderRadius:'50%', background:'rgba(100,160,255,0.60)', boxShadow:'0 0 6px rgba(80,140,255,0.50)' }}/>
+                        ) : (
+                          <>
+                            <div style={{ position:'absolute', top:22, left:22, right:22 }}>
+                              <span className="hs-card-label-aurora" style={{ fontSize:'1.8rem' }}>{dept.label}</span>
                             </div>
-                            <div style={{ position:'absolute', inset:20, borderRadius:'50%', border:'1px solid rgba(140,190,255,0.32)', animation:'hs-spin-rev 2.5s linear infinite' }}>
-                              <div style={{ position:'absolute', top:-4, left:'50%', marginLeft:-4, width:8, height:8, borderRadius:'50%', background:'rgba(160,205,255,0.85)', boxShadow:'0 0 8px rgba(140,190,255,0.65)' }}/>
+                            <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-60%)', display:'flex', alignItems:'center', gap:36, pointerEvents:'none', zIndex:2 }}>
+                              <div style={{ position:'relative', width:96, height:96, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                {[0,1,2].map(i => (
+                                  <div key={i} style={{ position:'absolute', inset: i * -14, borderRadius:'50%', border:`1.5px solid rgba(140,190,255,${0.38 - i * 0.11})`, animation:`hs-ping 2.8s ease-in-out ${i * 0.55}s infinite` }}/>
+                                ))}
+                                <div style={{ width:64, height:64, borderRadius:'50%', background:'radial-gradient(circle, rgba(100,160,255,0.16) 0%, rgba(80,130,220,0.06) 60%, transparent 100%)', border:'1.5px solid rgba(140,190,255,0.38)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 28px rgba(80,130,220,0.25), inset 0 0 14px rgba(100,160,255,0.08)', backdropFilter:'blur(8px)' }}>
+                                  <div style={{ transform:'scale(2.2)', filter:'drop-shadow(0 0 6px rgba(140,190,255,0.80))' }}>
+                                    {dept.icon('rgba(160,205,255,0.92)')}
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ transform:'scale(1.65)', filter:'drop-shadow(0 0 18px rgba(140,190,255,0.55)) drop-shadow(0 0 6px rgba(100,160,255,0.35)) brightness(1.4)', flexShrink:0 }}>
+                                {DEPT_ICONS_LARGE[dept.id]?.('140,190,255')}
+                              </div>
+                              <div style={{ position:'relative', width:96, height:96, flexShrink:0 }}>
+                                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:20, height:20, borderRadius:'50%', background:'rgba(140,190,255,0.90)', boxShadow:'0 0 20px rgba(100,160,255,0.65), 0 0 7px rgba(80,140,255,0.40)' }}/>
+                                <div style={{ position:'absolute', inset:4, borderRadius:'50%', border:'1.5px solid rgba(140,190,255,0.22)', animation:'hs-spin 4s linear infinite' }}>
+                                  <div style={{ position:'absolute', top:-5, left:'50%', marginLeft:-5, width:10, height:10, borderRadius:'50%', background:'rgba(160,205,255,0.92)', boxShadow:'0 0 10px rgba(140,190,255,0.70)' }}/>
+                                  <div style={{ position:'absolute', bottom:-5, left:'50%', marginLeft:-5, width:6, height:6, borderRadius:'50%', background:'rgba(100,160,255,0.60)', boxShadow:'0 0 6px rgba(80,140,255,0.50)' }}/>
+                                </div>
+                                <div style={{ position:'absolute', inset:20, borderRadius:'50%', border:'1px solid rgba(140,190,255,0.32)', animation:'hs-spin-rev 2.5s linear infinite' }}>
+                                  <div style={{ position:'absolute', top:-4, left:'50%', marginLeft:-4, width:8, height:8, borderRadius:'50%', background:'rgba(160,205,255,0.85)', boxShadow:'0 0 8px rgba(140,190,255,0.65)' }}/>
+                                </div>
+                                <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle, rgba(80,130,220,0.12) 0%, transparent 65%)', borderRadius:'50%', animation:'hs-ping 3.2s ease-in-out infinite' }}/>
+                              </div>
                             </div>
-                            <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle, rgba(80,130,220,0.12) 0%, transparent 65%)', borderRadius:'50%', animation:'hs-ping 3.2s ease-in-out infinite' }}/>
-                          </div>
-                        </div>
- 
-                        {isExpanded && (
-                          <p style={{ position:'absolute', bottom:90, left:24, right:24, margin:0, textAlign:'left', fontSize:'0.80rem', lineHeight:1.90, letterSpacing:'0.03em', fontFamily:"'Inter',sans-serif", fontWeight:500, background:'linear-gradient(90deg, #c8c0b0 0%, #ede8df 18%, #ffffff 32%, #f8f4ee 42%, #ffffff 50%, #f0ebe2 58%, #ffffff 68%, #ede8df 82%, #c8c0b0 100%)', backgroundSize:'250% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-shine 6s linear infinite', filter:'drop-shadow(0 0 8px rgba(255,252,245,0.30))', zIndex:2, pointerEvents:'none' }}>
-                            {typedDef}
-                            {isTyping && <span className="hs-type-cursor" style={{ color:'rgba(160,205,255,1)', WebkitTextFillColor:'rgba(160,205,255,1)' }}/>}
-                          </p>
+                            {isExpanded && (
+                              <p style={{ position:'absolute', bottom:90, left:24, right:24, margin:0, textAlign:'left', fontSize:'0.80rem', lineHeight:1.90, letterSpacing:'0.03em', fontFamily:"'Inter',sans-serif", fontWeight:500, background:'linear-gradient(90deg, #c8c0b0 0%, #ede8df 18%, #ffffff 32%, #f8f4ee 42%, #ffffff 50%, #f0ebe2 58%, #ffffff 68%, #ede8df 82%, #c8c0b0 100%)', backgroundSize:'250% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-shine 6s linear infinite', filter:'drop-shadow(0 0 8px rgba(255,252,245,0.30))', zIndex:2, pointerEvents:'none' }}>
+                                {typedDef}
+                                {isTyping && <span className="hs-type-cursor" style={{ color:'rgba(160,205,255,1)', WebkitTextFillColor:'rgba(160,205,255,1)' }}/>}
+                              </p>
+                            )}
+                            <div style={{ position:'absolute', bottom:18, left:22, display:'flex', flexDirection:'column', gap:5, pointerEvents:'none' }}>
+                              {['SYSTEM ONLINE','AI READY','SECURE LINK'].map((txt,i) => (
+                                <div key={i} style={{ display:'flex', alignItems:'center', gap:6, animation:`hs-ticker 2.4s ease-in-out ${i*0.6}s infinite` }}>
+                                  <div style={{ width:5, height:5, borderRadius:'50%', background:'rgba(140,190,255,0.90)', boxShadow:'0 0 5px rgba(140,190,255,0.75)' }}/>
+                                  <span style={{ fontSize:'0.58rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(160,205,255,0.65)', fontWeight:600 }}>{txt}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         )}
- 
-                        <div style={{ position:'absolute', bottom:18, left:22, display:'flex', flexDirection:'column', gap:5, pointerEvents:'none' }}>
-                          {['SYSTEM ONLINE','AI READY','SECURE LINK'].map((txt,i) => (
-                            <div key={i} style={{ display:'flex', alignItems:'center', gap:6, animation:`hs-ticker 2.4s ease-in-out ${i*0.6}s infinite` }}>
-                              <div style={{ width:5, height:5, borderRadius:'50%', background:'rgba(140,190,255,0.90)', boxShadow:'0 0 5px rgba(140,190,255,0.75)' }}/>
-                              <span style={{ fontSize:'0.58rem', letterSpacing:'0.22em', textTransform:'uppercase', color:'rgba(160,205,255,0.65)', fontWeight:600 }}>{txt}</span>
-                            </div>
-                          ))}
-                        </div>
  
                         <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(ellipse at 50% 52%, rgba(80,130,220,0.12) 0%, transparent 65%)' }}/>
                         {/* bottom inner glass glow */}
@@ -988,9 +1350,9 @@ export default function DummyHub() {
             {!expandedCard && (
               <div style={{
                 position:'absolute',
-                right:'28%', bottom:245 ,
-                width: Math.round(PW * 0.42),
-                height: Math.round(PH * 0.58),
+                right:'32%', bottom:145,
+                width: Math.round(PW * 0.46),
+                height: Math.round(PH * 0.64),
                 zIndex:16,
                 transform:`perspective(${RADIUS * 1.1}px) rotateY(-22deg) translateZ(90px)`,
                 transformOrigin:'50% 100%',
@@ -1002,70 +1364,30 @@ export default function DummyHub() {
                 pointerEvents:'none',
                 overflow:'hidden',
               }}>
-                {/* top specular — light hits the right panel from the left */}
                 <div style={{ position:'absolute', top:0, left:'12%', right:'12%', height:1, background:'linear-gradient(90deg, transparent, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.26) 55%, rgba(255,255,255,0.10) 80%, transparent)', pointerEvents:'none' }}/>
-                {/* right-edge glint */}
                 <div style={{ position:'absolute', top:'4%', right:0, height:'22%', width:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,0.18) 40%, rgba(255,255,255,0.09) 70%, transparent)', pointerEvents:'none' }}/>
-                {/* inner lens refraction */}
                 <div style={{ position:'absolute', inset:0, background:'linear-gradient(142deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 32%, transparent 60%)', pointerEvents:'none' }}/>
-                {/* bottom depth shadow */}
                 <div style={{ position:'absolute', bottom:0, left:'6%', right:'6%', height:1, background:'linear-gradient(90deg, transparent, rgba(0,10,60,0.16) 40%, rgba(0,10,60,0.20) 50%, rgba(0,10,60,0.16) 60%, transparent)', pointerEvents:'none' }}/>
-
-                {/* ── ChatGPT-style active card brief ── */}
-                <div style={{ position:'absolute', inset:0, padding:'12px 9px 10px', display:'flex', flexDirection:'column', gap:7, zIndex:2, overflow:'hidden' }}>
-
-                  {/* header: pulsing dot + label */}
-                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                    <div style={{ width:4, height:4, borderRadius:'50%', background:`rgba(${activeDept.a},0.90)`, boxShadow:`0 0 6px rgba(${activeDept.a},0.75)`, flexShrink:0, animation:'hs-ticker 2s ease-in-out infinite' }}/>
-                    <span style={{ fontSize:'0.43rem', letterSpacing:'0.30em', color:'rgba(255,255,255,0.28)', textTransform:'uppercase', fontFamily:"'Inter',sans-serif", fontWeight:700 }}>AI BRIEF</span>
-                  </div>
-
-                  {/* accent line */}
-                  <div style={{ height:0.5, background:`linear-gradient(90deg, rgba(${activeDept.a},0.40), transparent 80%)`, flexShrink:0 }}/>
-
-                  {/* dept name — fades in first */}
-                  <div style={{ fontSize:'0.60rem', fontWeight:700, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:"'Cinzel',serif", lineHeight:1.2, background:`linear-gradient(100deg,rgba(${activeDept.a},1) 0%,rgba(255,255,255,0.75) 100%)`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', flexShrink:0, opacity: briefStep >= 1 ? 1 : 0, transform: briefStep >= 1 ? 'translateY(0)' : 'translateY(4px)', transition:'opacity 0.28s ease, transform 0.28s ease' }}>
-                    {activeDept.label}
-                  </div>
-
-                  {/* 2 key stats — values type char by char */}
-                  <div style={{ display:'flex', flexDirection:'column', gap:4, flexShrink:0 }}>
+                <div style={{ position:'absolute', inset:0, padding:'7px 8px 8px', display:'flex', flexDirection:'column', gap:4, zIndex:2, overflow:'hidden' }}>
+                  {/* Department-specific mini graph */}
+                  <MiniGraph deptId={activeDept.id}/>
+                  {/* glass separator */}
+                  <div style={{ height:0.5, background:'linear-gradient(90deg,rgba(200,225,255,0.28),transparent 80%)', flexShrink:0 }}/>
+                  {/* Dept label — glass ceramic shimmer */}
+                  <div style={{ fontSize:'0.56rem', fontWeight:700, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:"'Cinzel',serif", lineHeight:1.2, background:'linear-gradient(110deg,rgba(255,255,255,0.92) 0%,rgba(200,225,255,0.80) 40%,rgba(255,255,255,0.95) 60%,rgba(180,215,255,0.75) 100%)', backgroundSize:'220% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-shine 5s linear infinite', filter:'drop-shadow(0 0 6px rgba(200,225,255,0.35))', flexShrink:0, opacity: briefStep >= 1 ? 1 : 0, transform: briefStep >= 1 ? 'translateY(0)' : 'translateY(4px)', transition:'opacity 0.28s ease, transform 0.28s ease' }}>{activeDept.label}</div>
+                  {/* Stats */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
                     {activeMeta.stats.slice(0,2).map((s,i) => (
-                      <div key={i} style={{ display:'flex', alignItems:'center', gap:5, opacity: briefStep >= 2 ? 1 : 0, transition:`opacity 0.20s ease ${i*0.08}s` }}>
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={`rgba(${activeDept.a},0.65)`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
-                          <path d={s.d}/>
-                        </svg>
-                        <span style={{ fontSize:'0.55rem', fontWeight:700, color:`rgba(${activeDept.a},0.92)`, fontFamily:"'Inter',sans-serif", letterSpacing:'0.04em' }}>
-                          {typedStats[i]}
-                          {briefStep >= 2 && typedStats[i].length < s.v.length && (
-                            <span className="hs-type-cursor" style={{ color:`rgba(${activeDept.a},0.85)`, WebkitTextFillColor:`rgba(${activeDept.a},0.85)` }}/>
-                          )}
-                        </span>
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:4, opacity: briefStep >= 2 ? 1 : 0, transition:`opacity 0.20s ease ${i*0.08}s` }}>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(200,225,255,0.55)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}><path d={s.d}/></svg>
+                        <span style={{ fontSize:'0.52rem', fontWeight:700, color:'rgba(210,230,255,0.90)', fontFamily:"'Inter',sans-serif", letterSpacing:'0.04em' }}>{typedStats[i]}{briefStep >= 2 && typedStats[i].length < s.v.length && <span className="hs-type-cursor" style={{ color:'rgba(200,225,255,0.90)', WebkitTextFillColor:'rgba(200,225,255,0.90)' }}/>}</span>
                       </div>
                     ))}
                   </div>
-
-                  {/* divider */}
-                  <div style={{ height:0.5, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
-
-                  {/* clipped definition — typing style */}
-                  <div style={{ fontSize:'0.43rem', lineHeight:1.75, color:'rgba(255,255,255,0.36)', fontFamily:"'Inter',sans-serif", fontWeight:400, letterSpacing:'0.01em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:4, WebkitBoxOrient:'vertical', flex:1, minHeight:0 }}>
-                    {typedBrief}
-                    {isBriefTyping && <span className="hs-type-cursor" style={{ color:`rgba(${activeDept.a},0.85)`, WebkitTextFillColor:`rgba(${activeDept.a},0.85)` }}/>}
-                  </div>
-
-                  {/* divider */}
-                  <div style={{ height:0.5, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
-
-                  {/* module chips — staggered fade in last */}
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:3, flexShrink:0 }}>
-                    {activeMeta.items.slice(0,4).map((item,i) => (
-                      <div key={i} style={{ padding:'2px 5px', border:`0.5px solid rgba(${activeDept.a},0.28)`, fontSize:'0.38rem', color:`rgba(${activeDept.a},0.70)`, letterSpacing:'0.09em', textTransform:'uppercase', fontFamily:"'Inter',sans-serif", fontWeight:600, opacity: briefStep >= 4 ? 1 : 0, transform: briefStep >= 4 ? 'translateY(0)' : 'translateY(3px)', transition:`opacity 0.22s ease ${i*0.07}s, transform 0.22s ease ${i*0.07}s` }}>
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-
+                  {/* glass separator */}
+                  <div style={{ height:0.5, background:'rgba(255,255,255,0.08)', flexShrink:0 }}/>
+                  {/* Brief definition — glass frosted text */}
+                  <div style={{ fontSize:'0.40rem', lineHeight:1.72, color:'rgba(190,215,255,0.55)', fontFamily:"'Inter',sans-serif", fontWeight:400, letterSpacing:'0.01em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:4, WebkitBoxOrient:'vertical', flex:1, minHeight:0 }}>{typedBrief}{isBriefTyping && <span className="hs-type-cursor" style={{ color:'rgba(210,230,255,0.85)', WebkitTextFillColor:'rgba(210,230,255,0.85)' }}/>}</div>
                 </div>
               </div>
             )}
@@ -1076,20 +1398,51 @@ export default function DummyHub() {
         )}
       </AnimatePresence>
  
+      {/* ══ ZOOM TRANSITION — circular wipe from centre ══ */}
+      <AnimatePresence>
+        {zooming && (
+          <motion.div
+            key="zoom-wipe"
+            initial={{ scale:0.04, borderRadius:'50%', opacity:1 }}
+            animate={{ scale:1.15, borderRadius:'0%', opacity:1 }}
+            exit={{ opacity:0 }}
+            transition={{
+              scale:        { duration:0.62, ease:[0.22,1,0.36,1] },
+              borderRadius: { duration:0.66, ease:[0.22,1,0.36,1] },
+              opacity:      { duration:0.28, ease:'easeIn' },
+            }}
+            onAnimationComplete={() => {
+              if (pendingDept) {
+                const d = pendingDept;
+                setPendingDept(null);
+                setZooming(false);
+                pickDept(d);
+              }
+            }}
+            style={{
+              position:'fixed', inset:0, zIndex:299,
+              background:'linear-gradient(135deg,#010106 0%,#04021c 60%,#060228 100%)',
+              transformOrigin:'50% 50%',
+              pointerEvents:'none',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ══ CODE ENTRY PHASE ══ */}
       <AnimatePresence>
         {phase === 'code' && (
           <motion.div
-            initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
-            transition={{ duration:0.4 }}
-            style={{ position:'absolute', inset:0, zIndex:30, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'flex-start', padding:'0 10vw' }}
+            initial={{ opacity:0, y:28 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:18 }}
+            transition={{ duration:0.75, delay:0.08, ease:[0.22,1,0.36,1] }}
+            style={{ position:'absolute', inset:0, zIndex:30, display:'flex', flexDirection:'column', justifyContent:'center', alignItems: vw < 640 ? 'center' : 'flex-start', padding: vw < 640 ? '0 6vw' : '0 10vw', textAlign: vw < 640 ? 'center' : 'left' }}
           >
             <button className="hs-back" onClick={() => { setPhase('select'); setCode(''); setErrMsg(''); setExpandedCard(null); }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Back
             </button>
-            <h1 style={{ fontFamily:'Cinzel,serif', fontSize:'clamp(1.8rem,3.2vw,3rem)', fontWeight:400, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8, background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)', backgroundSize:'300% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-aurora 5s ease infinite' }}>{selDept?.label}</h1>
-            <p style={{fontSize:'0.78rem', letterSpacing:'0.18em', color:'rgba(255,255,255,0.35)', textTransform:'uppercase', marginBottom:28}}>{selDept?.hint}</p>
+            <h1 style={{ fontFamily:'Cinzel,serif', fontSize:'clamp(1.3rem,4.5vw,3rem)', fontWeight:400, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8, background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)', backgroundSize:'300% auto', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', animation:'hs-aurora 5s ease infinite' }}>{selDept?.label}</h1>
+            <p style={{fontSize:'clamp(0.60rem,1.4vw,0.78rem)', letterSpacing:'0.14em', color:'rgba(255,255,255,0.35)', textTransform:'uppercase', marginBottom:vw < 480 ? 18 : 28}}>{selDept?.hint}</p>
             <form className={`hs-cform${shake ? ' hs-shake' : ''}`} onSubmit={handleSubmit} style={{display:'flex', flexDirection:'column', alignItems:'flex-start'}}>
               <div style={{position:'relative', display:'inline-flex', alignItems:'center'}}>
                 <input ref={inputRef} className={`hs-cinput${errMsg ? ' hs-err' : ''}`} type={showCode ? 'text' : 'password'} value={code} onChange={e => { setCode(e.target.value); setErrMsg(''); }} placeholder="— — — —" maxLength={10} autoComplete="off" spellCheck={false} style={{paddingRight:36}}/>

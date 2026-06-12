@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>KPI Dashboard — Estimation Department</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    :root{
+      --blue:#1d4ed8; --blue-lt:#3b82f6; --blue-bg:#eff6ff;
+      --green:#16a34a; --green-bg:#f0fdf4; --green-bd:#bbf7d0;
+      --amber:#d97706; --amber-bg:#fffbeb; --amber-bd:#fde68a;
+      --red:#dc2626;   --red-bg:#fef2f2;   --red-bd:#fecaca;
+      --text:#0f172a; --text2:#475569; --text3:#94a3b8;
+      --card:rgba(255,255,255,0.78); --card-bd:rgba(255,255,255,0.94);
+    }
+
+    body{
+      font-family:'Inter',sans-serif;
+      background:linear-gradient(148deg,#eef4fd 0%,#e4edf8 55%,#d8e6f4 100%);
+      min-height:100vh; color:var(--text); padding-bottom:56px;
+    }
+
+    /* ── HEADER ── */
+    .hdr{
+      background:rgba(255,255,255,0.86);
+      backdrop-filter:blur(18px) saturate(140%);
+      -webkit-backdrop-filter:blur(18px) saturate(140%);
+      border-bottom:1px solid rgba(255,255,255,0.95);
+      box-shadow:0 1px 14px rgba(0,30,100,0.07);
+      padding:14px 32px; display:flex; align-items:center;
+      justify-content:space-between; position:sticky; top:0; z-index:100;
+    }
+    .hdr-l{display:flex;align-items:center;gap:14px}
+    .logo{
+      width:42px;height:42px;border-radius:10px;
+      background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.1rem;font-weight:800;color:#fff;letter-spacing:-.5px;
+      box-shadow:0 4px 14px rgba(29,78,216,0.35);
+    }
+    .hdr-title{font-size:1.02rem;font-weight:700}
+    .hdr-sub{font-size:0.65rem;color:var(--text3);margin-top:2px;letter-spacing:.07em;text-transform:uppercase}
+    .hdr-r{display:flex;align-items:center;gap:8px}
+    .chip{font-size:.68rem;font-weight:500;padding:4px 12px;border-radius:100px}
+    .chip-period{background:var(--blue-bg);color:#1e40af;border:1px solid #bfdbfe;font-weight:600}
+    .chip-date{background:rgba(0,0,0,0.04);color:var(--text2);border:1px solid rgba(0,0,0,0.08)}
+
+    /* ── CONTAINER ── */
+    .wrap{max-width:1220px;margin:0 auto;padding:30px 22px 0}
+
+    /* ── OVERALL CARD ── */
+    .ov-card{
+      background:var(--card);
+      backdrop-filter:blur(18px) saturate(145%);
+      -webkit-backdrop-filter:blur(18px) saturate(145%);
+      border:1px solid var(--card-bd);
+      border-radius:22px;
+      box-shadow:0 8px 44px rgba(0,30,100,0.10),0 2px 8px rgba(0,30,100,0.05);
+      padding:28px 32px; margin-bottom:22px;
+      display:flex; align-items:center; gap:32px; flex-wrap:wrap;
+    }
+
+    /* SVG circle */
+    .circ-wrap{position:relative;width:164px;height:164px;flex-shrink:0}
+    .circ-wrap svg{transform:rotate(-90deg)}
+    .c-bg{fill:none;stroke:#e2e8f0;stroke-width:11}
+    .c-val{fill:none;stroke-width:11;stroke-linecap:round}
+    .circ-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .circ-pct{font-size:2.10rem;font-weight:800;line-height:1}
+    .circ-lbl{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--text3);margin-top:5px}
+
+    .ov-info{flex:1;min-width:210px}
+    .ov-title{font-size:1.14rem;font-weight:700;margin-bottom:5px}
+    .ov-sub{font-size:.76rem;color:var(--text2);margin-bottom:16px}
+    .ov-pills{display:flex;gap:10px;flex-wrap:wrap}
+    .pill{display:flex;align-items:center;gap:6px;padding:5px 13px;border-radius:100px;font-size:.70rem;font-weight:600}
+    .pdot{width:7px;height:7px;border-radius:50%}
+
+    .ov-table{
+      margin-left:auto;flex-shrink:0;
+      background:rgba(0,0,0,0.025);border:1px solid rgba(0,0,0,0.07);
+      border-radius:16px;padding:16px 20px;min-width:240px;
+    }
+    .tbl-head{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--text3);margin-bottom:11px}
+    .tbl-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:.70rem}
+    .tbl-row .lbl{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+    .tbl-row .val{font-weight:700;color:var(--text);margin-left:10px;white-space:nowrap}
+    .tbl-divider{border-top:1px solid rgba(0,0,0,0.08);padding-top:8px;margin-top:6px}
+    .tbl-total .lbl{font-weight:700;color:var(--text);font-size:.76rem}
+    .tbl-total .val{font-weight:800;font-size:.92rem;color:var(--blue)}
+
+    /* ── KPI GRID ── */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    @media(max-width:960px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:580px){.grid{grid-template-columns:1fr}}
+
+    /* ── KPI CARD ── */
+    .kcard{
+      background:var(--card);
+      backdrop-filter:blur(16px) saturate(145%);
+      -webkit-backdrop-filter:blur(16px) saturate(145%);
+      border:1px solid var(--card-bd);
+      border-radius:18px;
+      box-shadow:0 4px 26px rgba(0,30,100,0.08),0 1px 4px rgba(0,30,100,0.04);
+      padding:22px;
+      transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+      cursor:pointer; position:relative; overflow:hidden;
+    }
+    .kcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3.5px;border-radius:18px 18px 0 0}
+    .kcard.achieved::before{background:linear-gradient(90deg,#16a34a,#22c55e)}
+    .kcard.at-risk::before {background:linear-gradient(90deg,#d97706,#fbbf24)}
+    .kcard.below::before   {background:linear-gradient(90deg,#dc2626,#f87171)}
+    .kcard:hover{transform:translateY(-5px);box-shadow:0 18px 52px rgba(0,30,100,0.15);border-color:#fff}
+
+    .ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px;gap:10px}
+    .ch-in{display:flex;align-items:center;gap:10px}
+    .cicon{
+      width:40px;height:40px;border-radius:11px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;font-size:1.12rem;
+      background:linear-gradient(135deg,rgba(29,78,216,.09),rgba(59,130,246,.06));
+      border:1px solid rgba(29,78,216,.12);
+    }
+    .cname{font-size:.80rem;font-weight:700;line-height:1.28}
+    .cdesc{font-size:.58rem;color:var(--text3);margin-top:2px}
+
+    .trend{display:flex;align-items:center;gap:3px;font-size:.61rem;font-weight:700;padding:3px 9px;border-radius:100px;flex-shrink:0;white-space:nowrap}
+    .t-up-g  {background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+    .t-dn-g  {background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+    .t-up-b  {background:var(--red-bg)  ;color:var(--red)  ;border:1px solid var(--red-bd)  }
+    .t-dn-b  {background:var(--red-bg)  ;color:var(--red)  ;border:1px solid var(--red-bd)  }
+    .t-flat  {background:#f8fafc        ;color:var(--text3) ;border:1px solid #e2e8f0        }
+
+    .cmeta{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
+    .mbadge{font-size:.59rem;font-weight:600;padding:3px 10px;border-radius:100px}
+    .m-tgt  {background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+    .m-wgt  {background:rgba(0,0,0,.03);color:var(--text2);border:1px solid rgba(0,0,0,.08)}
+
+    .cperf{margin-bottom:14px}
+    .ph{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px}
+    .plbl{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text3)}
+    .pval{font-size:1.06rem;font-weight:800;line-height:1}
+
+    .track{height:7px;border-radius:100px;background:rgba(0,0,0,.07);overflow:hidden}
+    .fill{height:100%;border-radius:100px;width:0;transition:width 1.5s cubic-bezier(.34,1.56,.64,1)}
+    .fg{background:linear-gradient(90deg,#16a34a,#22c55e)}
+    .fa{background:linear-gradient(90deg,#d97706,#fbbf24)}
+    .fr{background:linear-gradient(90deg,#dc2626,#f87171)}
+
+    .cf{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid rgba(0,0,0,.05)}
+    .snum{font-size:1.28rem;font-weight:800;line-height:1}
+    .sunit{font-size:.62rem;font-weight:600;color:var(--text3);margin-left:3px}
+    .sbadge{font-size:.57rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 11px;border-radius:100px;display:flex;align-items:center;gap:5px}
+    .sdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+
+    /* ── FOOTER ── */
+    .footer{max-width:1220px;margin:26px auto 0;padding:0 22px;font-size:.63rem;color:var(--text3);line-height:1.8}
+    .footer b{color:var(--text2)}
+
+    @keyframes pls{0%,100%{opacity:1}50%{opacity:.35}}
+    .pulse{animation:pls 2s ease-in-out infinite}
+
+    /* ══════════════════════════════════════════════════
+       MODAL — click-expand panel
+    ══════════════════════════════════════════════════ */
+    #modal-backdrop{
+      position:fixed;inset:0;z-index:900;
+      background:rgba(10,20,50,0.52);
+      backdrop-filter:blur(6px);
+      -webkit-backdrop-filter:blur(6px);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;pointer-events:none;
+      transition:opacity .32s ease;
+    }
+    #modal-backdrop.open{opacity:1;pointer-events:all}
+
+    #modal-panel{
+      width:70%;max-width:1000px;min-width:560px;
+      max-height:88vh;
+      background:rgba(255,255,255,0.92);
+      backdrop-filter:blur(28px) saturate(160%) brightness(1.06);
+      -webkit-backdrop-filter:blur(28px) saturate(160%) brightness(1.06);
+      border:1px solid rgba(255,255,255,0.97);
+      border-radius:26px;
+      box-shadow:0 28px 80px rgba(0,20,80,0.22),0 4px 16px rgba(0,20,80,0.10),inset 0 1px 0 rgba(255,255,255,0.9);
+      display:flex;overflow:hidden;
+      transform:scale(0.88) translateY(22px);
+      transition:transform .38s cubic-bezier(.22,.74,.34,1.12);
+      position:relative;
+    }
+    #modal-backdrop.open #modal-panel{transform:scale(1) translateY(0)}
+
+    /* Close button */
+    #modal-close{
+      position:absolute;top:16px;right:18px;z-index:10;
+      width:32px;height:32px;border-radius:50%;border:none;
+      background:rgba(0,0,0,0.08);color:var(--text2);
+      font-size:.90rem;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .18s,color .18s;
+    }
+    #modal-close:hover{background:rgba(0,0,0,0.16);color:var(--text)}
+
+    /* Left panel */
+    #modal-left{
+      width:38%;flex-shrink:0;
+      padding:40px 28px 36px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      border-right:1px solid rgba(0,0,0,0.07);
+      position:relative;overflow:hidden;
+    }
+    #modal-left::before{
+      content:'';position:absolute;inset:0;
+      background:linear-gradient(160deg,rgba(29,78,216,0.06) 0%,rgba(59,130,246,0.03) 100%);
+    }
+    .ml-icon{
+      width:100px;height:100px;border-radius:28px;
+      font-size:2.8rem;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,rgba(29,78,216,0.12),rgba(59,130,246,0.08));
+      border:2px solid rgba(29,78,216,0.15);
+      box-shadow:0 8px 32px rgba(29,78,216,0.18);
+      margin-bottom:20px;position:relative;z-index:1;
+    }
+    .ml-name{
+      font-size:.92rem;font-weight:700;text-align:center;line-height:1.38;
+      margin-bottom:6px;position:relative;z-index:1;
+    }
+    .ml-desc{
+      font-size:.62rem;color:var(--text3);text-align:center;line-height:1.6;
+      margin-bottom:22px;position:relative;z-index:1;max-width:200px;
+    }
+
+    /* Mini score circle inside modal */
+    .ml-circ-wrap{position:relative;width:110px;height:110px;flex-shrink:0;margin-bottom:18px;position:relative;z-index:1}
+    .ml-circ-wrap svg{transform:rotate(-90deg)}
+    .ml-circ-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .ml-circ-pct{font-size:1.55rem;font-weight:800;line-height:1}
+    .ml-circ-lbl{font-size:.47rem;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--text3);margin-top:3px}
+
+    .ml-badge{
+      font-size:.60rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+      padding:5px 14px;border-radius:100px;
+      display:flex;align-items:center;gap:6px;
+      position:relative;z-index:1;
+    }
+    .ml-rank{
+      font-size:.62rem;color:var(--text3);margin-top:10px;
+      position:relative;z-index:1;
+      display:flex;align-items:center;gap:6px;
+    }
+    .ml-rank span{
+      font-weight:700;color:var(--text);font-size:.72rem;
+    }
+
+    /* Right panel */
+    #modal-right{
+      flex:1;padding:36px 32px;overflow-y:auto;
+    }
+    .mr-head{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:var(--text3);margin-bottom:18px}
+
+    .detail-grid{
+      display:grid;grid-template-columns:1fr 1fr;gap:14px;
+      margin-bottom:24px;
+    }
+    .ditem{
+      background:rgba(0,0,0,0.025);
+      border:1px solid rgba(0,0,0,0.07);
+      border-radius:14px;padding:14px 16px;
+    }
+    .ditem.full{grid-column:1/-1}
+    .ditem-lbl{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.13em;color:var(--text3);margin-bottom:5px}
+    .ditem-val{font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.2}
+    .ditem-sub{font-size:.60rem;color:var(--text3);margin-top:3px}
+
+    .kpi-info-box{
+      background:rgba(29,78,216,0.04);
+      border:1px solid rgba(29,78,216,0.12);
+      border-radius:14px;padding:16px 18px;
+      margin-bottom:14px;
+    }
+    .kib-label{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.13em;color:#1e40af;margin-bottom:8px}
+    .kib-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:.72rem}
+    .kib-row .kk{color:var(--text2)}
+    .kib-row .vv{font-weight:700;color:var(--text)}
+
+    .progress-mini{height:6px;border-radius:100px;background:rgba(0,0,0,0.07);overflow:hidden;margin-top:10px}
+    .pm-fill{height:100%;border-radius:100px;width:0;transition:width 1.2s cubic-bezier(.34,1.56,.64,1)}
+
+    @media(max-width:700px){
+      #modal-panel{width:94%;min-width:0;flex-direction:column}
+      #modal-left{width:100%;border-right:none;border-bottom:1px solid rgba(0,0,0,0.07);padding:28px 20px 20px;flex-direction:row;gap:16px;justify-content:flex-start}
+      .ml-icon{width:64px;height:64px;font-size:1.7rem;margin-bottom:0;flex-shrink:0}
+      .ml-circ-wrap{width:72px;height:72px;margin-bottom:0}
+      .ml-circ-pct{font-size:1.1rem}
+      .ml-name{text-align:left;font-size:.80rem}
+      .ml-desc{text-align:left}
+      #modal-right{padding:20px}
+      .detail-grid{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-l">
+    <div class="logo">N</div>
+    <div>
+      <div class="hdr-title">KPI Performance Dashboard</div>
+      <div class="hdr-sub">Estimation Department · Quotation Metrics</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <span class="chip chip-period" id="js-period">—</span>
+    <span class="chip chip-date"   id="js-date">—</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="ov-card" id="js-overall"></div>
+  <div class="grid"    id="js-grid"></div>
+</div>
+
+<div class="footer">
+  <b>Score Methodology:</b>
+  For ≤ targets (lower is better): <i>Score = min(100, Target ÷ Current × 100)</i> ·
+  For ≥ targets (higher is better): <i>Score = min(100, Current ÷ Target × 100)</i> ·
+  <b>Overall KPI</b> = Σ (Score × Weightage) ÷ 100 ·
+  <b style="color:var(--green)">Achieved</b> ≥ 100% ·
+  <b style="color:var(--amber)">At Risk</b> 80–99% ·
+  <b style="color:var(--red)">Below Target</b> &lt; 80%
+</div>
+
+<!-- ══ MODAL ══ -->
+<div id="modal-backdrop">
+  <div id="modal-panel">
+    <button id="modal-close" title="Close">✕</button>
+    <div id="modal-left"></div>
+    <div id="modal-right"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════ DATA */
+const KPIS = [
+  {
+    icon:'⏱', name:'Quotation Turnaround Time',
+    desc:'Avg. time from request receipt to submission',
+    target:'≤ 24 Hours', targetVal:24, unit:'Hrs',
+    weightage:20, current:32, lowerBetter:true,
+    trendVal:+4, trendUnit:'hrs',
+    doj:'Jan 2022', exp:'3.5 Yrs',
+    quotedValue:'AED 14.2M', quotedCount:112, wonValue:'AED 3.4M',
+  },
+  {
+    icon:'🎯', name:'Quotation Accuracy',
+    desc:'Technical & commercial correctness rate',
+    target:'≥ 98%', targetVal:98, unit:'%',
+    weightage:25, current:97.2, lowerBetter:false,
+    trendVal:+0.7, trendUnit:'%',
+    doj:'Jan 2022', exp:'3.5 Yrs',
+    quotedValue:'AED 14.2M', quotedCount:112, wonValue:'AED 3.4M',
+  },
+  {
+    icon:'📅', name:'On-Time Submission Rate',
+    desc:'Quotations submitted within deadline',
+    target:'≥ 95%', targetVal:95, unit:'%',
+    weightage:15, current:97.4, lowerBetter:false,
+    trendVal:+0.6, trendUnit:'%',
+    doj:'Jan 2022', exp:'3.5 Yrs',
+    quotedValue:'AED 14.2M', quotedCount:112, wonValue:'AED 3.4M',
+  },
+  {
+    icon:'🏆', name:'Tender Win Rate',
+    desc:'Percentage of submitted quotes that win',
+    target:'≥ 30%', targetVal:30, unit:'%',
+    weightage:15, current:24, lowerBetter:false,
+    trendVal:-2, trendUnit:'%',
+    doj:'Jan 2022', exp:'3.5 Yrs',
+    quotedValue:'AED 14.2M', quotedCount:112, wonValue:'AED 3.4M',
+  },
+  {
+    icon:'📊', name:'Monthly Quotation Productivity',
+    desc:'Total quotations produced this month',
+    target:'100+ / Month', targetVal:100, unit:'Quotes',
+    weightage:15, current:112, lowerBetter:false,
+    trendVal:+8, trendUnit:'',
+    doj:'Jan 2022', exp:'3.5 Yrs',
+    quotedValue:'AED 14.2M', quotedCount:112, wonValue:'AED 3.4M',
+  },
+  {
+    icon:'📋', name:'Documentation & Compliance',
+    desc:'Adherence to submission requirements',
+    target:'100%', targetVal:100, unit:'%',
+    weightage:10, current:95, lowerBetter:false,
+    trendVal:-2, trendUnit:'%',
+    doj:'Jan 2022', exp:'3.5 Yrs',
+    quotedValue:'AED 14.2M', quotedCount:112, wonValue:'AED 3.4M',
+  },
+];
+
+/* ═══════════════════════════════════════════════════════ CALC */
+const score = k =>
+  Math.min(100, Math.round((k.lowerBetter
+    ? (k.targetVal / k.current)
+    : (k.current   / k.targetVal)) * 1000) / 10);
+
+const status = s => s >= 100
+  ? {key:'achieved', label:'Achieved',     c:'#16a34a', bg:'#f0fdf4', bd:'#bbf7d0', fill:'fg', pulse:false}
+  : s >= 80
+  ? {key:'at-risk',  label:'At Risk',      c:'#d97706', bg:'#fffbeb', bd:'#fde68a', fill:'fa', pulse:true }
+  : {key:'below',    label:'Below Target', c:'#dc2626', bg:'#fef2f2', bd:'#fecaca', fill:'fr', pulse:true };
+
+const overall = () => {
+  const tot = KPIS.reduce((a,k) => a + k.weightage, 0);
+  return Math.round(KPIS.reduce((a,k) => a + score(k)*k.weightage, 0) / tot * 10) / 10;
+};
+
+const ovStatus = s =>
+  s >= 90 ? {label:'Good Standing', c:'#16a34a', g:'linear-gradient(135deg,#16a34a,#22c55e)'}
+: s >= 75 ? {label:'Needs Attention',c:'#d97706', g:'linear-gradient(135deg,#d97706,#f59e0b)'}
+:           {label:'Critical',       c:'#dc2626', g:'linear-gradient(135deg,#dc2626,#f87171)'};
+
+const trendHTML = k => {
+  const {trendVal:t, trendUnit:u, lowerBetter:lb} = k;
+  if (!t) return `<span class="trend t-flat">→ Flat</span>`;
+  const imp = lb ? t < 0 : t > 0;
+  const arr = t > 0 ? '↑' : '↓';
+  const cls = imp
+    ? (t > 0 ? 't-up-g' : 't-dn-g')
+    : (t > 0 ? 't-up-b' : 't-dn-b');
+  const abs = Math.abs(t);
+  return `<span class="trend ${cls}">${arr} ${abs < 1 ? abs.toFixed(1) : abs}${u} vs LM</span>`;
+};
+
+const dispVal = k =>
+  k.unit === '%'    ? `${k.current}%`
+: k.unit === 'Hrs'  ? `${k.current} Hrs`
+:                     `${k.current} ${k.unit}`;
+
+/* Rankings: sorted desc by score */
+const computeRankings = () => {
+  const ranked = KPIS.map((k,i) => ({i, s: score(k)})).sort((a,b)=>b.s-a.s);
+  const rankMap = {};
+  ranked.forEach((r,pos) => { rankMap[r.i] = pos + 1; });
+  return rankMap;
+};
+
+/* ═══════════════════════════════════════════════════════ OVERALL */
+function renderOverall() {
+  const ov  = overall();
+  const os  = ovStatus(ov);
+  const R   = 67, C = +(2 * Math.PI * R).toFixed(2);
+  const off = +(C * (1 - ov / 100)).toFixed(2);
+
+  const scores = KPIS.map(score);
+  const ach = scores.filter(s=>s>=100).length;
+  const ar  = scores.filter(s=>s>=80&&s<100).length;
+  const bl  = scores.filter(s=>s<80).length;
+
+  const rows = KPIS.map(k => {
+    const s = score(k);
+    const contrib = (s * k.weightage / 100).toFixed(1);
+    const nm = k.name.length > 30 ? k.name.slice(0,28)+'…' : k.name;
+    return `<div class="tbl-row"><span class="lbl">${nm} (${k.weightage}%)</span><span class="val">${contrib} pts</span></div>`;
+  }).join('');
+
+  document.getElementById('js-overall').innerHTML = `
+    <div class="circ-wrap">
+      <svg width="164" height="164" viewBox="0 0 164 164">
+        <defs>
+          <linearGradient id="cgrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="${os.c}"/>
+            <stop offset="100%" stop-color="${os.c}aa"/>
+          </linearGradient>
+        </defs>
+        <circle class="c-bg" cx="82" cy="82" r="${R}"/>
+        <circle id="cp" class="c-val" cx="82" cy="82" r="${R}"
+          stroke="url(#cgrad)"
+          stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+      </svg>
+      <div class="circ-text">
+        <div class="circ-pct" id="cp-txt" style="color:${os.c}">0%</div>
+        <div class="circ-lbl">KPI Score</div>
+      </div>
+    </div>
+
+    <div class="ov-info">
+      <div class="ov-title">Overall KPI Performance</div>
+      <div class="ov-sub" style="color:${os.c};font-weight:600">${os.label}</div>
+      <div class="ov-sub" style="margin-top:-8px;margin-bottom:16px">Weighted composite · ${KPIS.length} metrics · Estimation Department</div>
+      <div class="ov-pills">
+        <div class="pill" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)">
+          <span class="pdot" style="background:var(--green)"></span>${ach} Achieved
+        </div>
+        <div class="pill" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)">
+          <span class="pdot" style="background:var(--amber)"></span>${ar} At Risk
+        </div>
+        <div class="pill" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)">
+          <span class="pdot" style="background:var(--red)"></span>${bl} Below Target
+        </div>
+      </div>
+    </div>
+
+    <div class="ov-table">
+      <div class="tbl-head">Score Breakdown</div>
+      ${rows}
+      <div class="tbl-row tbl-divider tbl-total">
+        <span class="lbl">Weighted KPI Score</span>
+        <span class="val">${ov}%</span>
+      </div>
+    </div>
+  `;
+
+  /* Animate circle + count-up */
+  setTimeout(() => {
+    const cp = document.getElementById('cp');
+    if (cp) { cp.style.transition='stroke-dashoffset 1.6s cubic-bezier(.34,1.56,.64,1)'; cp.style.strokeDashoffset=off; }
+
+    let t0 = null;
+    const tick = ts => {
+      if (!t0) t0 = ts;
+      const p  = Math.min((ts-t0)/1600, 1);
+      const ep = 1 - Math.pow(1-p, 3);
+      const el = document.getElementById('cp-txt');
+      if (el) el.textContent = (ov * ep).toFixed(1) + '%';
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, 180);
+}
+
+/* ═══════════════════════════════════════════════════════ KPI CARDS */
+function renderCards() {
+  const grid = document.getElementById('js-grid');
+  grid.innerHTML = '';
+  const rankings = computeRankings();
+
+  KPIS.forEach((k, idx) => {
+    const s  = score(k);
+    const st = status(s);
+    const barW = Math.min(100, s);
+
+    const card = document.createElement('div');
+    card.className = `kcard ${st.key}`;
+    card.innerHTML = `
+      <div class="ch">
+        <div class="ch-in">
+          <div class="cicon">${k.icon}</div>
+          <div>
+            <div class="cname">${k.name}</div>
+            <div class="cdesc">${k.desc}</div>
+          </div>
+        </div>
+        ${trendHTML(k)}
+      </div>
+
+      <div class="cmeta">
+        <span class="mbadge m-tgt">Target: ${k.target}</span>
+        <span class="mbadge m-wgt">Weight: ${k.weightage}%</span>
+      </div>
+
+      <div class="cperf">
+        <div class="ph">
+          <span class="plbl">Current Performance</span>
+          <span class="pval" style="color:${st.c}">${dispVal(k)}</span>
+        </div>
+        <div class="track">
+          <div class="fill ${st.fill}" data-w="${barW}"></div>
+        </div>
+      </div>
+
+      <div class="cf">
+        <div>
+          <span class="snum" style="color:${st.c}">${s.toFixed(1)}</span>
+          <span class="sunit">% Score</span>
+        </div>
+        <div class="sbadge" style="background:${st.bg};color:${st.c};border:1px solid ${st.bd}">
+          <span class="sdot ${st.pulse?'pulse':''}" style="background:${st.c}"></span>
+          ${st.label}
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', () => openModal(idx, rankings));
+    grid.appendChild(card);
+  });
+
+  /* Animate progress bars */
+  setTimeout(() => {
+    document.querySelectorAll('.fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 320);
+}
+
+/* ═══════════════════════════════════════════════════════ MODAL */
+function openModal(idx, rankings) {
+  const k   = KPIS[idx];
+  const s   = score(k);
+  const st  = status(s);
+  const rnk = rankings[idx];
+  const barW = Math.min(100, s);
+
+  /* ── Mini SVG circle ── */
+  const R = 42, C = +(2 * Math.PI * R).toFixed(2);
+  const off = +(C * (1 - s / 100)).toFixed(2);
+
+  const rankLabel = rnk === 1 ? '🥇 #1 of 6' : rnk === 2 ? '🥈 #2 of 6' : rnk === 3 ? '🥉 #3 of 6' : `#${rnk} of 6`;
+
+  /* ── Trend text ── */
+  const tdir = k.trendVal > 0 ? `↑ +${Math.abs(k.trendVal)}${k.trendUnit} vs last month`
+             : k.trendVal < 0 ? `↓ −${Math.abs(k.trendVal)}${k.trendUnit} vs last month`
+             : '→ Flat vs last month';
+
+  /* ── LEFT ── */
+  document.getElementById('modal-left').innerHTML = `
+    <div class="ml-icon">${k.icon}</div>
+    <div class="ml-name">${k.name}</div>
+    <div class="ml-desc">${k.desc}</div>
+
+    <div class="ml-circ-wrap" style="position:relative;width:110px;height:110px;margin-bottom:18px;">
+      <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg)">
+        <circle fill="none" stroke="#e2e8f0" stroke-width="9" cx="55" cy="55" r="${R}"/>
+        <circle id="ml-cp" fill="none" stroke="${st.c}" stroke-width="9" stroke-linecap="round"
+          cx="55" cy="55" r="${R}"
+          stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div class="ml-circ-pct" id="ml-cp-txt" style="color:${st.c}">0%</div>
+        <div class="ml-circ-lbl">Score</div>
+      </div>
+    </div>
+
+    <div class="ml-badge" style="background:${st.bg};color:${st.c};border:1px solid ${st.bd}">
+      <span style="width:6px;height:6px;border-radius:50%;background:${st.c};flex-shrink:0;${st.pulse?'animation:pls 2s ease-in-out infinite':''}"></span>
+      ${st.label}
+    </div>
+    <div class="ml-rank">Ranked <span>${rankLabel}</span></div>
+  `;
+
+  /* ── RIGHT ── */
+  document.getElementById('modal-right').innerHTML = `
+    <div class="mr-head">KPI Detail Overview</div>
+
+    <div class="detail-grid">
+      <div class="ditem">
+        <div class="ditem-lbl">Tracked Since</div>
+        <div class="ditem-val">${k.doj}</div>
+        <div class="ditem-sub">Measurement start date</div>
+      </div>
+      <div class="ditem">
+        <div class="ditem-lbl">Duration</div>
+        <div class="ditem-val">${k.exp}</div>
+        <div class="ditem-sub">Active tracking period</div>
+      </div>
+      <div class="ditem">
+        <div class="ditem-lbl">Total Quoted Value</div>
+        <div class="ditem-val">${k.quotedValue}</div>
+        <div class="ditem-sub">This measurement period</div>
+      </div>
+      <div class="ditem">
+        <div class="ditem-lbl">Quoted Count</div>
+        <div class="ditem-val">${k.quotedCount} <span style="font-size:.65rem;font-weight:500;color:var(--text3)">Quotes</span></div>
+        <div class="ditem-sub">Submissions this period</div>
+      </div>
+      <div class="ditem">
+        <div class="ditem-lbl">Won Value</div>
+        <div class="ditem-val">${k.wonValue}</div>
+        <div class="ditem-sub">Awarded tender value</div>
+      </div>
+      <div class="ditem">
+        <div class="ditem-lbl">Ranking</div>
+        <div class="ditem-val">${rankLabel}</div>
+        <div class="ditem-sub">Among all 6 KPI metrics</div>
+      </div>
+    </div>
+
+    <div class="kpi-info-box">
+      <div class="kib-label">KPI Info</div>
+      <div class="kib-row"><span class="kk">Metric Name</span><span class="vv">${k.name}</span></div>
+      <div class="kib-row"><span class="kk">Target</span><span class="vv">${k.target}</span></div>
+      <div class="kib-row"><span class="kk">Current</span><span class="vv">${dispVal(k)}</span></div>
+      <div class="kib-row"><span class="kk">Trend</span><span class="vv">${tdir}</span></div>
+      <div class="kib-row"><span class="kk">Weightage</span><span class="vv">${k.weightage}%</span></div>
+      <div class="kib-row"><span class="kk">Score</span><span class="vv" style="color:${st.c};font-size:.84rem">${s.toFixed(1)}%</span></div>
+      <div class="progress-mini" style="margin-top:12px">
+        <div class="pm-fill" data-pw="${barW}" style="background:linear-gradient(90deg,${st.c},${st.c}99)"></div>
+      </div>
+    </div>
+  `;
+
+  /* Open backdrop */
+  const bd = document.getElementById('modal-backdrop');
+  bd.classList.add('open');
+
+  /* Animate mini circle + score counter */
+  setTimeout(() => {
+    const cp = document.getElementById('ml-cp');
+    if (cp) { cp.style.transition='stroke-dashoffset 1.2s cubic-bezier(.34,1.56,.64,1)'; cp.style.strokeDashoffset=off; }
+
+    let t0 = null;
+    const tick = ts => {
+      if (!t0) t0 = ts;
+      const p  = Math.min((ts-t0)/1200, 1);
+      const ep = 1 - Math.pow(1-p, 3);
+      const el = document.getElementById('ml-cp-txt');
+      if (el) el.textContent = (s * ep).toFixed(1) + '%';
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+
+    /* Animate progress bar */
+    document.querySelectorAll('.pm-fill').forEach(el => {
+      el.style.width = el.dataset.pw + '%';
+    });
+  }, 80);
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+/* Click backdrop to close, but not the panel itself */
+document.getElementById('modal-backdrop').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+});
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ═══════════════════════════════════════════════════════ DATE */
+function initDate() {
+  const now = new Date();
+  document.getElementById('js-period').textContent =
+    now.toLocaleString('en-US',{month:'long'}) + ' ' + now.getFullYear();
+  document.getElementById('js-date').textContent =
+    'Updated: ' + now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})
+    + ' · ' + now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ═══════════════════════════════════════════════════════ INIT */
+initDate();
+renderOverall();
+renderCards();
+</script>
+</body>
+</html>

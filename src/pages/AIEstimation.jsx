@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Mail, X, FileText } from 'lucide-react';
 import Estimator from './Estimator';
+import { uploadFile, deleteFile } from '../utils/sp-upload';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const S = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@700&family=Cinzel:wght@400;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -213,13 +214,14 @@ const S = `
   .nav-bar {
     position: fixed;
     top: 0; left: 0; right: 0;
-    height: 58px;
+    height: 64px;
     display: flex;
     align-items: center;
-    gap: 0;
     padding: 0 28px;
-    background: transparent;
-    border-bottom: none;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
     z-index: 500;
   }
   .nav-brand {
@@ -856,8 +858,8 @@ const S = `
   .land-aibot { opacity:1;transition:opacity 0.3s }
 
   /* ── OPEN REQUESTS LAYOUT ── */
-  .or-layout { position:absolute;inset:0;top:0;display:flex;flex-direction:column }
-  .or-main   { flex:1;min-width:0;overflow-y:auto;padding:62px 32px 16px }
+  .or-layout { position:relative;width:100%;height:100%;display:flex;flex-direction:row }
+  .or-main   { flex:1;min-width:0;overflow-y:auto;padding:64px 32px 16px }
   .or-team   { flex-shrink:0;height:16vh;min-height:110px;border-top:1px solid rgba(255,255,255,0.06);
     background:rgba(4,2,14,0.72);backdrop-filter:blur(14px);
     padding:10px 28px 10px;display:flex;flex-direction:column;gap:0;overflow:hidden }
@@ -921,7 +923,7 @@ const S = `
     .land-aibot { opacity:0.35 }
 
     /* Open Requests */
-    .or-main   { padding:62px 16px 12px }
+    .or-main   { padding:64px 16px 12px }
     .or-team   { height:16vh;min-height:100px;padding:8px 16px 8px }
 
     /* Dashboard detail */
@@ -1364,11 +1366,12 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
 
   const handleLogin = (e) => {
     e && e.preventDefault();
-    const name = loginInput.trim();
-    if (!name) { setLoginError(true); return; }
-    // check if any request has this salesperson
+    const raw = loginInput.trim();
+    if (!raw) { setLoginError(true); return; }
+    // resolve staff code (e.g. SE421) to full name, or use as-is
+    const resolvedName = STAFF_NAMES[raw.toUpperCase()] || raw;
     const match = requests.find(r =>
-      (r.salesPerson || '').toLowerCase() === name.toLowerCase()
+      (r.salesPerson || '').toLowerCase() === resolvedName.toLowerCase()
     );
     if (!match) { setLoginError(true); return; }
     setSpName(match.salesPerson);
@@ -1534,7 +1537,7 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
               <div style={{ background:'rgba(200,40,40,0.10)', border:'1px solid rgba(220,60,60,0.45)', borderRadius:10, padding:'16px 20px' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,90,90,0.90)" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                  <span style={{ fontSize:'0.62rem', letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, color:'rgba(255,90,90,0.95)' }}>Estimator — Out of Scope</span>
+                  <span style={{ fontSize:'0.62rem', letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, color:'rgba(255,90,90,0.95)' }}>Cost-Artist — Out of Scope</span>
                   {r.outScopeAt && (
                     <span style={{ fontSize:'0.60rem', color:'rgba(255,160,160,0.45)', marginLeft:'auto' }}>
                       {new Date(r.outScopeAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}
@@ -2085,14 +2088,15 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
             };
             const tatColor = tatMs === null ? 'rgba(255,255,255,0.25)' : tatDays <= 3 ? '#4ade80' : tatDays <= 7 ? '#fbbf24' : tatDays <= 14 ? '#fb923c' : '#f87171';
             const isOos = r.reqStatus === 'out-of-scope';
+            const isRFI = r.reqStatus === 'rfi';
             const isCaRej = r.directorAction === 'rejected';
-            const hasNotice = isOos || isCaRej;
-            const noticeComment = isOos ? r.outScopeRemark : r.directorNote;
+            const hasNotice = isOos || isRFI || isCaRej;
+            const noticeComment = isRFI ? r.rfiRemark : isOos ? r.outScopeRemark : r.directorNote;
             return (
               <div key={r.id}
                 style={{ borderRadius:12,
-                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : hasNotice ? 'rgba(200,40,40,0.06)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.04)' : 'rgba(255,255,255,0.03)',
-                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : hasNotice ? 'rgba(220,60,60,0.35)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                  background: flashId===r.id ? 'rgba(99,220,160,0.08)' : isRFI ? 'rgba(180,120,0,0.06)' : (isOos||isCaRej) ? 'rgba(200,40,40,0.06)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.04)' : 'rgba(255,255,255,0.03)',
+                  border:`1px solid ${flashId===r.id ? 'rgba(52,211,153,0.30)' : isRFI ? 'rgba(251,191,36,0.35)' : (isOos||isCaRej) ? 'rgba(220,60,60,0.35)' : r.salesNeedsSupport ? 'rgba(255,140,40,0.25)' : 'rgba(255,255,255,0.07)'}`,
                   transition:'all 0.3s', overflow:'hidden' }}>
 
                 {/* Main row grid */}
@@ -2112,13 +2116,14 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                     </div>
                   </div>
 
-                  {/* Estimation Status — highlights out-of-scope / rejected */}
+                  {/* Estimation Status — highlights RFI / out-of-scope / rejected */}
                   {hasNotice ? (
                     <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:50,
-                      background:'rgba(220,50,50,0.12)', border:'1px solid rgba(220,60,60,0.40)', maxWidth:155 }}>
-                      <span style={{ width:5, height:5, borderRadius:'50%', background:'rgba(255,90,90,0.95)', flexShrink:0 }}/>
-                      <span style={{ fontSize:'0.64rem', fontWeight:700, color:'rgba(255,110,110,0.95)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {isOos ? 'Out of Scope' : 'Rejected'}
+                      background: isRFI ? 'rgba(180,120,0,0.14)' : 'rgba(220,50,50,0.12)',
+                      border: isRFI ? '1px solid rgba(251,191,36,0.45)' : '1px solid rgba(220,60,60,0.40)', maxWidth:155 }}>
+                      <span style={{ width:5, height:5, borderRadius:'50%', background: isRFI ? 'rgba(251,191,36,0.95)' : 'rgba(255,90,90,0.95)', flexShrink:0 }}/>
+                      <span style={{ fontSize:'0.64rem', fontWeight:700, color: isRFI ? 'rgba(251,210,60,0.95)' : 'rgba(255,110,110,0.95)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {isRFI ? 'RFI — Needs Info' : isOos ? 'Out of Scope' : 'Rejected'}
                       </span>
                     </div>
                   ) : (
@@ -2174,17 +2179,18 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
                   </button>
                 </div>
 
-                {/* Comment strip for out-of-scope / rejected */}
+                {/* Comment strip for RFI / out-of-scope / rejected */}
                 {hasNotice && (
-                  <div style={{ padding:'8px 14px 11px', borderTop:'1px solid rgba(220,60,60,0.18)', background:'rgba(200,40,40,0.04)', display:'flex', alignItems:'flex-start', gap:8 }}>
+                  <div style={{ padding:'8px 14px 11px', borderTop: isRFI ? '1px solid rgba(251,191,36,0.18)' : '1px solid rgba(220,60,60,0.18)', background: isRFI ? 'rgba(180,120,0,0.04)' : 'rgba(200,40,40,0.04)', display:'flex', alignItems:'flex-start', gap:8 }}>
                     <span style={{ fontSize:'0.56rem', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700,
-                      color: isOos ? 'rgba(255,90,90,0.80)' : 'rgba(255,90,90,0.80)',
-                      background:'rgba(220,50,50,0.14)', border:'1px solid rgba(220,60,60,0.35)', borderRadius:50,
+                      color: isRFI ? 'rgba(251,191,36,0.85)' : 'rgba(255,90,90,0.80)',
+                      background: isRFI ? 'rgba(180,120,0,0.16)' : 'rgba(220,50,50,0.14)',
+                      border: isRFI ? '1px solid rgba(251,191,36,0.38)' : '1px solid rgba(220,60,60,0.35)', borderRadius:50,
                       padding:'2px 8px', flexShrink:0, marginTop:2 }}>
-                      {isOos ? '⊘ Out of Scope' : '✕ Rejected'}
+                      {isRFI ? '📋 RFI' : isOos ? '⊘ Out of Scope' : '✕ Rejected'}
                     </span>
-                    <span style={{ fontSize:'0.74rem', color:'rgba(255,190,190,0.75)', lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
-                      {noticeComment || (isOos ? 'No reason provided.' : 'No remarks provided.')}
+                    <span style={{ fontSize:'0.74rem', color: isRFI ? 'rgba(255,220,120,0.75)' : 'rgba(255,190,190,0.75)', lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                      {noticeComment || (isRFI ? 'No details provided.' : isOos ? 'No reason provided.' : 'No remarks provided.')}
                     </span>
                   </div>
                 )}
@@ -2200,15 +2206,9 @@ const SalesStatusView = ({ requests, onUpdate, autoSpName, showAll }) => {
 
 // ─── ROLE LOGIN ───────────────────────────────────────────────────────────────
 const ROLE_CODES = {
-  // Sales
+  // Sales (kept for legacy sales login flow)
   SX985:'sales', SX417:'sales', SE628:'sales', SE842:'sales', SE519:'sales', SM386:'sales', SE421:'sales',
   MYD:'sales',
-  // Estimators
-  EX552:'estimator', EX719:'estimator', EX638:'estimator', EX904:'estimator',
-  EX471:'estimator', EX856:'estimator', EX392:'estimator', EX681:'estimator',
-  EX547:'estimator', EX903:'estimator', EX764:'estimator',
-  // Director / Cost Artist
-  STAR:'director',
 };
 
 const RoleLogin = ({ onLogin }) => {
@@ -3019,14 +3019,14 @@ const STAFF_NAMES = {
   // Sales
   'SX985':'Ammar Khaldoun','SX417':'Ashik Bin Shams',
   'SE628':'Mohammad Hindawi','SE842':'Ibrahim Odeh',
-  'SE519':'Yazan Al Agha','SM386':'Ali Hussnain','SE421':'Armela E. Arboleda',
+  'SE519':'Yazan Al Agha','SM386':'Ali Hussnain','SE421':'Almira Abogado',
   'MYD':'My Dashboard',
   // Estimators
   'EX552':'Sachin Poojary','EX719':'Mohammad Samee Hamid Khan',
   'EX638':'Moazzam Ali','EX904':'Benson Benjamine',
   'EX471':'Pranav Manjalam Kandiyil','EX856':'Saeem Sajid Gadkari',
   'EX392':'Jaffar Shaik',
-  // Director / Cost Artist
+  // Costing Art Lead
   'STAR':'Emelaine Jane',
 };
 
@@ -3040,6 +3040,10 @@ const EST_ROSTER = [
   {code:'EX392',name:'Jaffar Shaik'},
 ];
 
+const COSTING_ROSTER = [
+  {code:'STAR', name:'Emelaine Jane'},
+];
+
 // Photo URLs keyed by estimator code — add entries here when photos are available
 const AVATAR_URLS = {};
 
@@ -3050,7 +3054,7 @@ const FULL_STAFF = [
   {code:'SE842',name:'Ibrahim Odeh',      role:'sales'},
   {code:'SE519',name:'Yazan Al Agha',     role:'sales'},
   {code:'SM386',name:'Ali Hussnain',      role:'sales'},
-  {code:'SE421',name:'Armela E. Arboleda',    role:'sales'},
+  {code:'SE421',name:'Almira Abogado',    role:'sales'},
   ...EST_ROSTER.map(e => ({ ...e, role:'estimator' })),
 ];
 
@@ -3094,10 +3098,16 @@ const EstAvatar = ({ name, size=40, code='' }) => {
   );
 };
 
-const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }) => {
+const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='', isEmbedded=false }) => {
   const F = "'Inter',sans-serif";
+  const isCostingRole = userRole === 'director';
   const [orSearch, setOrSearch] = useState('');
-  const allOpen = requests.map((r,i)=>({r,i})).filter(({r})=>!r.estimator && r.status==='Pending Estimation');
+  const COSTING_TYPES = ['discount','finalPrice'];
+  const allOpen = requests.map((r,i)=>({r,i})).filter(({r}) => {
+    if (r.status !== 'Pending Estimation') return false;
+    if (isCostingRole) return !r.costingArt && COSTING_TYPES.includes(r.requestType);
+    return !r.estimator && !COSTING_TYPES.includes(r.requestType);
+  });
   const openReqs = orSearch.trim()
     ? allOpen.filter(({r}) => {
         const lo = orSearch.trim().toLowerCase();
@@ -3112,6 +3122,7 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   const tenderReqs    = openReqs.filter(({r}) => r.deal === 'Tender');
   const allJobInHandCount = allOpen.filter(({r}) => r.deal === 'Job In Hand').length;
   const allTenderCount    = allOpen.filter(({r}) => r.deal === 'Tender').length;
+  const [orSidebarOpen, setOrSidebarOpen] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const splitDragging = useRef(false);
   const splitContainerRef = useRef(null);
@@ -3136,8 +3147,26 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   const [deleteCode, setDeleteCode] = useState('');
 
   const openClaim = (idx, reqId) => {
+    // If the user is logged in as an estimator with a known code, auto-claim without showing the picker
+    const autoName = !isCostingRole && userCode ? (STAFF_NAMES[userCode] || '') : '';
+    if (autoName) {
+      const nowMs = Date.now();
+      const ts    = new Date(nowMs).toISOString();
+      const req   = requests[idx];
+      onUpdate(reqId, {
+        estimator:   autoName,
+        taggedAt:    nowMs,
+        claimedAtMs: nowMs,
+        reqStatus:   'inprogress',
+        timeline: [...(req.timeline||[]), { event:'assigned', ts, tsMs:nowMs, label:`Assigned to ${autoName}`, by:autoName }],
+        _immediate: true,
+      });
+      setJustClaimed(reqId);
+      setTimeout(() => setJustClaimed(null), 2200);
+      return;
+    }
     setClaiming({idx,reqId});
-    setEstName(STAFF_NAMES[userCode] || '');
+    setEstName('');
     setNameErr(false);
   };
   const closeClaim = () => { setClaiming(null); setEstName(''); setNameErr(false); };
@@ -3147,19 +3176,29 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
     if (!name) { setNameErr(true); return; }
     const nowMs = Date.now();
     const ts    = new Date(nowMs).toISOString();
+    const req   = requests[claiming.idx];
+    // For Costing Art claims: preserve the original estimator chain
+    const originalEstimator = req.estimator
+      || requests.find(x => x.id === req.originalId)?.estimator
+      || '';
+    const assignField = isCostingRole
+      ? { costingArt: name, originalEstimator: originalEstimator || undefined }
+      : { estimator: name };
     onUpdate(claiming.reqId, {
-      estimator:   name,
+      ...assignField,
       taggedAt:    nowMs,
-      claimedAtMs: nowMs,   // millisecond-precision claim timestamp
+      claimedAtMs: nowMs,
       reqStatus:   'inprogress',
-      timeline: [...(requests[claiming.idx].timeline||[]), {
+      timeline: [...(req.timeline||[]), {
         event: 'assigned',
         ts,
-        tsMs:  nowMs,        // ms for accurate ordering across users
-        label: `Assigned to ${name}`,
+        tsMs:  nowMs,
+        label: isCostingRole
+          ? `Costing Art: ${name}${originalEstimator ? ` · Est: ${originalEstimator}` : ''}`
+          : `Assigned to ${name}`,
         by:    name,
       }],
-      _immediate: true,      // skip debounce — flush to Azure immediately
+      _immediate: true,
     });
     setJustClaimed(claiming.reqId);
     closeClaim();
@@ -3181,6 +3220,20 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
       if (r.taggedAt && (!e.lastActive || r.taggedAt > e.lastActive)) e.lastActive = r.taggedAt;
     });
     return Object.values(map).sort((a,b) => (b.active+b.pending) - (a.active+a.pending));
+  })();
+
+  // ── Costing Art roster derived from requests ─────────────────────────────────
+  const costingRoster = (() => {
+    const map = {};
+    requests.forEach(r => {
+      if (!r.costingArt) return;
+      if (!map[r.costingArt]) map[r.costingArt] = { name: r.costingArt, active: 0, done: 0, lastActive: null };
+      const e = map[r.costingArt];
+      if (r.reqStatus === 'inprogress') e.active++;
+      else if (r.reqStatus === 'completed') e.done++;
+      if (r.taggedAt && (!e.lastActive || r.taggedAt > e.lastActive)) e.lastActive = r.taggedAt;
+    });
+    return Object.values(map);
   })();
 
   const estStatus = e => {
@@ -3236,7 +3289,10 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           <div style={{display:'flex',gap:5,alignItems:'center'}}>
             {r.deal && <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',color:dealColor(r.deal),background:dealColor(r.deal).replace(/[\d.]+\)$/,'0.12)'),borderRadius:20,padding:'2px 9px'}}>{r.deal}</span>}
             {r.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.80)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISE</span>}
+            {r.requestType==='discount'   && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(251,191,36,0.90)',background:'rgba(251,191,36,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>DISCOUNT</span>}
             {r.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.85)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'2px 8px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
+            <CopyLinkBtn reqId={r.id} link={r.appLink} size="small"/>
+            <SpBtn reqId={r.id} link={r.spLink} size="small"/>
             {userRole==='director' && (
               <button onClick={e=>{e.stopPropagation();setDeleteConfirm({idx:i,id:r.id});}}
                 style={{display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:6,background:'rgba(220,50,50,0.08)',border:'none',color:'rgba(220,80,80,0.55)',cursor:'pointer',outline:'none',flexShrink:0}}
@@ -3254,14 +3310,34 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
         </div>
         <div style={{height:1,background:`linear-gradient(90deg,rgba(${pal.a},0.35),rgba(${pal.b},0.20),transparent)`}}/>
         <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+          {/* Sales name */}
           <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.a},0.70)`} strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span style={{fontSize:'0.52rem',color:`rgba(${pal.a},0.55)`,letterSpacing:'0.06em',textTransform:'uppercase',marginRight:2}}>Sales</span>
             {r.submittedBy||r.salesPerson||'—'}
           </span>
-          <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.b},0.70)`} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            {r.leadTime||'—'}
-          </span>
+          {/* Estimator name — shown for both roles if present */}
+          {r.estimator && (
+            <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.b},0.70)`} strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              <span style={{fontSize:'0.52rem',color:`rgba(${pal.b},0.55)`,letterSpacing:'0.06em',textTransform:'uppercase',marginRight:2}}>Est</span>
+              {r.estimator}
+            </span>
+          )}
+          {/* Costing Art name — shown once claimed */}
+          {r.costingArt && (
+            <span style={{fontSize:'0.65rem',color:'rgba(251,191,36,0.75)',display:'flex',alignItems:'center',gap:5}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.70)" strokeWidth="2" strokeLinecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              <span style={{fontSize:'0.52rem',color:'rgba(251,191,36,0.50)',letterSpacing:'0.06em',textTransform:'uppercase',marginRight:2}}>CA</span>
+              {r.costingArt}
+            </span>
+          )}
+          {!r.estimator && !isCostingRole && (
+            <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.55)',display:'flex',alignItems:'center',gap:5}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={`rgba(${pal.b},0.70)`} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              {r.leadTime||'—'}
+            </span>
+          )}
           <span style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.35)'}}>{r.date||'—'}</span>
         </div>
         {isClaimed ? (
@@ -3295,9 +3371,102 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
   };
 
   return (
-    <div className="or-layout" style={{fontFamily:F,animation:'fadeUp 0.4s ease both'}}>
+    <div className="or-layout" style={{fontFamily:F}}>
+      {isEmbedded && <style>{`.or-main { padding-top: 8px !important; }`}</style>}
 
-      {/* ── LEFT: main content ── */}
+      {/* Vertical OPEN watermark — embedded mode */}
+      {isEmbedded && (
+        <div style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',
+          writingMode:'vertical-rl',textOrientation:'mixed',
+          fontFamily:"'Cinzel',serif",fontSize:'4.5rem',fontWeight:800,letterSpacing:'0.40em',
+          color:'rgba(255,255,255,0.035)',pointerEvents:'none',userSelect:'none',zIndex:0,whiteSpace:'nowrap'}}>
+          OPEN
+        </div>
+      )}
+
+      {/* ── LEFT SIDEBAR (hidden by default, hamburger to reveal) — hidden when embedded in dashboard ── */}
+      {!isEmbedded && (orSidebarOpen ? (
+        <div style={{width:210,flexShrink:0,display:'flex',flexDirection:'column',
+          background:'rgba(0,0,10,0.84)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
+          borderRight:'1px solid rgba(255,255,255,0.08)',zIndex:10,overflow:'hidden'}}>
+          {/* Header row: hamburger + module title */}
+          <div style={{display:'flex',alignItems:'center',gap:9,padding:'13px 12px 10px',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+            <button onClick={()=>setOrSidebarOpen(false)}
+              style={{background:'transparent',border:'none',cursor:'pointer',padding:'6px 7px',borderRadius:7,display:'flex',flexDirection:'column',gap:4,outline:'none',flexShrink:0}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              {[0,1,2].map(i=><div key={i} style={{width:16,height:2,background:'rgba(255,255,255,0.65)',borderRadius:2}}/>)}
+            </button>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:'0.43rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:2}}>Module</div>
+              <div style={{fontSize:'0.68rem',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase',fontFamily:"'Cinzel',serif",
+                background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 40%,#a855f7 70%,#00e5ff 100%)',
+                backgroundSize:'300% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+                animation:'auroraShift 5s ease infinite',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                Open Requests
+              </div>
+            </div>
+          </div>
+          {/* Deal stats */}
+          <div style={{padding:'10px 12px 6px',display:'flex',flexDirection:'column',gap:5,flexShrink:0}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 10px',borderRadius:8,background:'rgba(255,215,0,0.06)',border:'1px solid rgba(255,215,0,0.14)'}}>
+              <span style={{fontSize:'0.58rem',fontWeight:700,color:'rgba(255,215,0,0.75)',letterSpacing:'0.07em',textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Job In Hand</span>
+              <span style={{fontSize:'0.72rem',fontWeight:800,color:'rgba(255,215,0,0.90)',fontFamily:"'Inter',sans-serif"}}>{allJobInHandCount}</span>
+            </div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 10px',borderRadius:8,background:'rgba(79,255,223,0.06)',border:'1px solid rgba(79,255,223,0.14)'}}>
+              <span style={{fontSize:'0.58rem',fontWeight:700,color:'rgba(79,255,223,0.75)',letterSpacing:'0.07em',textTransform:'uppercase',fontFamily:"'Cinzel',serif"}}>Tender</span>
+              <span style={{fontSize:'0.72rem',fontWeight:800,color:'rgba(79,255,223,0.90)',fontFamily:"'Inter',sans-serif"}}>{allTenderCount}</span>
+            </div>
+          </div>
+          {/* Team label */}
+          <div style={{padding:'8px 14px 4px',flexShrink:0}}>
+            <div style={{fontSize:'0.42rem',letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700}}>
+              {isCostingRole ? 'Costing Art Team' : 'Estimator Team'}
+            </div>
+          </div>
+          {/* Team list */}
+          <div style={{flex:1,overflowY:'auto',padding:'0 10px 14px',display:'flex',flexDirection:'column',gap:3}}>
+            {(isCostingRole ? COSTING_ROSTER : EST_ROSTER).map(er => {
+              const stats = isCostingRole
+                ? costingRoster.find(x=>x.name===er.name)
+                : estRoster.find(x=>x.name===er.name);
+              const inHand = stats ? (stats.active + (stats.pending||0)) : 0;
+              const online = stats ? isOnline(stats) : false;
+              const idle   = inHand===0;
+              const accentColor = isCostingRole ? '251,191,36' : '99,180,255';
+              return (
+                <div key={er.name} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:8,
+                  border: idle ? '1px solid rgba(255,255,255,0.04)' : `1px solid rgba(${accentColor},0.15)`,
+                  background: idle ? 'rgba(255,255,255,0.015)' : `rgba(${accentColor},0.06)`,
+                  opacity: idle ? 0.45 : 1}}>
+                  <div style={{position:'relative',flexShrink:0}}>
+                    <EstAvatar name={er.name} code={er.code} size={30}/>
+                    <span style={{position:'absolute',bottom:0,right:0,width:7,height:7,borderRadius:'50%',
+                      background: idle ? 'rgba(255,255,255,0.18)' : (online?'#22c55e':'rgba(255,255,255,0.18)'),
+                      border:'2px solid rgba(4,2,14,0.95)'}}/>
+                  </div>
+                  <div style={{minWidth:0}}>
+                    <p style={{fontSize:'0.62rem',fontWeight:700,
+                      color: idle?'rgba(255,255,255,0.38)':'rgba(255,255,255,0.88)',
+                      margin:'0 0 2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{er.name}</p>
+                    <span style={{fontSize:'0.54rem',color: idle?'rgba(255,255,255,0.25)':`rgba(${accentColor},0.85)`,fontWeight:700}}>
+                      {inHand} in hand
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <button onClick={()=>setOrSidebarOpen(true)}
+          style={{position:'absolute',top:14,left:14,zIndex:50,background:'rgba(0,0,10,0.80)',backdropFilter:'blur(14px)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:8,padding:'9px 11px',cursor:'pointer',display:'flex',flexDirection:'column',gap:4.5,outline:'none'}}>
+          {[0,1,2].map(i=><div key={i} style={{width:17,height:2,background:'rgba(255,255,255,0.70)',borderRadius:2}}/>)}
+        </button>
+      ))}
+
+      {/* ── RIGHT COLUMN: main content + team strip ── */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
       <div className="or-main">
 
       {/* Claim identity modal */}
@@ -3305,10 +3474,23 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
         <div style={{position:'fixed',inset:0,zIndex:9500,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,8,0.72)',backdropFilter:'blur(10px)'}}>
           <div style={{background:'rgba(8,4,24,0.98)',border:'1px solid rgba(168,85,247,0.30)',borderRadius:20,padding:'36px 32px',width:340,display:'flex',flexDirection:'column',alignItems:'center',gap:18,boxShadow:'0 30px 80px rgba(0,0,0,0.7)',animation:'fadeUp 0.25s ease both'}}>
             <p style={{fontSize:'0.55rem',letterSpacing:'0.22em',textTransform:'uppercase',color:'rgba(168,85,247,0.60)',margin:0,fontWeight:700}}>Claim Request · {claiming.reqId}</p>
-            {/* Estimator selector */}
-            <p style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.30)',margin:0,alignSelf:'flex-start',letterSpacing:'0.06em'}}>Select estimator</p>
+            {/* Show original estimator chain for Costing Art claims */}
+            {isCostingRole && (() => {
+              const req = requests[claiming.idx];
+              const origEst = req.estimator || requests.find(x=>x.id===req.originalId)?.estimator;
+              return origEst ? (
+                <div style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:10,background:'rgba(0,180,255,0.06)',border:'1px solid rgba(0,180,255,0.18)'}}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.60)" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                  <span style={{fontSize:'0.58rem',color:'rgba(0,200,255,0.50)',letterSpacing:'0.08em',textTransform:'uppercase'}}>Original Estimator</span>
+                  <span style={{fontSize:'0.72rem',fontWeight:700,color:'rgba(0,200,255,0.85)',fontFamily:F}}>{origEst}</span>
+                </div>
+              ) : null;
+            })()}
+            <p style={{fontSize:'0.65rem',color:'rgba(255,255,255,0.30)',margin:0,alignSelf:'flex-start',letterSpacing:'0.06em'}}>
+              {isCostingRole ? 'Select Costing Art Lead' : 'Select estimator'}
+            </p>
             <div style={{width:'100%',display:'flex',flexDirection:'column',gap:7,maxHeight:240,overflowY:'auto',paddingRight:2}}>
-              {EST_ROSTER.map(e=>{
+              {(isCostingRole ? COSTING_ROSTER : EST_ROSTER).map(e=>{
                 const selected = estName === e.name;
                 return (
                   <button key={e.code} onClick={()=>{setEstName(e.name);setNameErr(false);}}
@@ -3329,7 +3511,9 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
                 );
               })}
             </div>
-            {nameErr && <p style={{fontSize:'0.72rem',color:'rgba(255,90,90,0.80)',margin:0,textAlign:'center'}}>Please select an estimator</p>}
+            {nameErr && <p style={{fontSize:'0.72rem',color:'rgba(255,90,90,0.80)',margin:0,textAlign:'center'}}>
+              {isCostingRole ? 'Please select Costing Art Lead' : 'Please select an estimator'}
+            </p>}
             <div style={{display:'flex',gap:10,width:'100%'}}>
               <button onClick={closeClaim} style={{flex:1,padding:'11px 0',borderRadius:10,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',color:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.84rem',cursor:'pointer',outline:'none',transition:'all 0.15s'}}>Cancel</button>
               <button onClick={confirmClaim}
@@ -3350,7 +3534,9 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
         <div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
           <div style={{display:'flex',alignItems:'baseline',gap:12,flexShrink:0}}>
             <h2 style={{fontSize:'1.5rem',fontWeight:800,color:'rgba(255,255,255,0.88)',margin:0}}>Open Requests</h2>
-            <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',fontWeight:400}}>{allOpen.length} unassigned</span>
+            <span style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.28)',fontWeight:400}}>
+              {allOpen.length} {isCostingRole ? 'pending costing review' : 'unassigned'}
+            </span>
           </div>
           {/* Search — inline right of heading */}
           <div style={{display:'flex',alignItems:'center',flex:1,minWidth:260,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,overflow:'hidden'}}>
@@ -3361,7 +3547,11 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
             {orSearch && <button onClick={()=>setOrSearch('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.40,flexShrink:0}}><X size={13} color="#fff"/></button>}
           </div>
         </div>
-        <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:6}}>Pick a request and assign it to yourself to begin estimation.</p>
+        <p style={{fontSize:'0.80rem',color:'rgba(255,255,255,0.32)',marginTop:6}}>
+          {isCostingRole
+            ? 'Pick a discount or final price request and assign it to begin costing review.'
+            : 'Pick a request and assign it to yourself to begin estimation.'}
+        </p>
       </div>
 
       {/* ── Split: Job In Hand (left) | Tender (right) ── */}
@@ -3417,16 +3607,20 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
         </div>
 
       </div>
-      </div>{/* end left */}
+      </div>{/* end or-main */}
 
-      {/* ── BOTTOM: Estimator Team strip (full roster, always visible) ── */}
+      {/* ── BOTTOM: Team strip — Estimator or Costing Art based on role ── */}
       <div className="or-team">
         <p style={{fontSize:'0.45rem',letterSpacing:'0.18em',textTransform:'uppercase',
-          color:'rgba(255,255,255,0.22)',fontWeight:700,margin:'0 0 8px',flexShrink:0}}>Estimator Team</p>
+          color:'rgba(255,255,255,0.22)',fontWeight:700,margin:'0 0 8px',flexShrink:0}}>
+          {isCostingRole ? 'Costing Art Team' : 'Estimator Team'}
+        </p>
         <div style={{display:'flex',gap:8,overflowX:'auto',flex:1,alignItems:'center',paddingBottom:2}}>
-          {EST_ROSTER.map(er => {
-            const stats = estRoster.find(x => x.name === er.name);
-            const inHand  = stats ? stats.active + stats.pending : 0;
+          {(isCostingRole ? COSTING_ROSTER : EST_ROSTER).map(er => {
+            const stats = isCostingRole
+              ? costingRoster.find(x => x.name === er.name)
+              : estRoster.find(x => x.name === er.name);
+            const inHand  = stats ? (stats.active + (stats.pending||0)) : 0;
             const done    = stats ? stats.done : 0;
             const online  = stats ? isOnline(stats) : false;
             const idle    = inHand === 0;
@@ -3469,6 +3663,7 @@ const OpenRequests = ({ requests, onUpdate, onDelete, userCode='', userRole='' }
           })}
         </div>
       </div>
+      </div>{/* end right column */}
 
       {/* ── Delete confirmation modal (Cost Artist only) ── */}
       {deleteConfirm !== null && (
@@ -3533,8 +3728,8 @@ const NotifToast = ({ toasts, onDismiss }) => (
     {toasts.map(t=>(
       <div key={t.id} onClick={()=>onDismiss(t.id)}
         style={{
-          background: t.type==='oos' ? 'rgba(22,4,4,0.97)' : 'rgba(8,4,22,0.97)',
-          border: `1px solid ${t.type==='oos' ? 'rgba(220,60,60,0.55)' : 'rgba(100,210,255,0.38)'}`,
+          background: t.type==='oos' ? 'rgba(22,4,4,0.97)' : t.type==='rfi' ? 'rgba(18,10,0,0.97)' : 'rgba(8,4,22,0.97)',
+          border: `1px solid ${t.type==='oos' ? 'rgba(220,60,60,0.55)' : t.type==='rfi' ? 'rgba(251,191,36,0.45)' : 'rgba(100,210,255,0.38)'}`,
           borderRadius:12,padding:'12px 16px',width:294,
           boxShadow: t.type==='oos' ? '0 10px 40px rgba(200,40,40,0.30)' : '0 10px 40px rgba(0,0,0,0.70)',
           animation:'notifIn 0.32s cubic-bezier(0.22,1,0.36,1) both',
@@ -3542,8 +3737,8 @@ const NotifToast = ({ toasts, onDismiss }) => (
         }}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
           <span style={{fontSize:'0.50rem',letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700,fontFamily:"'Inter',sans-serif",
-            color: t.type==='oos' ? 'rgba(255,90,90,0.90)' : 'rgba(100,210,255,0.80)'}}>
-            {t.type==='oos' ? `⊘ Cancelled · ${t.reqId}` : `💬 New Message · ${t.reqId}`}
+            color: t.type==='oos' ? 'rgba(255,90,90,0.90)' : t.type==='rfi' ? 'rgba(251,191,36,0.90)' : 'rgba(100,210,255,0.80)'}}>
+            {t.type==='oos' ? `⊘ Cancelled · ${t.reqId}` : t.type==='rfi' ? `📋 RFI · ${t.reqId}` : `💬 New Message · ${t.reqId}`}
           </span>
           <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.28)',lineHeight:1}}>✕</span>
         </div>
@@ -3552,6 +3747,11 @@ const NotifToast = ({ toasts, onDismiss }) => (
           <div style={{display:'flex',flexDirection:'column',gap:2,fontFamily:"'Inter',sans-serif"}}>
             <span style={{fontSize:'0.68rem',color:'rgba(255,100,100,0.80)',fontWeight:600}}>Cancelled - Due to Invalid Documents</span>
             {t.text && <span style={{fontSize:'0.64rem',color:'rgba(255,180,180,0.50)',fontStyle:'italic',lineHeight:1.4}}>{t.text.slice(0,80)}{t.text.length>80?'…':''}</span>}
+          </div>
+        ) : t.type==='rfi' ? (
+          <div style={{display:'flex',flexDirection:'column',gap:2,fontFamily:"'Inter',sans-serif"}}>
+            <span style={{fontSize:'0.68rem',color:'rgba(251,191,36,0.85)',fontWeight:600}}>RFI — Estimator needs more information</span>
+            {t.text && <span style={{fontSize:'0.64rem',color:'rgba(255,220,120,0.50)',fontStyle:'italic',lineHeight:1.4}}>{t.text.slice(0,80)}{t.text.length>80?'…':''}</span>}
           </div>
         ) : (
           <div style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.48)',lineHeight:1.4,fontFamily:"'Inter',sans-serif"}}><span style={{color:'rgba(168,85,247,0.95)',fontWeight:600}}>{t.from}: </span>{(t.text||'').slice(0,90)}{(t.text||'').length>90?'…':''}</div>
@@ -3577,6 +3777,11 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
   const [recallDocs, setRecallDocs]     = useState([]);
   const [recallUpState, setRecallUpState] = useState(null);
   const recallFileRef = useRef(null);
+  const [rfiRespondOpen, setRfiRespondOpen] = useState(null); // req.id with active RFI respond panel
+  const [rfiDocs, setRfiDocs]           = useState([]);
+  const [rfiDocUpState, setRfiDocUpState] = useState(null);
+  const [rfiNote, setRfiNote]           = useState('');
+  const rfiFileRef = useRef(null);
 
   const handleRecall = (req, realIdx) => {
     const nowMs = Date.now();
@@ -3607,6 +3812,33 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
     });
     setRecallOpen(null);
     setRecallDocs([]);
+  };
+
+  const handleRfiRespond = (req) => {
+    const nowMs = Date.now();
+    const addedDocs = rfiDocs.length ? [...(req.docs || []), ...rfiDocs] : (req.docs || []);
+    onUpdate(req.id, {
+      reqStatus:      'not-started',
+      status:         'Pending Estimation',
+      rfiRemark:      null,
+      rfiAt:          null,
+      rfiBy:          null,
+      rfiSubmitted:   null,
+      rfiNotification: null,
+      docs:           addedDocs,
+      timeline: [...(req.timeline || []), {
+        event: 'rfi-responded',
+        ts:    new Date(nowMs).toISOString(),
+        tsMs:  nowMs,
+        label: 'Sales Responded to RFI — Info Provided',
+        by:    req.salesPerson || spName || 'Sales',
+        remark: rfiNote.trim() || undefined,
+      }],
+      _immediate: true,
+    });
+    setRfiRespondOpen(null);
+    setRfiDocs([]);
+    setRfiNote('');
   };
 
   const markReqSeen = (reqId) => {
@@ -3655,6 +3887,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
   };
   const statusColor = r => {
     if (r.reqStatus === 'out-of-scope') return 'rgba(255,70,70,0.95)';
+    if (r.reqStatus === 'rfi') return 'rgba(251,191,36,0.95)';
     if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'rgba(0,220,130,0.90)';
     if (r.directorAction === 'rejected') return 'rgba(255,80,80,0.90)';
     if (r.directorAction === 'revised')  return 'rgba(255,160,40,0.90)';
@@ -3664,7 +3897,8 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
     return 'rgba(100,180,255,0.90)';
   };
   const statusLabel = r => {
-    if (r.reqStatus === 'out-of-scope') return 'Rejected';
+    if (r.reqStatus === 'out-of-scope') return 'Cancelled';
+    if (r.reqStatus === 'rfi') return 'RFI — Awaiting Info';
     if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'Approved';
     if (r.directorAction === 'rejected') return 'Rejected';
     if (r.directorAction === 'revised')  return 'Revision Required';
@@ -3726,33 +3960,98 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
           </div>
         </div>
         {/* Stage tracker */}
-        <div style={{background: r.reqStatus==='out-of-scope' ? 'rgba(200,40,40,0.06)' : 'rgba(255,255,255,0.03)', border: r.reqStatus==='out-of-scope' ? '1px solid rgba(220,60,60,0.35)' : '1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'16px 20px',marginBottom:24}}>
+        <div style={{background: r.reqStatus==='out-of-scope' ? 'rgba(200,40,40,0.06)' : r.reqStatus==='rfi' ? 'rgba(180,120,0,0.06)' : 'rgba(255,255,255,0.03)', border: r.reqStatus==='out-of-scope' ? '1px solid rgba(220,60,60,0.35)' : r.reqStatus==='rfi' ? '1px solid rgba(251,191,36,0.30)' : '1px solid rgba(255,255,255,0.07)',borderRadius:10,padding:'16px 20px',marginBottom:24}}>
           <div style={{display:'flex',alignItems:'center',gap:0}}>
             {STAGES.map((st,si)=>{
               const done=si<=stageIdx; const active=si===stageIdx && r.reqStatus!=='out-of-scope';
               const cancelled = r.reqStatus==='out-of-scope';
+              const rfi = r.reqStatus==='rfi';
               return (
                 <div key={st.key} style={{display:'flex',alignItems:'center',flex:1}}>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1}}>
                     <div style={{width:'100%',height:4,background: cancelled && si>stageIdx ? 'rgba(255,255,255,0.04)' : done?st.color:'rgba(255,255,255,0.07)',borderRadius:2}}/>
-                    <div style={{width:10,height:10,borderRadius:'50%',marginTop:-7,background: cancelled && si===stageIdx ? 'rgba(255,70,70,0.80)' : done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 10px ${st.color}`:cancelled&&si===stageIdx?'0 0 10px rgba(255,70,70,0.60)':undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
-                    <div style={{fontSize:'0.52rem',color: cancelled&&si===stageIdx?'rgba(255,70,70,0.90)':done?st.color:'rgba(255,255,255,0.22)',marginTop:5,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
+                    <div style={{width:10,height:10,borderRadius:'50%',marginTop:-7,background: cancelled && si===stageIdx ? 'rgba(255,70,70,0.80)' : rfi && si===stageIdx ? 'rgba(251,191,36,0.85)' : done?st.color:'rgba(255,255,255,0.12)',boxShadow:active?`0 0 10px ${st.color}`:cancelled&&si===stageIdx?'0 0 10px rgba(255,70,70,0.60)':rfi&&si===stageIdx?'0 0 10px rgba(251,191,36,0.60)':undefined,border:active?`2px solid ${st.color}`:'2px solid transparent'}}/>
+                    <div style={{fontSize:'0.52rem',color: cancelled&&si===stageIdx?'rgba(255,70,70,0.90)':rfi&&si===stageIdx?'rgba(251,191,36,0.90)':done?st.color:'rgba(255,255,255,0.22)',marginTop:5,letterSpacing:'0.05em',textAlign:'center',fontWeight:done?600:400,whiteSpace:'nowrap'}}>{st.label}</div>
                   </div>
                   {si<STAGES.length-1&&<div style={{width:6,flexShrink:0}}/>}
                 </div>
               );
             })}
           </div>
+          {r.reqStatus === 'rfi' && (
+            <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid rgba(251,191,36,0.20)',display:'flex',alignItems:'flex-start',gap:10}}>
+              <div style={{width:28,height:28,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(180,120,0,0.20)',border:'1px solid rgba(251,191,36,0.40)',fontSize:'0.90rem'}}>📋</div>
+              <div>
+                <div style={{fontSize:'0.62rem',fontWeight:800,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(251,191,36,0.95)',marginBottom:3}}>RFI — Estimator Waiting for More Info from Sales</div>
+                <div style={{fontSize:'0.72rem',color:'rgba(255,230,140,0.65)'}}>RFI - Awaiting Info from Sales</div>
+                {r.rfiRemark && (
+                  <div style={{marginTop:6,fontSize:'0.74rem',color:'rgba(255,220,120,0.72)',fontStyle:'italic',borderLeft:'2px solid rgba(251,191,36,0.40)',paddingLeft:8,lineHeight:1.5}}>"{r.rfiRemark}"</div>
+                )}
+                <div style={{marginTop:5,fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>By {r.rfiBy||'estimator'}{r.rfiAt ? ` · ${new Date(r.rfiAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}` : ''}</div>
+                {onUpdate && (
+                  <div style={{marginTop:12}}>
+                    {rfiRespondOpen !== r.id ? (
+                      <button onClick={()=>{setRfiRespondOpen(r.id);setRfiDocs([]);setRfiNote('');setRfiDocUpState(null);}}
+                        style={{display:'inline-flex',alignItems:'center',gap:7,padding:'6px 16px',borderRadius:8,background:'rgba(180,120,0,0.18)',border:'1px solid rgba(251,191,36,0.42)',color:'rgba(251,220,80,0.92)',fontFamily:F,fontSize:'0.74rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
+                        ↺ Respond to RFI — Provide Info
+                      </button>
+                    ) : (
+                      <div style={{background:'rgba(180,120,0,0.10)',border:'1px solid rgba(251,191,36,0.28)',borderRadius:10,padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
+                        <div style={{fontSize:'0.66rem',color:'rgba(255,220,100,0.75)',lineHeight:1.6}}>Upload additional documents and/or add a note to respond to the RFI. The estimator will continue with the updated information.</div>
+                        <textarea value={rfiNote} onChange={e=>setRfiNote(e.target.value)}
+                          placeholder="Add a note for the estimator (optional)…"
+                          rows={2}
+                          style={{width:'100%',background:'rgba(180,120,0,0.07)',border:'1px solid rgba(251,191,36,0.25)',borderRadius:8,color:'rgba(255,230,140,0.88)',fontFamily:F,fontSize:'0.78rem',padding:'7px 10px',outline:'none',resize:'vertical',lineHeight:1.5,boxSizing:'border-box'}}/>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:7,alignItems:'center'}}>
+                          <input ref={rfiFileRef} type="file" multiple style={{display:'none'}} onChange={async e=>{
+                            if (!e.target.files?.length) return;
+                            setRfiDocUpState('uploading');
+                            try {
+                              const uploaded=[];
+                              for (const file of Array.from(e.target.files)) {
+                                const url = await uploadToSharePoint(file, r.id, file.name);
+                                if (url) uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
+                              }
+                              setRfiDocs(prev=>[...prev,...uploaded]);
+                              setRfiDocUpState(null);
+                            } catch { setRfiDocUpState(null); }
+                            e.target.value='';
+                          }}/>
+                          <button onClick={()=>rfiFileRef.current?.click()} disabled={rfiDocUpState==='uploading'}
+                            style={{padding:'4px 12px',borderRadius:7,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',color:rfiDocUpState==='uploading'?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.75)',fontFamily:F,fontSize:'0.68rem',fontWeight:600,cursor:'pointer',outline:'none'}}>
+                            {rfiDocUpState==='uploading'?'⟳ Uploading…':'+ Add Documents'}
+                          </button>
+                          {rfiDocs.map((d,di)=>(
+                            <span key={di} style={{fontSize:'0.62rem',color:'rgba(100,210,150,0.85)',background:'rgba(0,180,100,0.08)',border:'1px solid rgba(0,200,120,0.25)',borderRadius:5,padding:'2px 9px'}}>{d.name}</span>
+                          ))}
+                        </div>
+                        <div style={{display:'flex',gap:10}}>
+                          <button onClick={()=>handleRfiRespond(r)} disabled={rfiDocUpState==='uploading'}
+                            style={{flex:1,padding:'7px 0',borderRadius:8,background:'rgba(180,120,0,0.45)',border:'1px solid rgba(251,191,36,0.60)',color:'rgba(255,230,80,0.96)',fontFamily:F,fontSize:'0.76rem',fontWeight:700,cursor:'pointer',outline:'none'}}>
+                            ✓ Submit Response — Resume Estimation
+                          </button>
+                          <button onClick={()=>{setRfiRespondOpen(null);setRfiDocs([]);setRfiNote('');}}
+                            style={{padding:'7px 18px',borderRadius:8,background:'transparent',border:'1px solid rgba(255,255,255,0.14)',color:'rgba(255,255,255,0.42)',fontFamily:F,fontSize:'0.76rem',cursor:'pointer',outline:'none'}}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {r.reqStatus === 'out-of-scope' && (
             <div style={{marginTop:14,paddingTop:12,borderTop:'1px solid rgba(220,60,60,0.20)',display:'flex',alignItems:'flex-start',gap:10}}>
               <div style={{width:28,height:28,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(220,50,50,0.18)',border:'1px solid rgba(220,60,60,0.40)',fontSize:'0.90rem'}}>⊘</div>
               <div>
-                <div style={{fontSize:'0.62rem',fontWeight:800,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(255,70,70,0.95)',marginBottom:3}}>Cancelled by Estimator — Timeline Frozen</div>
+                <div style={{fontSize:'0.62rem',fontWeight:800,letterSpacing:'0.10em',textTransform:'uppercase',color:'rgba(255,70,70,0.95)',marginBottom:3}}>Cancelled by Cost-Artist — Timeline Frozen</div>
                 <div style={{fontSize:'0.72rem',color:'rgba(255,200,200,0.65)'}}>Cancelled - Due to Invalid Documents</div>
                 {r.outScopeRemark && (
                   <div style={{marginTop:6,fontSize:'0.74rem',color:'rgba(255,180,180,0.72)',fontStyle:'italic',borderLeft:'2px solid rgba(220,60,60,0.40)',paddingLeft:8,lineHeight:1.5}}>"{r.outScopeRemark}"</div>
                 )}
-                <div style={{marginTop:5,fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>By {r.outScopeBy||'estimator'}{r.outScopeAt ? ` · ${new Date(r.outScopeAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}` : ''}</div>
+                <div style={{marginTop:5,fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>By {r.outScopeBy||'Cost-Artist'}{r.outScopeAt ? ` · ${new Date(r.outScopeAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}` : ''}</div>
                 {onUpdate && (
                   <div style={{marginTop:12}}>
                     {recallOpen !== r.id ? (
@@ -3770,7 +4069,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
                             try {
                               const uploaded=[];
                               for (const file of Array.from(e.target.files)) {
-                                const url = await uploadToAzure(file, r.id, file.name);
+                                const url = await uploadToSharePoint(file, r.id, file.name);
                                 if (url) uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
                               }
                               setRecallDocs(prev=>[...prev,...uploaded]);
@@ -4199,7 +4498,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
               <div data-no-nav style={{marginTop:8,paddingTop:7,borderTop:'1px solid rgba(220,60,60,0.20)'}} onClick={e=>e.stopPropagation()}>
                 <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:3}}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,70,70,0.85)" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                  <span style={{fontSize:'0.55rem',color:'rgba(255,70,70,0.90)',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase'}}>Cancelled by Estimator</span>
+                  <span style={{fontSize:'0.55rem',color:'rgba(255,70,70,0.90)',fontWeight:700,letterSpacing:'0.10em',textTransform:'uppercase'}}>Cancelled by Cost-Artist</span>
                 </div>
                 {r.outScopeRemark && (
                   <div style={{fontSize:'0.64rem',color:'rgba(255,180,180,0.55)',fontStyle:'italic',paddingLeft:14,lineHeight:1.4,marginBottom:8}}>"{r.outScopeRemark}"</div>
@@ -4220,7 +4519,7 @@ const TrackQuotation = ({ requests, spName, showAll, onUpdate, userCode='' }) =>
                         try {
                           const uploaded=[];
                           for (const file of Array.from(e.target.files)) {
-                            const url = await uploadToAzure(file, r.id, file.name);
+                            const url = await uploadToSharePoint(file, r.id, file.name);
                             if (url) uploaded.push({id:Math.random().toString(36).slice(2)+Date.now().toString(36),name:file.name,type:file.type,url,verified:true});
                           }
                           setRecallDocs(prev=>[...prev,...uploaded]);
@@ -4525,13 +4824,22 @@ const SalesDashboard = ({ requests, spName, showAll, setView, diaryEntries=[] })
     (r.salesPerson||'').toLowerCase()===(spName||'').toLowerCase() ||
     (r.submittedBy||'').toLowerCase()===(spName||'').toLowerCase()
   );
-  const totalQ    = myReqs.length;
-  const approvedQ = myReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length;
-  const pendingQ  = myReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length;
-  const rejectedQ = myReqs.filter(r=>r.directorAction==='rejected').length;
-  const quotedQ   = myReqs.filter(r=>r.estimationFile||r.estimationDocs?.length).length;
-  const wonQ      = myReqs.filter(r=>r.salesStatus==='Won').length;
-  const lostQ     = myReqs.filter(r=>r.salesStatus==='Lost').length;
+  // De-duplicate: for each base ID keep the latest revision for KPI counts
+  const baseIdFn = id => (id || '').replace(/(_R\d+|_F\d+)+$/, '');
+  const uniqueMyMap = {};
+  myReqs.forEach(r => {
+    const base = baseIdFn(r.id);
+    const prev = uniqueMyMap[base];
+    if (!prev || (r.submittedAt || '') > (prev.submittedAt || '')) uniqueMyMap[base] = r;
+  });
+  const uniqueMyReqs = Object.values(uniqueMyMap);
+  const totalQ    = uniqueMyReqs.length;
+  const approvedQ = uniqueMyReqs.filter(r=>r.reqStatus==='completed'||r.directorAction==='approved').length;
+  const pendingQ  = uniqueMyReqs.filter(r=>!r.directorAction&&r.reqStatus!=='completed').length;
+  const rejectedQ = uniqueMyReqs.filter(r=>r.directorAction==='rejected').length;
+  const quotedQ   = uniqueMyReqs.filter(r=>r.estimationFile||r.estimationDocs?.length).length;
+  const wonQ      = uniqueMyReqs.filter(r=>r.salesStatus==='Won').length;
+  const lostQ     = uniqueMyReqs.filter(r=>r.salesStatus==='Lost').length;
 
   const perfKey  = `sp_perf_${spName||'all'}`;
   const perfRows = (()=>{ try{ return JSON.parse(localStorage.getItem(perfKey)||'[]'); }catch{ return []; } })();
@@ -4717,7 +5025,7 @@ const SalesDashboard = ({ requests, spName, showAll, setView, diaryEntries=[] })
 };
 
 // ─── NAV BAR ─────────────────────────────────────────────────────────────────
-const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCode='', onLogout, onDirectTool, onDirectorAccess }) => {
+const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCode='', onLogout, onDirectTool, onDirectorAccess, searchQ='', setSearchQ, onSearch }) => {
   const homeActive    = ['landing','form','relax','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','loading','results'].includes(view);
   const dashActive    = view === 'dashboard';
   const analyseActive = view === 'analyse';
@@ -4750,8 +5058,23 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
     else { setDirErr(true); setTimeout(()=>setDirErr(false),1200); }
   };
 
+  const isSales = userRole === 'sales';
   return (
     <div className="nav-bar">
+      {/* Centered ESTIMATION title + subtitle — hidden for Sales (they get tabs instead) */}
+      {!isSales && (
+        <div style={{position:'absolute',left:0,right:0,textAlign:'center',pointerEvents:'none',userSelect:'none',zIndex:0,display:'flex',flexDirection:'column',alignItems:'center',gap:1}}>
+          <span style={{fontFamily:"'Cinzel',Georgia,'Times New Roman',serif",fontSize:'clamp(0.80rem,1.1vw,1.0rem)',fontWeight:400,letterSpacing:'0.40em',textTransform:'uppercase',
+            background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)',
+            backgroundSize:'300% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+            filter:'drop-shadow(0 2px 18px rgba(124,58,237,0.60))',animation:'auroraShift 5s ease infinite'}}>
+            ESTIMATION
+          </span>
+          <span style={{fontSize:'clamp(0.40rem,0.6vw,0.48rem)',letterSpacing:'0.30em',textTransform:'uppercase',color:'rgba(255,255,255,0.28)',fontFamily:"'Inter',sans-serif",fontWeight:400}}>
+            — PRECISION ENGINE —
+          </span>
+        </div>
+      )}
       {/* Director code prompt overlay */}
       {showDirPrompt && (
         <div style={{position:'fixed',inset:0,zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(6px)'}}>
@@ -4772,7 +5095,7 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
           </div>
         </div>
       )}
-      {/* Estimation Dashboard access code prompt */}
+      {/* E-Dashboard access code prompt */}
       {showEstPrompt && (
         <div style={{position:'fixed',inset:0,zIndex:9000,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(6px)'}}>
           <div style={{background:'rgba(8,4,24,0.97)',border:'1px solid rgba(100,180,255,0.28)',borderRadius:14,padding:'28px 32px',width:300,display:'flex',flexDirection:'column',gap:14,boxShadow:'0 20px 60px rgba(0,0,0,0.6)'}}>
@@ -4792,13 +5115,21 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
           </div>
         </div>
       )}
-      {/* Logo */}
-      <button onClick={onHome} style={{background:'transparent',border:'none',cursor:'pointer',padding:0,marginRight:12,flexShrink:0,display:'flex',alignItems:'center'}}>
-        <img src="/NN.png" alt="NAFFCO Home" style={{height:'clamp(26px,4vw,36px)',width:'auto',objectFit:'contain',display:'block'}}/>
-      </button>
+      {/* Logo / branding */}
+      {isSales ? (
+        <img src="/NN.png" alt="N" onClick={onHome} style={{height:34,width:'auto',objectFit:'contain',flexShrink:0,cursor:'pointer',filter:'brightness(1.6) saturate(1.4)',opacity:0.90}}/>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:1,flexShrink:0,cursor:'pointer'}} onClick={onHome}>
+          <div style={{fontSize:'clamp(0.62rem,1vw,0.78rem)',fontWeight:500,letterSpacing:'0.26em',textTransform:'uppercase',
+            background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)',
+            backgroundSize:'300% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+            animation:'auroraShift 5s ease infinite'}}>NAFFCO AI APEX</div>
+          <div style={{fontSize:'clamp(0.40rem,0.7vw,0.50rem)',letterSpacing:'0.34em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)'}}>Passion to Protect</div>
+        </div>
+      )}
 
-      {/* Role-based nav pills */}
-      <div className="nav-pills">
+      {/* Role-based nav pills — visible for Sales, hidden otherwise */}
+      <div className="nav-pills" style={isSales ? {marginLeft:16} : {display:'none'}}>
         {/* ── Guest (no role) — public request access ── */}
         {!userRole && <>
           <button className={`nav-btn${homeActive?' active':''}`} onClick={()=>setView('landing')}>
@@ -4808,7 +5139,7 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
             Open Requests
           </button>
           <button className={`nav-btn${dashActive?' active':''}`} onClick={()=>{setShowEstPrompt(true);setEstCode('');setEstErr(false);setTimeout(()=>estInputRef.current?.focus(),60);}}>
-            Estimation Dashboard
+            E-Dashboard
           </button>
         </>}
 
@@ -4882,8 +5213,30 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
         </>}
       </div>
 
+      {/* Sales center search bar */}
+      {isSales && (
+        <div style={{flex:1,display:'flex',justifyContent:'center',padding:'0 16px',minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.11)',borderRadius:50,padding:'5px 6px 5px 16px',width:'100%',maxWidth:460}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              value={searchQ}
+              onChange={e=>setSearchQ&&setSearchQ(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&onSearch&&onSearch()}
+              placeholder="Search for Requested Quote..."
+              style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.80)',fontSize:'0.76rem',fontFamily:"'Inter',sans-serif",minWidth:0}}
+            />
+            <button onClick={()=>onSearch&&onSearch()}
+              style={{background:'rgba(130,90,255,0.20)',border:'1px solid rgba(130,90,255,0.35)',borderRadius:50,padding:'4px 14px',color:'rgba(180,150,255,0.90)',fontSize:'0.68rem',fontWeight:700,cursor:'pointer',outline:'none',letterSpacing:'0.06em',fontFamily:"'Inter',sans-serif",flexShrink:0,transition:'all 0.15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(130,90,255,0.38)';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(130,90,255,0.20)';}}>
+              Search
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Right-side action buttons + profile badge */}
-      <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8,flexShrink:0,flexWrap:'wrap',justifyContent:'flex-end'}}>
+      <div style={{marginLeft: isSales ? 0 : 'auto',display:'flex',alignItems:'center',gap:8,flexShrink:0,flexWrap:'wrap',justifyContent:'flex-end'}}>
         {/* Director View button — for guest on dashboard */}
         {!userRole && view === 'dashboard' && (
           <button onClick={openDirPrompt}
@@ -4903,7 +5256,15 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
           </button>
         )}
 
-        {(!userRole || userRole === 'sales') && <button className="nav-back" onClick={onBack || onHome}>← Back</button>}
+        <button
+          onClick={onBack || onHome}
+          style={{position:'relative',zIndex:1,display:'inline-flex',alignItems:'center',gap:5,background:'rgba(0,0,0,0.44)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(255,255,255,0.13)',borderRadius:100,padding:'6px 14px',cursor:'pointer',color:'rgba(255,255,255,0.55)',fontSize:'0.72rem',letterSpacing:'0.10em',textTransform:'uppercase',fontFamily:"'Inter',sans-serif",fontWeight:500,outline:'none',flexShrink:0}}
+          onMouseEnter={e=>{e.currentTarget.style.color='#fff';e.currentTarget.style.borderColor='rgba(255,255,255,0.30)';}}
+          onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.55)';e.currentTarget.style.borderColor='rgba(255,255,255,0.13)';}}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
 
         {/* Profile badge — on the far right */}
         {userRole && (
@@ -4927,7 +5288,7 @@ const NavBar = ({ view, setView, navProtected, onHome, onBack, userRole, userCod
                 </span>
                 <span style={{fontSize:'0.50rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',
                   color:userRole==='sales'?'rgba(160,130,255,0.70)':userRole==='estimator'?'rgba(0,200,255,0.70)':'rgba(255,210,60,0.70)'}}>
-                  {userRole === 'sales' ? 'Sales' : userRole === 'estimator' ? 'Estimator' : 'Cost Artist'}
+                  {userRole === 'sales' ? 'Sales' : userRole === 'estimator' ? 'Estimator' : 'Costing Art Lead'}
                 </span>
               </div>
               <span style={{fontSize:'0.55rem',color:'rgba(255,255,255,0.30)',marginLeft:2,transition:'transform 0.15s',
@@ -5537,20 +5898,13 @@ const _showDocToast = (msg, isWarn = false) => {
 
 const downloadDoc = async (d) => {
   if (!d) return;
-  
-  // Azure URL — fetch as blob so browser triggers Save dialog instead of opening a new tab
+
+  // Remote URL (SharePoint, R2, or legacy Azure) — fetch as blob for Save dialog
   if (d.url) {
     try {
-      // Safely append the Azure SAS token if it isn't already present
-      let secureUrl = d.url;
-      if (!secureUrl.includes(AZURE_SAS)) {
-         secureUrl += (secureUrl.includes('?') ? '&' : '?') + AZURE_SAS;
-      }
-      
-      const fetchUrl = secureUrl + '&t=' + new Date().getTime(); // Break cache
+      const fetchUrl = `${d.url}${d.url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
       const res = await fetch(fetchUrl, { cache: 'no-store' });
-      
-      if (!res.ok) throw new Error('Fetch failed');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -5560,18 +5914,13 @@ const downloadDoc = async (d) => {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
-    } catch(err) {
+    } catch (err) {
       console.error('❌ Download failed:', err);
-      // Fallback with SAS token appended
-      let secureUrl = d.url;
-      if (!secureUrl.includes(AZURE_SAS)) {
-         secureUrl += (secureUrl.includes('?') ? '&' : '?') + AZURE_SAS;
-      }
-      window.open(secureUrl, '_blank'); 
+      window.open(d.url, '_blank');
     }
     return;
   }
-  
+
   // Base64 data URL — convert to Blob so browser saves correct binary
   if (d.data) {
     try {
@@ -5594,75 +5943,44 @@ const downloadDoc = async (d) => {
     }
     return;
   }
-  
-  // File exists but has no Azure URL and no cached data — uploaded before Azure was added
+
   if (d.id || d.name) {
-    _showDocToast(`"${d.name || 'File'}" needs re-upload — this file was saved before Azure storage was set up. The estimator should remove it and re-upload.`, true);
+    _showDocToast(`"${d.name || 'File'}" needs re-upload — no storage URL found.`, true);
   }
 };
 
 const docName = (d) => (d && typeof d === 'object' ? d.name : d) || '—';
 // ──────────────────────────────────────────────────────────────────────────────
 
-const AZURE_ACCOUNT = "apexfilestorage2";
-const AZURE_CONTAINER = "estimation-docs";
-const AZURE_SAS = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
-
-const uploadToAzure = async (file, folder, customFileName) => {
-  const nameToUse = customFileName || file.name;
-  const safeName  = nameToUse.replace(/[#?&=%]/g, '_');
-  const blobName  = `${folder}/${safeName}`;
-  const putUrl    = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-  const downloadUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}`;
-  const DELAYS = [1000, 2000, 4000, 8000, 16000];
-  for (let attempt = 0; attempt <= DELAYS.length; attempt++) {
-    try {
-      const res = await fetch(putUrl, {
-        method: 'PUT',
-        headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': file.type || 'application/octet-stream' },
-        body: file,
-      });
-      if (res.ok) { console.log('✅ Azure uploaded:', downloadUrl); return downloadUrl; }
-      console.warn(`Azure upload HTTP ${res.status} attempt ${attempt + 1} for ${blobName}`);
-    } catch (err) {
-      console.warn(`Azure upload error attempt ${attempt + 1}:`, err.name);
-    }
-    if (attempt < DELAYS.length) await new Promise(r => setTimeout(r, DELAYS[attempt]));
+// ── Upload pipeline: Browser → apex-bridge → SharePoint ──────────────────────
+const uploadToSharePoint = async (file, folder, customFileName) => {
+  try {
+    const url = await uploadFile(file, folder || '', customFileName || '');
+    return url;
+  } catch (err) {
+    console.error('❌ uploadFile failed:', err);
+    return null;
   }
-  console.error('❌ Azure upload exhausted retries for:', blobName);
-  return null;
 };
 
-const verifyAzureBlob = async (url) => {
+// Azure constants kept for JSON data-blob sync (apex-data.json) — NOT used for file uploads
+const AZURE_ACCOUNT   = "apexfilestorage2";
+const AZURE_CONTAINER = "estimation-docs";
+const AZURE_SAS       = "sv=2025-11-05&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2026-06-30T13:08:36Z&st=2026-04-19T20:00:00Z&spr=https&sig=GMAKHd37xTTyBo5eeCg%2BQjzdT37ga%2FtmBDGWHjzfZTc%3D";
+
+// Verify a SharePoint URL is reachable
+const verifyFileUrl = async (url) => {
   if (!url) return false;
   try {
-    // Make sure we append the SAS token correctly for verification
-    let secureUrl = url;
-    if (!secureUrl.includes(AZURE_SAS)) {
-       secureUrl += (secureUrl.includes('?') ? '&' : '?') + AZURE_SAS;
-    }
-    const res = await fetch(`${secureUrl}&_cb=${Date.now()}`, { 
-      method: 'HEAD', 
-      cache: 'no-store' 
+    const res = await fetch(`${url}${url.includes('?') ? '&' : '?'}_cb=${Date.now()}`, {
+      method: 'HEAD',
+      cache: 'no-store',
     });
     return res.ok;
   } catch { return false; }
 };
 
-const deleteAzureBlob = async (url) => {
-  if (!url) return;
-  try {
-    // Strip parameters in case the URL happens to have SAS passed in
-    const baseUrl = url.split('?')[0]; 
-    const blobName = baseUrl.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
-    const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-    const res = await fetch(deleteUrl, { method: 'DELETE' });
-    if (res.ok) console.log('✅ Azure blob deleted:', blobName);
-    else console.warn('⚠️ Azure blob delete HTTP', res.status, 'for', blobName);
-  } catch(err) {
-    console.error('❌ Azure blob delete error:', err);
-  }
-};
+const deleteSharePointFile = (url) => deleteFile(url);
 
 // ------------------------------------------------------------------------------
 
@@ -5908,18 +6226,19 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
   const isSales = userRole === 'sales';
   const salesName = isSales ? (STAFF_NAMES[userCode?.toUpperCase()] || '') : '';
 
-  // Sales: pre-filter to own approved requests only; others: empty until search
+  const allApproved = requests.filter(r => r.directorAction === 'approved' || r.reqStatus === 'completed');
+
   const baseList = isSales
-    ? requests.filter(r =>
+    ? allApproved.filter(r =>
         salesName && (
           (r.salesPerson||'').toLowerCase() === salesName.toLowerCase() ||
           (r.submittedBy||'').toLowerCase() === salesName.toLowerCase()
-        ) && (r.directorAction === 'approved' || r.reqStatus === 'completed')
+        )
       )
-    : [];
+    : allApproved;
 
   const filtered = q.trim()
-    ? (isSales ? baseList : requests).filter(r => {
+    ? baseList.filter(r => {
         const lo = q.trim().toLowerCase();
         return r.id.toLowerCase().includes(lo) ||
           (r.proj||'').toLowerCase().includes(lo) ||
@@ -5927,8 +6246,6 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
           (r.submittedBy||'').toLowerCase().includes(lo);
       })
     : baseList;
-
-  const showList = isSales ? true : q.trim().length > 0;
 
   const ReqRow = ({r, accent='rgba(0,180,255,0.07)', bd='rgba(0,180,255,0.25)'}) => {
     const pal = r.estimator ? avatarPalette(r.estimator) : null;
@@ -5985,7 +6302,7 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
         <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.45)',lineHeight:1.6,maxWidth:480}}>
           {isSales
             ? `Showing your submissions${salesName ? ` for ${salesName}` : ''}. Search to narrow down.`
-            : 'Enter the Request ID to find the original request you want to revise.'}
+            : 'Select the original request you want to revise. Search by ID, project or client.'}
         </p>
       </div>
 
@@ -5993,25 +6310,20 @@ const RevisedSearch = ({requests, onSelect, onBack, userRole='', userCode=''}) =
       <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,marginBottom:24,maxWidth:520,overflow:'hidden'}}>
         <span style={{padding:'12px 14px',display:'flex',alignItems:'center'}}><Search size={15} color="rgba(255,255,255,0.4)"/></span>
         <input autoFocus value={q} onChange={e=>setQ(e.target.value)}
-          placeholder={isSales ? 'Search by ID, project or client…' : 'Enter Request ID (e.g. QT-2026-1234)…'}
+          placeholder="Search by ID, project or client…"
           style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.85)',fontSize:'0.86rem',fontFamily:F2,padding:'12px 0'}}/>
         {q && <button onClick={()=>setQ('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.45}}><X size={13} color="#fff"/></button>}
       </div>
 
       {/* Results */}
-      {!showList ? (
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,marginTop:40,opacity:0.40}}>
-          <Search size={32} color="rgba(0,200,255,0.6)"/>
-          <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.50)',margin:0,textAlign:'center',lineHeight:1.6}}>Type a Request ID above to find the original request.</p>
-        </div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>
-          {isSales && !q.trim() ? 'No submissions found for your account.' : 'No requests match your search.'}
+          {q.trim() ? 'No requests match your search.' : (isSales ? 'No approved submissions found for your account.' : 'No approved requests found.')}
         </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:720}}>
-          {isSales && !q.trim() && (
-            <p style={{fontSize:'0.58rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:4}}>Your Submissions — {filtered.length}</p>
+          {!q.trim() && (
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:4}}>Approved Requests — {filtered.length}</p>
           )}
           {filtered.map(r => <ReqRow key={r.id} r={r}/>)}
         </div>
@@ -6178,6 +6490,9 @@ const RevisedForm = ({original, onSubmit, onBack}) => {
               supplyInstall: original.supplyInstall,
               deal: original.deal,
               submittedBy: revisedBy,
+              salesPerson: original.salesPerson,   // always inherit sales person from original
+              customerRank: original.customerRank,
+              numDoors: original.numDoors,
               // Revision-specific
               requestType: 'revised',
               originalId: original.id,
@@ -6206,17 +6521,19 @@ const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}
   const isSales = userRole === 'sales';
   const salesName = isSales ? (STAFF_NAMES[userCode?.toUpperCase()] || '') : '';
 
+  const allApproved = requests.filter(r => r.directorAction === 'approved' || r.reqStatus === 'completed');
+
   const baseList = isSales
-    ? requests.filter(r =>
+    ? allApproved.filter(r =>
         salesName && (
           (r.salesPerson||'').toLowerCase() === salesName.toLowerCase() ||
           (r.submittedBy||'').toLowerCase() === salesName.toLowerCase()
-        ) && (r.directorAction === 'approved' || r.reqStatus === 'completed')
+        )
       )
-    : [];
+    : allApproved;
 
   const filtered = q.trim()
-    ? (isSales ? baseList : requests).filter(r => {
+    ? baseList.filter(r => {
         const lo = q.trim().toLowerCase();
         return r.id.toLowerCase().includes(lo) ||
           (r.proj||'').toLowerCase().includes(lo) ||
@@ -6224,8 +6541,6 @@ const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}
           (r.submittedBy||'').toLowerCase().includes(lo);
       })
     : baseList;
-
-  const showList = isSales ? true : q.trim().length > 0;
 
   const ReqRow = ({r}) => (
     <button key={r.id} onClick={()=>onSelect(r)}
@@ -6259,7 +6574,7 @@ const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}
         <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.45)',lineHeight:1.6,maxWidth:480}}>
           {isSales
             ? `Showing your submissions${salesName ? ` for ${salesName}` : ''}. Search to narrow down.`
-            : 'Enter the Request ID to find the original request you want to finalise.'}
+            : 'Select the original request to submit a final price. Search by ID, project or client.'}
         </p>
       </div>
 
@@ -6267,25 +6582,20 @@ const FinalPriceSearch = ({requests, onSelect, onBack, userRole='', userCode=''}
       <div style={{display:'flex',alignItems:'center',gap:0,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(52,211,153,0.20)',borderRadius:10,marginBottom:24,maxWidth:520,overflow:'hidden'}}>
         <span style={{padding:'12px 14px',display:'flex',alignItems:'center'}}><Search size={15} color="rgba(52,211,153,0.50)"/></span>
         <input autoFocus value={q} onChange={e=>setQ(e.target.value)}
-          placeholder={isSales ? 'Search by ID, project or client…' : 'Enter Request ID (e.g. QT-2026-1234)…'}
+          placeholder="Search by ID, project or client…"
           style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,0.85)',fontSize:'0.86rem',fontFamily:F2,padding:'12px 0'}}/>
         {q && <button onClick={()=>setQ('')} style={{background:'transparent',border:'none',cursor:'pointer',padding:'0 14px',display:'flex',alignItems:'center',opacity:0.45}}><X size={13} color="#fff"/></button>}
       </div>
 
       {/* Results */}
-      {!showList ? (
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,marginTop:40,opacity:0.40}}>
-          <Search size={32} color="rgba(52,211,153,0.6)"/>
-          <p style={{fontSize:'0.84rem',color:'rgba(255,255,255,0.50)',margin:0,textAlign:'center',lineHeight:1.6}}>Type a Request ID above to find the original request.</p>
-        </div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div style={{color:'rgba(255,255,255,0.28)',fontSize:'0.86rem',marginTop:20}}>
-          {isSales && !q.trim() ? 'No submissions found for your account.' : 'No requests match your search.'}
+          {q.trim() ? 'No requests match your search.' : (isSales ? 'No approved submissions found for your account.' : 'No approved requests found.')}
         </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:720}}>
-          {isSales && !q.trim() && (
-            <p style={{fontSize:'0.58rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:4}}>Your Submissions — {filtered.length}</p>
+          {!q.trim() && (
+            <p style={{fontSize:'0.58rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:700,marginBottom:4}}>Approved Requests — {filtered.length}</p>
           )}
           {filtered.map(r => <ReqRow key={r.id} r={r}/>)}
         </div>
@@ -6740,6 +7050,7 @@ const REQ_STATUS_STYLE = {
   'pending-director':    {c:'rgba(180,130,255,0.95)',bg:'rgba(140,80,255,0.10)',   bd:'rgba(180,130,255,0.30)', label:'Cost-Artist Under Review'},
   completed:          {c:'#00cc77',               bg:'rgba(0,180,90,0.09)',     bd:'rgba(0,210,100,0.35)',   label:'Approved ✓'},
   'out-of-scope':     {c:'rgba(255,70,70,0.95)',  bg:'rgba(200,40,40,0.09)',    bd:'rgba(220,60,60,0.45)',   label:'Cancelled - Due to Invalid Documents'},
+  'rfi':              {c:'rgba(251,191,36,0.95)', bg:'rgba(180,120,0,0.10)',    bd:'rgba(251,191,36,0.40)',  label:'RFI - Awaiting Info from Sales'},
 };
 
 // ── TAT stage calculator ──────────────────────────────────────────────────────
@@ -6879,6 +7190,7 @@ const TATTimeline = ({ r, compact }) => {
 function getReqStatus(r, now) {
   if (!r.estimator) return 'not-started';
   if (r.reqStatus === 'out-of-scope') return 'out-of-scope';
+  if (r.reqStatus === 'rfi') return 'rfi';
   if (r.reqStatus === 'completed' || r.reqStatus === 'onhold' || r.reqStatus === 'risky') return r.reqStatus;
   if (r.reqStatus === 'pending-director') return 'pending-director';
   if (r.taggedAt && (now - r.taggedAt) > TAT_MS) return 'overdue';
@@ -6960,8 +7272,8 @@ const DirectorReviewModal = ({req, idx, now, onUpdate, onClose, requests=[]}) =>
       const id = `dir-doc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
       let url = null, verified = false;
       try {
-        url = await uploadToAzure(file, req.id, file.name);
-        verified = url ? await verifyAzureBlob(url) : false;
+        url = await uploadToSharePoint(file, req.id, file.name);
+        verified = url ? await verifyFileUrl(url) : false;
       } catch {}
       newDocs.push({ id, name: file.name, url, verified });
     }
@@ -7644,7 +7956,7 @@ const DocUploadOverlay = ({ items, onRetry, onSkip, title = 'Uploading Documents
 };
 
 // ─── ESTIMATION REQUEST OVERVIEW ─────────────────────────────────────────────
-const EstRequestOverview = ({ requests }) => {
+const EstRequestOverview = ({ requests, embedded=false }) => {
   const F = "'Inter',sans-serif";
 
   // Active / pending only — exclude completed, approved, rejected, out-of-scope
@@ -7689,18 +8001,46 @@ const EstRequestOverview = ({ requests }) => {
     return entries;
   };
 
-  const DEAL_COLORS = {
-    'Job In Hand': { accent: 'rgba(0,220,130,0.90)',  border: 'rgba(0,200,120,0.28)', bg: 'rgba(0,180,100,0.06)' },
-    'Tender':      { accent: 'rgba(100,180,255,0.90)', border: 'rgba(80,160,255,0.28)', bg: 'rgba(40,100,220,0.06)' },
-    'Budget':      { accent: 'rgba(255,200,50,0.90)',  border: 'rgba(220,170,0,0.28)',  bg: 'rgba(200,140,0,0.06)'  },
-    'Other':       { accent: 'rgba(168,85,247,0.90)',  border: 'rgba(140,70,220,0.28)', bg: 'rgba(100,40,200,0.06)' },
+  // Open / active request cards — unified single blue tone
+  const OPEN_BLUE = { accent: 'rgba(96,165,255,0.92)', border: 'rgba(80,150,255,0.30)', bg: 'rgba(40,100,220,0.07)' };
+  const dealColor = () => OPEN_BLUE;
+
+  // Master-detail: selected estimator (within a deal) → shows their requests in the right panel
+  const [sel, setSel] = useState(null); // { deal, est } | null
+  const selReqs = sel ? (dealGroups[sel.deal] || []).filter(r => (r.estimator || 'Unassigned') === sel.est) : [];
+
+  // Resizable split between OPEN (top) and CLOSED (bottom) sections
+  const [openPct, setOpenPct] = useState(52);
+  const splitDragRef = useRef(false);
+  const splitAreaRef = useRef(null);
+  const onSplitDown = (e) => {
+    e.preventDefault();
+    splitDragRef.current = true;
+    const move = (ev) => {
+      if (!splitDragRef.current || !splitAreaRef.current) return;
+      const rect = splitAreaRef.current.getBoundingClientRect();
+      const pct = ((ev.clientY - rect.top) / rect.height) * 100;
+      setOpenPct(Math.min(80, Math.max(20, pct)));
+    };
+    const up = () => { splitDragRef.current = false; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
   };
-  const dealColor = (d) => DEAL_COLORS[d] || DEAL_COLORS['Other'];
+
+  const reqStatusLabel = (r) => {
+    if (r.reqStatus === 'completed' || r.directorAction === 'approved') return 'Approved';
+    if (r.reqStatus === 'out-of-scope') return 'Cancelled';
+    if (r.reqStatus === 'rfi') return 'RFI';
+    if (r.reqStatus === 'pending-director') return 'Awaiting Director';
+    if (r.reqStatus === 'inprogress') return 'In Progress';
+    return r.status || 'Pending';
+  };
 
   return (
     <div style={{
       position:'relative', width:'100%', height:'100%',
-      padding:'72px 28px 28px', fontFamily:F, color:'#e2e8f0', overflowY:'auto',
+      padding:`${embedded?16:72}px 28px 28px`, fontFamily:F, color:'#e2e8f0', overflow:'hidden',
+      display:'flex', flexDirection:'column',
     }}>
       {/* Header */}
       <div style={{marginBottom:28}}>
@@ -7736,6 +8076,22 @@ const EstRequestOverview = ({ requests }) => {
         </div>
       </div>
 
+      {/* ── Resizable split: OPEN (top) | CLOSED (bottom) ── */}
+      <div ref={splitAreaRef} style={{flex:1, minHeight:0, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+
+      {/* ── Draggable running-color divider between OPEN (active) and CLOSED ── */}
+      <div onMouseDown={onSplitDown} title="Drag to resize"
+        style={{order:2, margin:'8px 0', height:14, flexShrink:0, cursor:'row-resize',
+          position:'relative', display:'flex', alignItems:'center'}}>
+        <div style={{height:3, width:'100%', borderRadius:3, overflow:'hidden',
+          background:'linear-gradient(90deg,#00e5ff,#4f46e5,#7c3aed,#a855f7,#ec4899,#f59e0b,#10b981,#00e5ff)',
+          backgroundSize:'300% 100%', animation:'auroraShift 4s linear infinite',
+          boxShadow:'0 0 14px rgba(124,58,237,0.55)'}}/>
+        <div style={{position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)',
+          width:48, height:5, borderRadius:3, background:'rgba(255,255,255,0.45)',
+          boxShadow:'0 0 6px rgba(0,0,0,0.6)'}}/>
+      </div>
+
       {/* ── Quotation Closed Stats ── */}
       {(() => {
         const now = new Date();
@@ -7769,11 +8125,18 @@ const EstRequestOverview = ({ requests }) => {
         const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
         const todayEnd   = new Date(now); todayEnd.setHours(23,59,59,999);
 
+        // Previous (yesterday) day
+        const yestStart = new Date(todayStart); yestStart.setDate(todayStart.getDate() - 1);
+        const yestEnd   = new Date(todayEnd);   yestEnd.setDate(todayEnd.getDate() - 1);
+
+        // All closed cards share a single navy-blue tone
+        const NAVY = { accent: 'rgba(120,160,255,0.95)', border: 'rgba(50,80,190,0.38)', bg: 'rgba(24,42,120,0.14)' };
         const periods = [
-          { label: 'Closed Today',         accent: 'rgba(94,234,212,0.90)',  border: 'rgba(20,184,166,0.28)', bg: 'rgba(20,184,166,0.06)', items: getClosedIn(todayStart, todayEnd) },
-          { label: 'Closed This Week',      accent: 'rgba(129,140,248,0.90)', border: 'rgba(99,102,241,0.28)', bg: 'rgba(99,102,241,0.06)', items: getClosedIn(thisWeekStart, thisWeekEnd) },
-          { label: 'Closed Previous Week',  accent: 'rgba(251,191,36,0.90)',  border: 'rgba(217,119,6,0.28)',  bg: 'rgba(180,100,0,0.06)',  items: getClosedIn(prevWeekStart, prevWeekEnd) },
-          { label: 'Closed This Month',     accent: 'rgba(52,211,153,0.90)',  border: 'rgba(16,185,129,0.28)', bg: 'rgba(16,185,129,0.06)', items: getClosedIn(monthStart, monthEnd) },
+          { label: 'Closed Today',         ...NAVY, items: getClosedIn(todayStart, todayEnd) },
+          { label: 'Closed Previous Day',  ...NAVY, items: getClosedIn(yestStart, yestEnd) },
+          { label: 'Closed This Week',     ...NAVY, items: getClosedIn(thisWeekStart, thisWeekEnd) },
+          { label: 'Closed Previous Week', ...NAVY, items: getClosedIn(prevWeekStart, prevWeekEnd) },
+          { label: 'Closed This Month',    ...NAVY, items: getClosedIn(monthStart, monthEnd) },
         ];
 
         // Aggregate by estimator name within a list of requests
@@ -7786,12 +8149,57 @@ const EstRequestOverview = ({ requests }) => {
           return Object.entries(map).sort((a, b) => b[1] - a[1]);
         };
 
+        // Daily closures — last 7 days as cards, last 14 days for the trend graph
+        const dayCell = (offset) => {
+          const s = new Date(now); s.setHours(0,0,0,0); s.setDate(s.getDate() - offset);
+          const e = new Date(s); e.setHours(23,59,59,999);
+          return { date:s, count:getClosedIn(s,e).length };
+        };
+        const TREND_DAYS = 30;
+        const trendDays = Array.from({length:TREND_DAYS}, (_,i)=>dayCell(TREND_DAYS-1-i));   // oldest → today
+        const trendMax = Math.max(1, ...trendDays.map(d=>d.count));
+        const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
         return (
-          <div style={{marginBottom:28}}>
+          <div style={{order:3, flex:1, minHeight:0, overflowY:'auto', paddingRight:4}}>
             <p style={{fontSize:'0.58rem',letterSpacing:'0.18em',textTransform:'uppercase',
-              color:'rgba(94,234,212,0.50)',fontWeight:700,marginBottom:12}}>
+              color:'rgba(120,160,255,0.55)',fontWeight:700,marginBottom:12}}>
               QUOTATION CLOSED
             </p>
+
+            {/* ── Daily closures + animated trend graph ── */}
+            <style>{`@keyframes ovGrowBar{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}`}</style>
+            <div style={{display:'flex',gap:12,marginBottom:18,flexWrap:'wrap',alignItems:'stretch'}}>
+              {/* Animated daily trend graph */}
+              <div style={{flex:1, minWidth:300, padding:'10px 16px 8px', borderRadius:12,
+                background:'rgba(8,4,28,0.70)', border:'1px solid rgba(99,102,241,0.22)',
+                backdropFilter:'blur(14px)', WebkitBackdropFilter:'blur(14px)',
+                display:'flex', flexDirection:'column'}}>
+                <span style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',
+                  color:'rgba(120,160,255,0.80)',fontWeight:700,marginBottom:8}}>Daily Trend · Last {TREND_DAYS} Days</span>
+                <div style={{flex:1,display:'flex',alignItems:'flex-end',gap:1.5,minHeight:128}}>
+                  {trendDays.map((d,i)=>{
+                    const h = (d.count/trendMax)*100;
+                    const isToday = i===trendDays.length-1;
+                    return (
+                      <div key={i} title={`${WD[d.date.getDay()]} ${d.date.getDate()} — ${d.count} closed`}
+                        style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',gap:2,height:'100%'}}>
+                        <span style={{fontSize:'0.44rem',fontWeight:700,
+                          color:isToday?'rgba(150,190,255,0.95)':'rgba(255,255,255,0.45)'}}>{d.count||''}</span>
+                        <div style={{width:'100%',height:`${Math.max(h, d.count?6:0)}%`,minHeight:d.count?4:0,
+                          borderRadius:'2px 2px 0 0', transformOrigin:'bottom',
+                          background:isToday
+                            ? 'linear-gradient(180deg,rgba(150,190,255,0.98),rgba(50,80,190,0.35))'
+                            : 'linear-gradient(180deg,rgba(96,140,255,0.88),rgba(50,80,190,0.22))',
+                          animation:`ovGrowBar 0.55s cubic-bezier(0.22,1,0.36,1) ${i*0.025}s both`}}/>
+                        <span style={{fontSize:'0.40rem',color:'rgba(255,255,255,0.32)',whiteSpace:'nowrap'}}>{d.date.getDate()}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:14}}>
               {periods.map(({ label, accent, border, bg, items }) => {
                 const who = byWho(items);
@@ -7851,8 +8259,11 @@ const EstRequestOverview = ({ requests }) => {
         );
       })()}
 
-      {/* Deal group cards in a responsive grid */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:20}}>
+      {/* OPEN/ACTIVE requests — master (deal cards w/ clickable estimators) | detail (right table) */}
+      <div style={{order:1, height:`${openPct}%`, flexShrink:0, minHeight:0, display:'flex', gap:16, overflow:'hidden'}}>
+        {/* LEFT: deal cards */}
+        <div style={{flex:1, minWidth:0, overflowY:'auto', paddingRight:4,
+          display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:20, alignContent:'start'}}>
         {sortedDeals.map(deal => {
           const reqs = dealGroups[deal];
           const estRows = getEstGroups(reqs);
@@ -7891,15 +8302,19 @@ const EstRequestOverview = ({ requests }) => {
                   const isUnassigned = estName === 'Unassigned';
                   const estCode = Object.entries(STAFF_NAMES).find(([,v]) => v === estName)?.[0] || '';
                   const pct = Math.round((estReqs.length / reqs.length) * 100);
+                  const isSel = sel && sel.deal === deal && sel.est === estName;
                   return (
                     <div key={estName} style={{
                       display:'flex', alignItems:'center', gap:12,
-                      padding:'10px 20px',
+                      padding:'10px 20px', cursor:'pointer',
                       borderBottom:'1px solid rgba(255,255,255,0.04)',
+                      borderLeft:`3px solid ${isSel ? c.accent : 'transparent'}`,
+                      background: isSel ? 'rgba(96,165,255,0.12)' : 'transparent',
                       transition:'background 0.14s',
                     }}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                      onClick={()=>setSel(isSel ? null : { deal, est: estName })}
+                      onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background='rgba(255,255,255,0.04)'; }}
+                      onMouseLeave={e=>{ if(!isSel) e.currentTarget.style.background='transparent'; }}
                     >
                       {/* Avatar */}
                       {isUnassigned ? (
@@ -7958,7 +8373,58 @@ const EstRequestOverview = ({ requests }) => {
             </div>
           );
         })}
-      </div>
+        </div>{/* /LEFT grid */}
+
+        {/* RIGHT: selected estimator detail table */}
+        <div style={{width:360, flexShrink:0, borderRadius:14, overflow:'hidden',
+          background:'#05030f', border:'1px solid rgba(80,150,255,0.20)',
+          display:'flex', flexDirection:'column'}}>
+          {!sel ? (
+            <div style={{flex:1, background:'#000', display:'flex', alignItems:'center', justifyContent:'center',
+              color:'rgba(255,255,255,0.25)', fontSize:'0.72rem', fontStyle:'italic', textAlign:'center', padding:20}}>
+              Select an estimator to view their requests
+            </div>
+          ) : (
+            <>
+              <div style={{padding:'12px 14px', borderBottom:'1px solid rgba(80,150,255,0.20)',
+                display:'flex', alignItems:'center', gap:10,
+                background:'linear-gradient(90deg,rgba(40,100,220,0.12),transparent)'}}>
+                {sel.est === 'Unassigned' ? (
+                  <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,background:'rgba(255,255,255,0.06)',border:'2px solid rgba(255,255,255,0.14)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  </div>
+                ) : (
+                  <EstAvatar name={sel.est} code={Object.entries(STAFF_NAMES).find(([,v])=>v===sel.est)?.[0]||''} size={30}/>
+                )}
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontSize:'0.80rem',fontWeight:700,color:'rgba(255,255,255,0.92)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sel.est}</div>
+                  <div style={{fontSize:'0.56rem',color:'rgba(150,180,255,0.70)',letterSpacing:'0.04em'}}>{sel.deal} · {selReqs.length} request{selReqs.length!==1?'s':''}</div>
+                </div>
+                <button onClick={()=>setSel(null)} title="Close"
+                  style={{flexShrink:0,width:24,height:24,borderRadius:6,border:'1px solid rgba(255,255,255,0.12)',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.55)',cursor:'pointer',fontSize:'0.8rem',lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+              </div>
+              <div style={{flex:1, overflowY:'auto'}}>
+                {selReqs.length === 0 ? (
+                  <p style={{textAlign:'center',color:'rgba(255,255,255,0.20)',fontSize:'0.7rem',fontStyle:'italic',padding:'24px 0'}}>No requests</p>
+                ) : selReqs.map((r,idx)=>(
+                  <div key={r.id||idx} style={{padding:'10px 14px',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{flex:1,minWidth:0,fontSize:'0.74rem',fontWeight:600,color:'rgba(255,255,255,0.88)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.proj||r.client||'—'}</span>
+                      <span style={{flexShrink:0,fontSize:'0.5rem',fontWeight:700,letterSpacing:'0.04em',textTransform:'uppercase',color:'rgba(150,180,255,0.85)',background:'rgba(40,100,220,0.14)',border:'1px solid rgba(80,150,255,0.25)',borderRadius:6,padding:'2px 6px'}}>{reqStatusLabel(r)}</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginTop:4,fontSize:'0.6rem',color:'rgba(255,255,255,0.42)'}}>
+                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.client||r.mainContractor||'—'}</span>
+                      {r.date && <span style={{marginLeft:'auto',flexShrink:0}}>{r.date}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>{/* /RIGHT detail */}
+      </div>{/* /OPEN pane */}
+
+      </div>{/* /split area */}
 
       {active.length === 0 && (
         <div style={{textAlign:'center',padding:'60px 0',color:'rgba(255,255,255,0.22)'}}>
@@ -7971,13 +8437,65 @@ const EstRequestOverview = ({ requests }) => {
   );
 };
 
+// ─── COPY LINK BUTTON ─────────────────────────────────────────────────────────
+const APP_ORIGIN = 'https://wonderful-flower-020202300.7.azurestaticapps.net';
+const SP_DOCS_BASE = 'https://naffcogroup.sharepoint.com/sites/AI-APEX/Shared%20Documents/Estimation_Docs';
+
+const appLink = id => `${APP_ORIGIN}/estimation-hub/estimation/${id}`;
+const spLink  = id => `${SP_DOCS_BASE}/${id}`;
+
+const CopyLinkBtn = ({ reqId, link: overrideLink, size = 'normal' }) => {
+  const F2 = "'Inter',sans-serif";
+  const [copied, setCopied] = useState(false);
+  const url = overrideLink || appLink(reqId);
+  const isSmall = size === 'small';
+  return (
+    <button
+      title={`Copy shareable link\n${url}`}
+      onClick={e=>{ e.stopPropagation(); navigator.clipboard.writeText(url).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),1800); }); }}
+      style={{background:copied?'rgba(52,211,153,0.10)':'transparent',border:copied?'1px solid rgba(52,211,153,0.28)':'1px solid transparent',cursor:'pointer',padding:isSmall?'2px 6px':'2px 8px',borderRadius:6,color:copied?'rgba(52,211,153,0.92)':'rgba(255,255,255,0.30)',transition:'all 0.2s',display:'flex',alignItems:'center',gap:3,fontSize:isSmall?'0.58rem':'0.72rem',fontFamily:F2,flexShrink:0}}
+      onMouseEnter={e=>{ if(!copied){e.currentTarget.style.color='rgba(255,255,255,0.72)';e.currentTarget.style.borderColor='rgba(255,255,255,0.18)';} }}
+      onMouseLeave={e=>{ if(!copied){e.currentTarget.style.color='rgba(255,255,255,0.30)';e.currentTarget.style.borderColor='transparent';} }}>
+      {copied
+        ? <><svg width={isSmall?9:11} height={isSmall?9:11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Copied</>
+        : <><svg width={isSmall?9:11} height={isSmall?9:11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>Copy Link</>
+      }
+    </button>
+  );
+};
+
+const SpBtn = ({ reqId, link: overrideLink, size = 'normal' }) => {
+  const F2 = "'Inter',sans-serif";
+  const url = overrideLink || spLink(reqId);
+  const isSmall = size === 'small';
+  return (
+    <a
+      href={url} target="_blank" rel="noopener noreferrer"
+      title={`Open in SharePoint\n${url}`}
+      onClick={e=>e.stopPropagation()}
+      style={{background:'transparent',border:'1px solid transparent',cursor:'pointer',padding:isSmall?'2px 6px':'2px 8px',borderRadius:6,color:'rgba(0,180,255,0.38)',transition:'all 0.2s',display:'flex',alignItems:'center',gap:3,fontSize:isSmall?'0.58rem':'0.72rem',fontFamily:F2,flexShrink:0,textDecoration:'none'}}
+      onMouseEnter={e=>{ e.currentTarget.style.color='rgba(0,200,255,0.85)';e.currentTarget.style.borderColor='rgba(0,180,255,0.22)';e.currentTarget.style.background='rgba(0,180,255,0.07)'; }}
+      onMouseLeave={e=>{ e.currentTarget.style.color='rgba(0,180,255,0.38)';e.currentTarget.style.borderColor='transparent';e.currentTarget.style.background='transparent'; }}>
+      <svg width={isSmall?9:11} height={isSmall?9:11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      SharePoint
+    </a>
+  );
+};
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 const Dashboard = ({
   requests, onUpdate, onDelete, initialViewMode, onDirectTool,
   docUploadProgress, setDocUploadProgress, setPendingSubmit, retryDocUploads, pendingSubmit,
-  onOverview,
+  onOverview, onOpenReqs, userCode='', isEmbedded=false,
+  initialOpenId=null, onOpenChange=null,
 }) => {
   const [open, setOpen] = useState(null);
+  const _deepLinkApplied = useRef(false);
+  useEffect(() => {
+    if (_deepLinkApplied.current || !initialOpenId || !requests.length) return;
+    const idx = requests.findIndex(r => r.id && r.id.toUpperCase() === initialOpenId.toUpperCase());
+    if (idx !== -1) { setOpen(requests[idx].id); _deepLinkApplied.current = true; }
+  }, [initialOpenId, requests]);
   const [reviewIdx, setReviewIdx] = useState(null);
   const [seenTs, setSeenTs] = useState(() => _getSeen());
   const markDashSeen = (reqId) => { _markSeen(reqId, 'sales'); setSeenTs(_getSeen()); };
@@ -8006,7 +8524,17 @@ const Dashboard = ({
   const [dirTab, setDirTab] = useState('history'); // 'history' | 'analysis'
   const [oosMode, setOosMode]     = useState(false);   // show OOS remark input
   const [oosRemark, setOosRemark] = useState('');       // draft remark
-  const [dashFilter, setDashFilter] = useState('');    // '' | 'pending-estimation' | 'pending-approval' | 'unassigned' | 'out-of-scope'
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [dashSection, setDashSection] = useState('list'); // 'list' | 'open' | 'overview'
+  const [dashFilter, setDashFilter] = useState(() => {
+    try {
+      // When embedded via iframe, filter comes as URL param
+      const urlFilter = new URLSearchParams(window.location.search).get('filter') || '';
+      if (urlFilter) return urlFilter;
+      const f = sessionStorage.getItem('apex_dash_filter')||''; sessionStorage.removeItem('apex_dash_filter'); return f;
+    } catch { return ''; }
+  });  // '' | 'new' | 'revise' | 'discount' | 'final' | 'out-of-scope'
+  const [statusFilter, setStatusFilter] = useState('');   // '' | 'pending-estimation' | 'pending-approval' | 'unassigned' | 'rfi' | 'approved'
   const [pendingEstDealFilter, setPendingEstDealFilter] = useState(''); // '' | 'Job In Hand' | 'Tender'
   const [estTeamPage, setEstTeamPage] = useState(false);
   const [estTeamDetail, setEstTeamDetail] = useState(null); // {code,name} | null
@@ -8024,8 +8552,8 @@ const Dashboard = ({
 
   // Auto-expand conversation when request has messages, collapse when empty
   useEffect(() => {
-    if (open !== null && requests[open]) {
-      const hasMessages = (requests[open].conversation || []).length > 0;
+    if (open !== null && requests.find(r => r.id === open)) {
+      const hasMessages = (requests.find(r => r.id === open)?.conversation || []).length > 0;
       setConvoCollapsed(!hasMessages);
       setDirConvoOpen(hasMessages);
     }
@@ -8073,7 +8601,7 @@ const Dashboard = ({
     return () => clearInterval(id);
   }, []);
 
-  const req = open !== null ? requests[open] : null;
+  const req = open !== null ? requests.find(r => r.id === open) : null;
 
   const handleEstimatorUpload = async (e) => {
     if (!e.target.files?.length || !req?.id) return;
@@ -8084,13 +8612,13 @@ const Dashboard = ({
     for (const file of files) {
       const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
       const customName = `quotation-${safeFn}`;
-      const azureUrl = await uploadToAzure(file, req.id, customName);
+      const spUrl = await uploadToSharePoint(file, req.id, customName);
       newDocs.push({
         id: Math.random().toString(36).slice(2) + Date.now().toString(36),
         name: customName,
         type: file.type,
-        url: azureUrl || null,
-        verified: !!azureUrl,
+        url: spUrl || null,
+        verified: !!spUrl,
       });
     }
     const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
@@ -8114,16 +8642,7 @@ const Dashboard = ({
     const existing = req.estimationDocs || (req.estimationDoc ? [req.estimationDoc] : []);
     const toDelete = existing[idx];
     if (toDelete?.url) {
-      try {
-        const baseUrl = toDelete.url.split('?')[0];
-        const blobName = baseUrl.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
-        const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-        const res = await fetch(deleteUrl, { method: 'DELETE' });
-        if (res.ok) console.log('✅ Azure blob deleted:', blobName);
-        else console.warn('⚠️ Azure blob delete HTTP', res.status);
-      } catch (err) {
-        console.error('❌ Azure blob delete error:', err);
-      }
+      // File is on SharePoint — server-side lifecycle; no client-side delete needed
     }
     const updated = existing.filter((_, i) => i !== idx);
     onUpdate(req.id, {
@@ -8143,13 +8662,13 @@ const Dashboard = ({
     for (const file of files) {
       const safeFn = file.name.replace(/[#?&=%\s]/g, '_');
       const customName = `tool-${safeFn}`;
-      const azureUrl = await uploadToAzure(file, req.id, customName);
-      const verified = azureUrl ? await verifyAzureBlob(azureUrl) : false;
+      const spUrl = await uploadToSharePoint(file, req.id, customName);
+      const verified = spUrl ? await verifyFileUrl(spUrl) : false;
       newDocs.push({
         id: Math.random().toString(36).slice(2) + Date.now().toString(36),
         name: customName,
         type: file.type,
-        url: azureUrl || null,
+        url: spUrl || null,
         verified,
       });
     }
@@ -8162,14 +8681,7 @@ const Dashboard = ({
     const existing = req.toolDocs || [];
     const toDelete = existing[idx];
     if (toDelete?.url) {
-      try {
-        const baseUrl = toDelete.url.split('?')[0];
-        const blobName = baseUrl.replace(`https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/`, '');
-        const deleteUrl = `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${blobName}?${AZURE_SAS}`;
-        await fetch(deleteUrl, { method: 'DELETE' });
-      } catch (err) {
-        console.error('❌ Tool doc delete error:', err);
-      }
+      // File is on SharePoint — server-side lifecycle; no client-side delete needed
     }
     const updated = existing.filter((_, i) => i !== idx);
     onUpdate(req.id, { toolDocs: updated, _immediate: true });
@@ -8188,9 +8700,10 @@ const Dashboard = ({
     const isRejected = req.directorAction === 'rejected';
     const isResubmission = req.directorAction === 'revised';
     const isOutOfScope = req.reqStatus === 'out-of-scope';
+    const isRFI = req.reqStatus === 'rfi';
     const minFiles = 1;
     const allDocsVerified = (req.estimationDocs || []).length >= minFiles && (req.estimationDocs || []).every(d => d.verified !== false);
-    const canSendToDirector = allDocsVerified && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isOutOfScope;
+    const canSendToDirector = allDocsVerified && !!req.projValue && req.reqStatus !== 'pending-director' && req.reqStatus !== 'completed' && !isOutOfScope && !isRFI;
     const DL = (t) => <div style={{fontSize:'0.55rem',color:'rgba(0,220,255,0.38)',letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:5,fontWeight:600}}>{t}</div>;
     const DV = (v,c='rgba(255,255,255,0.85)') => <div style={{fontSize:'0.82rem',fontWeight:600,color:c,lineHeight:1.4}}>{v||'—'}</div>;
     const GCard = ({children,accent='rgba(255,255,255,0.05)',border='rgba(255,255,255,0.09)',style:sx={}}) => (
@@ -8272,7 +8785,7 @@ const Dashboard = ({
               display:'flex',alignItems:'center',
             }}>
               {/* ← Back */}
-              <button onClick={()=>setOpen(null)}
+              <button onClick={()=>{ setOpen(null); onOpenChange && onOpenChange(null); }}
                 style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.40)',cursor:'pointer',
                   fontSize:'0.74rem',fontFamily:F2,display:'flex',alignItems:'center',gap:5,flexShrink:0,padding:0,
                   letterSpacing:'0.02em',transition:'color 0.15s'}}
@@ -8290,6 +8803,8 @@ const Dashboard = ({
                   <span style={{fontSize:'0.90rem',fontWeight:800,color:'rgba(220,165,0,0.95)',fontFamily:'monospace',letterSpacing:'0.06em'}}>{req.id}</span>
                   {req.requestType==='revised'    && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(0,200,255,0.85)',background:'rgba(0,200,255,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>REVISE</span>}
                   {req.requestType==='finalPrice' && <span style={{fontSize:'0.48rem',fontWeight:700,color:'rgba(52,211,153,0.90)',background:'rgba(52,211,153,0.10)',borderRadius:20,padding:'1px 7px',letterSpacing:'0.08em',textTransform:'uppercase'}}>FINAL</span>}
+                  {req.id && <CopyLinkBtn reqId={req.id} link={req.appLink}/>}
+                  {req.id && <SpBtn reqId={req.id} link={req.spLink}/>}
                 </div>
               </div>
 
@@ -8438,7 +8953,7 @@ const Dashboard = ({
           <div style={{display:'flex',alignItems:'flex-start',gap:14,padding:'14px 20px',marginBottom:16,borderRadius:10,background:'rgba(200,40,40,0.10)',border:'1px solid rgba(220,60,60,0.50)',boxShadow:'0 0 22px rgba(200,40,40,0.14)'}}>
             <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(220,50,50,0.20)',border:'1px solid rgba(220,60,60,0.45)',fontSize:'1.1rem'}}>⊘</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:'0.72rem',fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'rgba(255,90,90,0.95)',marginBottom:4}}>Cancelled by Estimator — Timeline Frozen</div>
+              <div style={{fontSize:'0.72rem',fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'rgba(255,90,90,0.95)',marginBottom:4}}>Cancelled by Cost-Artist — Timeline Frozen</div>
               <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.65)',lineHeight:1.55}}>
                 This request has been cancelled due to invalid documents. Timeline is frozen. Contact the estimator or use Recall to re-open.
               </div>
@@ -8448,12 +8963,12 @@ const Dashboard = ({
                 </div>
               )}
               <div style={{marginTop:6,fontSize:'0.64rem',color:'rgba(255,255,255,0.30)',letterSpacing:'0.08em'}}>
-                Marked by {req.outScopeBy||'estimator'} · {req.outScopeAt ? new Date(req.outScopeAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : '—'}
+                Marked by {req.outScopeBy||'Cost-Artist'} · {req.outScopeAt ? new Date(req.outScopeAt).toLocaleString('en-AE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : '—'}
                 {req.outScopeAt && <span style={{marginLeft:8,fontFamily:'monospace',color:'rgba(255,255,255,0.18)'}}>({req.outScopeAt}ms)</span>}
               </div>
             </div>
-            {/* Recall button — available to estimator and director */}
-            {(viewMode === 'estimator' || viewMode === 'director') && (
+            {/* Recall button — available to cost-artist (director) only */}
+            {viewMode === 'director' && (
               <button
                 onClick={() => {
                   const nowMs = Date.now();
@@ -8886,7 +9401,7 @@ const Dashboard = ({
                   if (origIdx < 0) return null;
                   const origR = requests[origIdx];
                   return (
-                    <button onClick={()=>setOpen(origIdx)}
+                    <button onClick={()=>setOpen(req.originalId)}
                       style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,background:'rgba(220,165,0,0.08)',border:'1px solid rgba(220,165,0,0.30)',color:'rgba(255,200,60,0.90)',fontFamily:F2,fontSize:'0.78rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',width:'100%',textAlign:'left'}}
                       onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,165,0,0.16)';e.currentTarget.style.borderColor='rgba(220,165,0,0.50)';}}
                       onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,165,0,0.08)';e.currentTarget.style.borderColor='rgba(220,165,0,0.30)';}}>
@@ -9048,12 +9563,21 @@ const Dashboard = ({
                       </button>
                     </div>
 
-                    {/* ── Project Value ── */}
+                    {/* ── Project Value + No of Doors ── */}
                     <div style={{position:'relative',background:'rgba(0,10,30,0.60)',border:'1px solid rgba(0,200,120,0.22)',borderRadius:8,padding:'10px 12px'}}>
                       <div style={{position:'absolute',top:4,right:10,fontSize:'3.2rem',fontWeight:900,color:'rgba(0,220,130,1)',opacity:0.22,pointerEvents:'none',lineHeight:1,userSelect:'none',fontFamily:'monospace'}}>2</div>
-                      <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
-                      <input type="number" value={req.projValue||''} onChange={e=>onUpdate(req.id,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
-                        style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                        <div>
+                          <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>Project Value (AED)</p>
+                          <input type="number" value={req.projValue||''} onChange={e=>onUpdate(req.id,{projValue:e.target.value})} placeholder="0.00" min="0" disabled={isRejected}
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
+                        </div>
+                        <div style={{borderLeft:'1px solid rgba(0,200,120,0.15)',paddingLeft:12}}>
+                          <p style={{fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(0,200,120,0.45)',marginBottom:6}}>No of Doors</p>
+                          <input type="number" value={req.numDoors||''} onChange={e=>onUpdate(req.id,{numDoors:e.target.value})} placeholder="0" min="0" disabled={isRejected}
+                            style={{background:'transparent',border:'none',outline:'none',color:'rgba(0,230,140,0.90)',fontFamily:'monospace',fontSize:'1.1rem',fontWeight:700,width:'100%',opacity:isRejected?0.45:1,cursor:isRejected?'not-allowed':'auto'}}/>
+                        </div>
+                      </div>
                     </div>
 
                     {/* ── SECTION C: Quotation Documents ── */}
@@ -9296,18 +9820,18 @@ const Dashboard = ({
     )}
   </>
 )}
-                  {/* ── Out of Scope button + inline form ── */}
-                  {!isOutOfScope && req.reqStatus !== 'pending-director' && !isRejected && (
+                  {/* ── RFI button + inline form ── */}
+                  {!isOutOfScope && !isRFI && req.reqStatus !== 'pending-director' && !isRejected && (
                     <div style={{marginTop:4}}>
                       {oosMode ? (
-                        <div style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',background:'rgba(220,50,50,0.08)',border:'1px solid rgba(220,60,60,0.38)',borderRadius:10}}>
-                          <div style={{fontSize:'0.56rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(255,90,90,0.70)',fontWeight:700}}>⊘ Mark as Out of Scope</div>
+                        <div style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',background:'rgba(180,120,0,0.09)',border:'1px solid rgba(251,191,36,0.38)',borderRadius:10}}>
+                          <div style={{fontSize:'0.56rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(251,191,36,0.85)',fontWeight:700}}>📋 RFI — Request for Information</div>
                           <textarea
                             value={oosRemark}
                             onChange={e=>setOosRemark(e.target.value)}
-                            placeholder="Mandatory: describe why this is out of scope…"
+                            placeholder="Mandatory: describe what information or documents are needed from sales…"
                             rows={3}
-                            style={{width:'100%',background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.35)',borderRadius:8,color:'rgba(255,200,200,0.90)',fontFamily:F2,fontSize:'0.82rem',padding:'9px 12px',outline:'none',resize:'vertical',lineHeight:1.55,boxSizing:'border-box'}}
+                            style={{width:'100%',background:'rgba(180,120,0,0.07)',border:'1px solid rgba(251,191,36,0.30)',borderRadius:8,color:'rgba(255,235,160,0.90)',fontFamily:F2,fontSize:'0.82rem',padding:'9px 12px',outline:'none',resize:'vertical',lineHeight:1.55,boxSizing:'border-box'}}
                           />
                           <div style={{display:'flex',gap:8}}>
                             <button onClick={()=>{setOosMode(false);setOosRemark('');}}
@@ -9320,19 +9844,19 @@ const Dashboard = ({
                                 if(!oosRemark.trim()) return;
                                 const nowMs = Date.now();
                                 onUpdate(req.id, {
-                                  reqStatus: 'out-of-scope',
-                                  status: 'Cancelled - Due to Invalid Documents',
-                                  outScopeRemark: oosRemark.trim(),
-                                  outScopeAt: nowMs,
-                                  outScopeBy: req.estimator || 'estimator',
-                                  outOfScopeSubmitted: true,
-                                  oosNotification: { tsMs: nowMs, ts: new Date(nowMs).toISOString() },
+                                  reqStatus: 'rfi',
+                                  status: 'RFI - Awaiting Info from Sales',
+                                  rfiRemark: oosRemark.trim(),
+                                  rfiAt: nowMs,
+                                  rfiBy: req.estimator || 'estimator',
+                                  rfiSubmitted: true,
+                                  rfiNotification: { tsMs: nowMs, ts: new Date(nowMs).toISOString() },
                                   _immediate: true,
                                   timeline: [...(req.timeline||[]), {
-                                    event: 'out-of-scope',
+                                    event: 'rfi',
                                     ts: new Date(nowMs).toISOString(),
                                     tsMs: nowMs,
-                                    label: 'Cancelled by Estimator',
+                                    label: 'RFI — Estimator Requested More Information',
                                     by: req.estimator || 'estimator',
                                     remark: oosRemark.trim(),
                                   }],
@@ -9340,26 +9864,34 @@ const Dashboard = ({
                                 setOosMode(false);
                                 setOosRemark('');
                               }}
-                              style={{flex:2,padding:'8px 0',borderRadius:8,background:oosRemark.trim()?'rgba(220,50,50,0.22)':'rgba(255,255,255,0.03)',border:`1px solid ${oosRemark.trim()?'rgba(220,60,60,0.55)':'rgba(255,255,255,0.08)'}`,color:oosRemark.trim()?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',fontFamily:F2,fontSize:'0.80rem',fontWeight:700,cursor:oosRemark.trim()?'pointer':'not-allowed',outline:'none',transition:'all 0.15s'}}>
-                              ⊘ Confirm Out of Scope
+                              style={{flex:2,padding:'8px 0',borderRadius:8,background:oosRemark.trim()?'rgba(180,120,0,0.25)':'rgba(255,255,255,0.03)',border:`1px solid ${oosRemark.trim()?'rgba(251,191,36,0.55)':'rgba(255,255,255,0.08)'}`,color:oosRemark.trim()?'rgba(251,191,36,0.95)':'rgba(255,255,255,0.20)',fontFamily:F2,fontSize:'0.80rem',fontWeight:700,cursor:oosRemark.trim()?'pointer':'not-allowed',outline:'none',transition:'all 0.15s'}}>
+                              📋 Send RFI to Sales
                             </button>
                           </div>
                         </div>
                       ) : (
                         <button onClick={()=>setOosMode(true)}
-                          style={{width:'100%',padding:'9px 0',borderRadius:8,background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.24)',color:'rgba(255,100,100,0.65)',fontFamily:F2,fontSize:'0.78rem',fontWeight:600,cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:7,transition:'all 0.15s'}}
-                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(220,50,50,0.18)';e.currentTarget.style.borderColor='rgba(220,60,60,0.50)';e.currentTarget.style.color='rgba(255,110,110,0.95)';}}
-                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(220,50,50,0.07)';e.currentTarget.style.borderColor='rgba(220,60,60,0.24)';e.currentTarget.style.color='rgba(255,100,100,0.65)';}}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                          Mark as Out of Scope
+                          style={{width:'100%',padding:'9px 0',borderRadius:8,background:'rgba(180,120,0,0.07)',border:'1px solid rgba(251,191,36,0.24)',color:'rgba(251,191,36,0.70)',fontFamily:F2,fontSize:'0.78rem',fontWeight:600,cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:7,transition:'all 0.15s'}}
+                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(180,120,0,0.18)';e.currentTarget.style.borderColor='rgba(251,191,36,0.55)';e.currentTarget.style.color='rgba(251,191,36,0.95)';}}
+                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(180,120,0,0.07)';e.currentTarget.style.borderColor='rgba(251,191,36,0.24)';e.currentTarget.style.color='rgba(251,191,36,0.70)';}}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                          RFI — Request for Information
                         </button>
                       )}
+                    </div>
+                  )}
+                  {/* ── RFI active banner (estimator view) ── */}
+                  {isRFI && (
+                    <div style={{marginTop:4,padding:'10px 14px',background:'rgba(180,120,0,0.10)',border:'1px solid rgba(251,191,36,0.35)',borderRadius:10,display:'flex',flexDirection:'column',gap:6}}>
+                      <div style={{fontSize:'0.56rem',letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(251,191,36,0.85)',fontWeight:700}}>📋 RFI Sent — Awaiting Info from Sales</div>
+                      {req.rfiRemark && <div style={{fontSize:'0.74rem',color:'rgba(255,230,140,0.75)',lineHeight:1.5,borderLeft:'2px solid rgba(251,191,36,0.35)',paddingLeft:8}}>"{req.rfiRemark}"</div>}
+                      <div style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.28)'}}>Sent by {req.rfiBy||'estimator'}{req.rfiAt ? ` · ${new Date(req.rfiAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}` : ''}</div>
                     </div>
                   )}
                 </div>
 
                 {/* Director's Remarks — shown after Submit button */}
-                {req.directorAction && (
+                {req.directorAction && req.directorAction !== 'out-of-scope' && (
                   (() => {
                     const isApproved = req.directorAction === 'approved' || req.reqStatus === 'completed';
                     const isRejected = req.directorAction === 'rejected';
@@ -9562,7 +10094,7 @@ const Dashboard = ({
         {/* ── DIRECTOR view: 3-panel layout ── */}
         {viewMode === 'director' && (() => {
           const GLASSY = 'linear-gradient(135deg,rgba(255,255,255,1) 0%,rgba(255,255,255,0.88) 40%,rgba(255,255,255,0.72) 60%,rgba(255,255,255,0.96) 100%)';
-          const DA = [{v:'approved',label:'Approve ✓',c:'#00e5b0',bg:'rgba(0,229,176,0.10)',bd:'rgba(0,229,176,0.38)'},{v:'revised',label:'Revise',c:'rgba(120,180,255,0.95)',bg:'rgba(80,140,255,0.10)',bd:'rgba(120,180,255,0.40)'},{v:'rejected',label:'Reject ✗',c:'rgba(255,90,90,0.95)',bg:'rgba(215,45,45,0.10)',bd:'rgba(215,55,55,0.40)'}];
+          const DA = [{v:'approved',label:'Approve ✓',c:'#00e5b0',bg:'rgba(0,229,176,0.10)',bd:'rgba(0,229,176,0.38)'},{v:'revised',label:'Revise',c:'rgba(120,180,255,0.95)',bg:'rgba(80,140,255,0.10)',bd:'rgba(120,180,255,0.40)'},{v:'rejected',label:'Reject ✗',c:'rgba(255,90,90,0.95)',bg:'rgba(215,45,45,0.10)',bd:'rgba(215,55,55,0.40)'},{v:'out-of-scope',label:'Out of Scope ⊘',c:'rgba(255,80,80,0.95)',bg:'rgba(200,40,40,0.10)',bd:'rgba(220,60,60,0.40)'}];
           const histReqs = requests.filter(r => r.id !== req.id && (r.client === req.client || r.proj === req.proj));
           const DlIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
           const inpStyle = {width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:6,color:'rgba(255,255,255,0.92)',fontFamily:F2,fontSize:'0.80rem',padding:'4px 8px',outline:'none',boxSizing:'border-box',fontWeight:500};
@@ -9706,13 +10238,13 @@ const Dashboard = ({
                         </div>
                       )}
 
-                      {/* Out of Scope notice — shown to Emelaine Jane when estimator flagged it */}
+                      {/* Out of Scope notice — marked by Cost-Artist */}
                       {req.outOfScopeSubmitted && (
                         <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(220,60,60,0.20)',background:'rgba(220,50,50,0.07)',border:'1px solid rgba(220,60,60,0.30)',borderRadius:8,padding:'9px 12px'}}>
                           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:req.outOfScopeReason?6:0}}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,90,90,0.85)" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                             <span style={{fontSize:'0.50rem',color:'rgba(255,110,110,0.85)',letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>Out of Scope</span>
-                            <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.30)',marginLeft:'auto'}}>by {req.estimator||'Estimator'}</span>
+                            <span style={{fontSize:'0.60rem',color:'rgba(255,255,255,0.30)',marginLeft:'auto'}}>by {req.outScopeBy||'Cost-Artist'}</span>
                           </div>
                           {req.outOfScopeReason && (
                             <div style={{fontSize:'0.74rem',color:'rgba(255,180,180,0.75)',lineHeight:1.55,borderLeft:'2px solid rgba(255,80,80,0.30)',paddingLeft:8}}>{req.outOfScopeReason}</div>
@@ -9731,8 +10263,8 @@ const Dashboard = ({
                               try {
                                 const newDocs = [];
                                 for (const file of Array.from(e.target.files)) {
-                                  const azureUrl = await uploadToAzure(file, req.id, file.name);
-                                  if (azureUrl) newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: azureUrl, verified: true });
+                                  const spUrl = await uploadToSharePoint(file, req.id, file.name);
+                                  if (spUrl) newDocs.push({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: file.name, type: file.type, url: spUrl, verified: true });
                                 }
                                 if (newDocs.length) onUpdate(req.id, { docs: [...(req.docs||[]), ...newDocs], _immediate: true });
                                 setDirDocUploadState(null);
@@ -9765,7 +10297,7 @@ const Dashboard = ({
                                 : d.url
                                 ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(0,200,255,0.45)" strokeWidth="2" title="Azure"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
                                 : null}
-                              <button onClick={()=>{ const d=(req.docs||[])[i]; if(d?.url)deleteAzureBlob(d.url); onUpdate(req.id,{docs:(req.docs||[]).filter((_,j)=>j!==i),_immediate:true}); }}
+                              <button onClick={()=>{ const d=(req.docs||[])[i]; if(d?.url)deleteSharePointFile(d.url); onUpdate(req.id,{docs:(req.docs||[]).filter((_,j)=>j!==i),_immediate:true}); }}
                                 style={{flexShrink:0,width:20,height:20,borderRadius:4,background:'rgba(220,50,50,0.12)',border:'1px solid rgba(220,50,50,0.30)',color:'rgba(255,100,100,0.80)',fontFamily:F2,fontSize:'0.68rem',cursor:'pointer',outline:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                             </div>
                           ))}
@@ -9798,9 +10330,8 @@ const Dashboard = ({
                     <div style={{display:'flex',gap:5}}>
                       {DA.map(a=>(
                         <button key={a.v} onClick={()=>{
-                          // FIXED: Correctly map the exact status names for all 3 actions
-                          const ns = a.v === 'approved' ? 'Approved' : a.v === 'rejected' ? 'Rejected' : 'Correction Required';
-                          const nr = a.v === 'approved' ? 'completed' : a.v === 'rejected' ? 'onhold' : 'inprogress';
+                          const ns = a.v === 'approved' ? 'Approved' : a.v === 'rejected' ? 'Rejected' : a.v === 'out-of-scope' ? 'Cancelled - Due to Invalid Documents' : 'Correction Required';
+                          const nr = a.v === 'approved' ? 'completed' : a.v === 'rejected' ? 'onhold' : a.v === 'out-of-scope' ? 'out-of-scope' : 'inprogress';
                           onUpdate(req.id,{directorAction:a.v, status:ns, reqStatus:nr, directorSubmitted:false});
                         }}
                                       style={{flex:1,padding:'7px 4px',borderRadius:8,cursor:'pointer',outline:'none',fontFamily:F2,fontSize:'0.74rem',fontWeight:req.directorAction===a.v?700:500,background:req.directorAction===a.v?a.bg:'rgba(255,255,255,0.03)',border:req.directorAction===a.v?`1.5px solid ${a.bd}`:'1px solid rgba(255,255,255,0.08)',color:req.directorAction===a.v?a.c:'rgba(255,255,255,0.35)',transition:'all 0.15s',textAlign:'center',whiteSpace:'nowrap',boxShadow:req.directorAction===a.v?`0 0 14px ${a.c}22`:'none'}}
@@ -9819,19 +10350,28 @@ const Dashboard = ({
                     ) : (
                       <button onClick={()=>{
                         if(req.directorAction){
-                          const ns = req.directorAction === 'approved' ? 'Approved' : req.directorAction === 'rejected' ? 'Rejected' : 'Correction Required';
-                          const nr = req.directorAction === 'approved' ? 'completed' : req.directorAction === 'rejected' ? 'onhold' : 'inprogress';
+                          const isOosAction = req.directorAction === 'out-of-scope';
+                          const ns = req.directorAction === 'approved' ? 'Approved' : req.directorAction === 'rejected' ? 'Rejected' : isOosAction ? 'Cancelled - Due to Invalid Documents' : 'Correction Required';
+                          const nr = req.directorAction === 'approved' ? 'completed' : req.directorAction === 'rejected' ? 'onhold' : isOosAction ? 'out-of-scope' : 'inprogress';
                           const ts = new Date().toISOString();
-                          const actionLabel = req.directorAction === 'approved' ? 'Cost Artist Approved' : req.directorAction === 'rejected' ? 'Cost Artist Rejected' : 'Correction Required';
-                          const eventType = req.directorAction === 'approved' ? 'approved' : req.directorAction === 'rejected' ? 'rejected' : 'revision';
-                          
+                          const nowMs = Date.now();
+                          const actionLabel = req.directorAction === 'approved' ? 'Cost Artist Approved' : req.directorAction === 'rejected' ? 'Cost Artist Rejected' : isOosAction ? 'Cost Artist — Out of Scope' : 'Correction Required';
+                          const eventType = req.directorAction === 'approved' ? 'approved' : req.directorAction === 'rejected' ? 'rejected' : isOosAction ? 'out-of-scope' : 'revision';
+                          const oosFields = isOosAction ? {
+                            outScopeRemark: req.directorNote || '',
+                            outScopeAt: nowMs,
+                            outScopeBy: 'Cost-Artist',
+                            outOfScopeSubmitted: true,
+                            oosNotification: { tsMs: nowMs, ts },
+                          } : {};
                           onUpdate(req.id,{
                             status: ns,
                             reqStatus: nr,
                             directorSubmitted: true,
                             directorRespondedAt: ts,
                             directorNote: req.directorNote || '',
-                            timeline: [...(req.timeline || []), { event: eventType, ts, label: actionLabel, by: 'Cost Artist' }]
+                            ...oosFields,
+                            timeline: [...(req.timeline || []), { event: eventType, ts, tsMs: nowMs, label: actionLabel, by: 'Cost Artist', remark: isOosAction ? (req.directorNote || '') : undefined }]
                           });
                         }
                       }}
@@ -10211,14 +10751,16 @@ const Dashboard = ({
       if (!fields.some(f => f.includes(lo))) return false;
     }
     if (viewMode === 'requester' && requesterFilter && r.submittedBy !== requesterFilter) return false;
-    if (dashFilter === 'pending-estimation') {
-      if (r.status !== 'Pending Estimation') return false;
-      if (pendingEstDealFilter && r.deal !== pendingEstDealFilter) return false;
-    }
-    else if (dashFilter === 'pending-approval') { if (r.reqStatus !== 'pending-director') return false; }
-    else if (dashFilter === 'unassigned') { if (r.estimator) return false; }
+    if (dashFilter === 'new')               { if (r.requestType && r.requestType !== 'new') return false; }
+    else if (dashFilter === 'revise')       { if (r.requestType !== 'revised') return false; }
+    else if (dashFilter === 'discount')     { if (r.requestType !== 'discount') return false; }
+    else if (dashFilter === 'final')        { if (r.requestType !== 'finalPrice') return false; }
     else if (dashFilter === 'out-of-scope') { if (r.reqStatus !== 'out-of-scope') return false; }
-    else if (dashFilter === 'approved') { if (r.directorAction !== 'approved' && r.reqStatus !== 'completed') return false; }
+    if (statusFilter === 'pending-estimation') { if (r.status !== 'Pending Estimation') return false; if (pendingEstDealFilter && r.deal !== pendingEstDealFilter) return false; }
+    else if (statusFilter === 'pending-approval') { if (r.reqStatus !== 'pending-director') return false; }
+    else if (statusFilter === 'unassigned')       { if (r.estimator) return false; }
+    else if (statusFilter === 'rfi')              { if (r.reqStatus !== 'rfi') return false; }
+    else if (statusFilter === 'approved')         { if (r.directorAction !== 'approved' && r.reqStatus !== 'completed') return false; }
     // per-column filters
     const cf = colFilters;
     const cfMatch = (val, key) => !cf[key] || (val||'').toLowerCase().includes(cf[key].toLowerCase());
@@ -10228,7 +10770,7 @@ const Dashboard = ({
     if (!cfMatch(r.mainContractor, 'mainContractor'))return false;
     if (!cfMatch(r.consultant,     'consultant'))    return false;
     if (!cfMatch(r.client,         'client'))        return false;
-    if (!cfMatch(r.submittedBy,    'submittedBy'))   return false;
+    if (!cfMatch(r.salesPerson,    'salesPerson'))   return false;
     if (!cfMatch(r.estimator,      'estimator'))     return false;
     if (cf.projValue && !(r.projValue||'').toString().includes(cf.projValue)) return false;
     return true;
@@ -10306,36 +10848,36 @@ const Dashboard = ({
     const sortAccent   = 'rgba(129,140,248,0.90)';
     const labelColor   = isSorted ? sortAccent : filterActive ? filterAccent : 'rgba(255,255,255,0.24)';
     return (
-      <div style={{display:'flex',flexDirection:'column',gap:3,minWidth:0}}>
-        {/* Header row: label + sort + filter icons */}
-        <div style={{display:'flex',alignItems:'center',gap:3,justifyContent:align==='right'?'flex-end':'space-between'}}>
-          <span style={{fontSize:'0.56rem',letterSpacing:'0.12em',textTransform:'uppercase',
-            fontWeight:isSorted||filterActive?700:400, color:labelColor,
-            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>
-            {label}
-          </span>
-          <div style={{display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
-            {/* Sort button */}
-            <button
-              onClick={e=>{e.stopPropagation();sortToggle(colKey);}}
-              title={isSorted?(sortDir==='asc'?'Sort Z→A':'Remove sort'):'Sort A→Z'}
-              style={{display:'flex',alignItems:'center',justifyContent:'center',width:16,height:16,
-                background:isSorted?'rgba(129,140,248,0.18)':'rgba(255,255,255,0.05)',
-                border:`1px solid ${isSorted?'rgba(129,140,248,0.50)':'rgba(255,255,255,0.12)'}`,
-                borderRadius:3,cursor:'pointer',outline:'none',transition:'all 0.12s',padding:0}}>
-              <SortIcon colKey={colKey}/>
-            </button>
-            {/* Filter button */}
-            <button
-              onClick={e=>{e.stopPropagation();cfToggle(colKey);}}
-              title={`Filter ${label}`}
-              style={{display:'flex',alignItems:'center',justifyContent:'center',width:16,height:16,
-                background:filterOpen||filterActive?'rgba(251,191,36,0.16)':'rgba(255,255,255,0.05)',
-                border:`1px solid ${filterOpen||filterActive?'rgba(251,191,36,0.45)':'rgba(255,255,255,0.12)'}`,
-                borderRadius:3,cursor:'pointer',outline:'none',transition:'all 0.12s',padding:0}}>
-              <Search size={8} color={filterOpen||filterActive?filterAccent:'rgba(255,255,255,0.32)'}/>
-            </button>
-          </div>
+      <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}>
+        {/* Label */}
+        <span style={{fontSize:'0.56rem',letterSpacing:'0.12em',textTransform:'uppercase',
+          fontWeight:isSorted||filterActive?700:400, color:labelColor,
+          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+          textAlign:align==='right'?'right':'left'}}>
+          {label}
+        </span>
+        {/* Sort + Filter buttons — below the label */}
+        <div style={{display:'flex',alignItems:'center',gap:2,justifyContent:align==='right'?'flex-end':'flex-start'}}>
+          {/* Sort button */}
+          <button
+            onClick={e=>{e.stopPropagation();sortToggle(colKey);}}
+            title={isSorted?(sortDir==='asc'?'Sort Z→A':'Remove sort'):'Sort A→Z'}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',width:16,height:16,
+              background:isSorted?'rgba(129,140,248,0.18)':'rgba(255,255,255,0.05)',
+              border:`1px solid ${isSorted?'rgba(129,140,248,0.50)':'rgba(255,255,255,0.12)'}`,
+              borderRadius:3,cursor:'pointer',outline:'none',transition:'all 0.12s',padding:0}}>
+            <SortIcon colKey={colKey}/>
+          </button>
+          {/* Filter button */}
+          <button
+            onClick={e=>{e.stopPropagation();cfToggle(colKey);}}
+            title={`Filter ${label}`}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',width:16,height:16,
+              background:filterOpen||filterActive?'rgba(251,191,36,0.16)':'rgba(255,255,255,0.05)',
+              border:`1px solid ${filterOpen||filterActive?'rgba(251,191,36,0.45)':'rgba(255,255,255,0.12)'}`,
+              borderRadius:3,cursor:'pointer',outline:'none',transition:'all 0.12s',padding:0}}>
+            <Search size={8} color={filterOpen||filterActive?filterAccent:'rgba(255,255,255,0.32)'}/>
+          </button>
         </div>
         {/* Filter input */}
         {filterOpen && (
@@ -10371,8 +10913,8 @@ const Dashboard = ({
     );
   };
 
-  // Unified column layout
-  const COL = '100px 160px minmax(150px,1fr) 130px 130px 130px 130px 120px 110px 110px 110px 110px';
+  // Unified column layout — id | status | proj | mainContractor | consultant | client | salesPerson | projValue | estimator | numDoors | address | submittedDate | approvedDate | timeline
+  const COL = '100px 160px minmax(150px,1fr) 130px 130px 130px 120px 110px 120px 80px 110px 110px 110px 110px';
 
   const VIEW_LABELS = {requester:'Requester', estimator:'Estimator', director:'Cost-Artist', kpi:'KPI'};
   const VIEW_COLORS = {
@@ -10385,7 +10927,7 @@ const Dashboard = ({
   const F = "'Inter',sans-serif";
 
   return (
-    <div style={{position:'fixed',inset:'58px 0 0 0',padding:'24px 40px 30px',overflowY:'auto',overflowX:'hidden',animation:'fadeUp 0.4s ease both'}}>
+    <div style={{position:'fixed',inset: isEmbedded ? '0' : '64px 0 0 0',display:'flex',flexDirection:'row',overflow:'hidden',animation:'fadeUp 0.4s ease both'}}>
 
       {/* ── PIN prompt modal ── */}
       {pinPrompt && (
@@ -10409,10 +10951,176 @@ const Dashboard = ({
         </div>
       )}
 
+      {/* ── LEFT GLASSY SIDEBAR ── */}
+      {!isEmbedded && (() => {
+        const newCount      = requests.filter(r => !r.requestType || r.requestType === 'new').length;
+        const reviseCount   = requests.filter(r => r.requestType === 'revised').length;
+        const discountCount = requests.filter(r => r.requestType === 'discount').length;
+        const finalCount    = requests.filter(r => r.requestType === 'finalPrice').length;
+        const oosCount      = requests.filter(r => r.reqStatus === 'out-of-scope').length;
+        const sideItems = [
+          { key:'',            label:'Overall',       count:requests.length },
+          { key:'new',         label:'New',           count:newCount        },
+          { key:'revise',      label:'Revise',        count:reviseCount     },
+          { key:'discount',    label:'Discount',      count:discountCount   },
+          { key:'final',       label:'Final',         count:finalCount      },
+          { key:'out-of-scope',label:'Out of Scope',  count:oosCount        },
+          { key:'__sep__',     isSep:true                                   },
+          { key:'__open__',    label:'Open Requests',    count:0, isNav:true },
+          { key:'__overview__',label:'Request Overview', count:0, isNav:true },
+        ];
+        return sidebarOpen ? (
+          <div style={{
+            width:220, flexShrink:0, height:'100%', overflowY:'auto', overflowX:'hidden',
+            background:'rgba(0,0,10,0.88)', backdropFilter:'blur(28px)', WebkitBackdropFilter:'blur(28px)',
+            borderRight:'1px solid rgba(255,255,255,0.08)',
+            display:'flex', flexDirection:'column', zIndex:20,
+          }}>
+            <style>{`
+              @keyframes dash-aurora-btn {
+                0%   { background-position: 0% 50%; }
+                50%  { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+              }
+              .dash-liquid {
+                position: relative;
+                background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05)) !important;
+                border: 1px solid rgba(255,255,255,0.32) !important;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.40),
+                            inset 0 -2px 8px rgba(255,255,255,0.06),
+                            0 4px 20px rgba(0,0,0,0.40) !important;
+                overflow: hidden;
+              }
+              .dash-liquid::before {
+                content:''; position:absolute; top:0; left:-65%;
+                width:55%; height:100%;
+                background: linear-gradient(105deg, transparent, rgba(255,255,255,0.50), transparent);
+                transform: skewX(-20deg);
+                animation: dash-liquid-shine 3.4s ease-in-out infinite;
+              }
+              @keyframes dash-liquid-shine {
+                0%       { left:-65%; }
+                55%,100% { left:135%; }
+              }
+            `}</style>
+
+            {/* Hamburger + Module title row */}
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'14px 12px 12px',borderBottom:'1px solid rgba(255,255,255,0.06)',flexShrink:0}}>
+              <button
+                onClick={()=>setSidebarOpen(false)}
+                style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:7,padding:'7px 9px',cursor:'pointer',display:'flex',flexDirection:'column',gap:4,outline:'none',flexShrink:0}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.12)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';}}
+              >
+                {[0,1,2].map(i=><div key={i} style={{width:16,height:2,background:'rgba(255,255,255,0.70)',borderRadius:2}}/>)}
+              </button>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:'0.44rem',letterSpacing:'0.20em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',marginBottom:2}}>Module</div>
+                <div style={{fontSize:'0.76rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',fontFamily:"'Cinzel',serif",
+                  background:'linear-gradient(105deg,#00e5ff 0%,#4f46e5 22%,#7c3aed 38%,#a855f7 54%,#06b6d4 72%,#00e5ff 100%)',
+                  backgroundSize:'300% auto',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',
+                  animation:'auroraShift 5s ease infinite',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  Quotations
+                </div>
+              </div>
+            </div>
+
+            {/* Filter buttons */}
+            <div style={{padding:'10px 10px',display:'flex',flexDirection:'column',gap:6,flex:1}}>
+              {sideItems.map(item => {
+                if (item.isSep) return (
+                  <div key="__sep__" style={{height:1,background:'rgba(255,255,255,0.10)',margin:'18px 6px 8px'}}/>
+                );
+                const isActive = item.isNav
+                  ? (item.key==='__open__' ? dashSection==='open' : dashSection==='overview')
+                  : (dashSection==='list' && dashFilter === item.key);
+                return (
+                  <button key={item.key||'overall'}
+                    className={isActive ? 'dash-liquid' : undefined}
+                    onClick={()=>{ if(item.key==='__open__'){ setDashSection('open'); } else if(item.key==='__overview__'){ setDashSection('overview'); } else { setDashFilter(item.key); setDashSection('list'); } }}
+                    style={isActive ? {
+                      background:'rgba(255,255,255,0.10)',
+                      backdropFilter:'blur(20px)',
+                      WebkitBackdropFilter:'blur(20px)',
+                      border:'1px solid rgba(255,255,255,0.22)',
+                      borderRadius:100, padding:'9px 14px',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      cursor:'pointer', color:'rgba(255,255,255,0.92)',
+                      fontSize:'0.68rem', fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase',
+                      fontFamily:"'Cinzel',serif", outline:'none',
+                      boxShadow:'inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 8px rgba(0,0,0,0.28)',
+                    } : {
+                      background:'rgba(255,255,255,0.04)',
+                      border:`1px solid rgba(255,255,255,${item.isDim ? 0.04 : 0.09})`,
+                      borderRadius:100, padding:'9px 14px',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      cursor: item.isDim ? 'default' : 'pointer',
+                      color: item.isDim ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.68)',
+                      fontSize:'0.68rem', fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase',
+                      fontFamily:"'Cinzel',serif", outline:'none', transition:'background 0.14s, border-color 0.14s, color 0.14s',
+                    }}
+                    onMouseEnter={e=>{ if(item.isDim||isActive) return; e.currentTarget.style.background='rgba(255,255,255,0.09)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.22)'; e.currentTarget.style.color='#fff'; }}
+                    onMouseLeave={e=>{ if(isActive) return; e.currentTarget.style.background='rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor=`rgba(255,255,255,${item.isDim?0.04:0.09})`; e.currentTarget.style.color=item.isDim?'rgba(255,255,255,0.20)':'rgba(255,255,255,0.68)'; }}
+                  >
+                    <span style={{flex:1,textAlign:'center'}}>{item.label}</span>
+                    {!item.isNav && item.count > 0 && (
+                      <span style={{marginLeft:5,fontSize:'0.60rem',fontWeight:700,color:'rgba(140,210,255,0.75)',fontFamily:F,flexShrink:0}}>
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* AI Tool Direct — bottom */}
+            <div style={{padding:'10px 10px 14px',borderTop:'1px solid rgba(255,255,255,0.06)',flexShrink:0}}>
+              <button
+                onClick={()=>onDirectTool?.()}
+                style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,width:'100%',padding:'10px 14px',
+                  background:'linear-gradient(135deg,rgba(109,40,217,0.20),rgba(168,85,247,0.12))',
+                  border:'1px solid rgba(168,85,247,0.35)',borderRadius:100,
+                  color:'rgba(196,181,253,0.85)',fontSize:'0.64rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',
+                  fontFamily:"'Cinzel',serif",cursor:'pointer',outline:'none',transition:'all 0.18s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='linear-gradient(135deg,rgba(109,40,217,0.40),rgba(168,85,247,0.28))';e.currentTarget.style.color='#fff';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='linear-gradient(135deg,rgba(109,40,217,0.20),rgba(168,85,247,0.12))';e.currentTarget.style.color='rgba(196,181,253,0.85)';}}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                ✦ AI Tool Direct
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Hamburger shown when sidebar is closed */
+          <button
+            onClick={()=>setSidebarOpen(true)}
+            style={{position:'absolute',top:14,left:14,zIndex:50,background:'rgba(0,0,10,0.80)',backdropFilter:'blur(14px)',border:'1px solid rgba(255,255,255,0.14)',borderRadius:8,padding:'9px 11px',cursor:'pointer',display:'flex',flexDirection:'column',gap:4.5,outline:'none'}}
+          >
+            {[0,1,2].map(i=><div key={i} style={{width:17,height:2,background:'rgba(255,255,255,0.70)',borderRadius:2}}/>)}
+          </button>
+        );
+      })()}
+
+      {/* ── EMBEDDED: Open Requests (part of the dashboard) ── */}
+      {dashSection === 'open' && (
+        <div style={{flex:1,minWidth:0,height:'100%',overflow:'hidden',display:'flex'}}>
+          <OpenRequests requests={requests} onUpdate={onUpdate} onDelete={onDelete} userCode={userCode} userRole={viewMode==='director'?'director':'estimator'} isEmbedded={true}/>
+        </div>
+      )}
+      {/* ── EMBEDDED: Estimation Request Overview ── */}
+      {dashSection === 'overview' && (
+        <div style={{flex:1,minWidth:0,height:'100%'}}>
+          <EstRequestOverview requests={requests} embedded={true}/>
+        </div>
+      )}
+
+      {/* ── MAIN SCROLLABLE CONTENT ── */}
+      {dashSection === 'list' && (
+      <div style={{flex:1, overflowY:'auto', overflowX:'hidden', padding:'24px 40px 30px'}}>
 
       {/* ── Header ── */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,gap:12,flexWrap:'wrap'}}>
-        <h2 style={{fontSize:'1.3rem',fontWeight:700,letterSpacing:'0.1em',color:'rgba(255,255,255,0.85)',textTransform:'uppercase',margin:0,flexShrink:0}}>Estimation Dashboard</h2>
+        <h2 style={{fontSize:'1.3rem',fontWeight:700,letterSpacing:'0.1em',color:'rgba(255,255,255,0.85)',textTransform:'uppercase',margin:0,flexShrink:0}}>E-Dashboard</h2>
 
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',flex:1,justifyContent:'flex-end'}}>
           {/* View mode toggle — hidden when role is set externally */}
@@ -10506,29 +11214,10 @@ const Dashboard = ({
         </div>
       </div>
 
-      {/* ── Filter chips + Export Excel ── */}
-      {(() => {
-        const pendingEstAll    = requests.filter(r => r.status === 'Pending Estimation');
-        const pendingEstCount  = pendingEstAll.length;
-        const jihCount         = pendingEstAll.filter(r => r.deal === 'Job In Hand').length;
-        const tenderCount      = pendingEstAll.filter(r => r.deal === 'Tender').length;
-        const pendingApprCount = requests.filter(r => r.reqStatus === 'pending-director').length;
-        const unassignedCount  = requests.filter(r => !r.estimator).length;
-        const oosCount         = requests.filter(r => r.reqStatus === 'out-of-scope').length;
-        const approvedDashCount= requests.filter(r => r.directorAction === 'approved' || r.reqStatus === 'completed').length;
-        const chips = [
-          { key:'pending-estimation', label:'Pending Estimation', count:pendingEstCount,  c:'rgba(220,165,0,0.90)',  bg:'rgba(220,165,0,0.10)',  bd:'rgba(220,165,0,0.30)'  },
-          { key:'pending-approval',   label:'Pending Approval',   count:pendingApprCount, c:'rgba(180,130,255,0.90)',bg:'rgba(140,80,255,0.10)', bd:'rgba(180,130,255,0.30)'},
-          { key:'unassigned',         label:'Unassigned',         count:unassignedCount,  c:'rgba(150,190,255,0.85)',bg:'rgba(60,100,200,0.10)', bd:'rgba(100,160,255,0.28)'},
-          { key:'out-of-scope',       label:'Out of Scope',       count:oosCount,         c:'rgba(255,80,80,0.90)',  bg:'rgba(200,40,40,0.09)',  bd:'rgba(220,60,60,0.35)'  },
-          { key:'approved',           label:'Approved',           count:approvedDashCount,c:'rgba(0,220,130,0.90)', bg:'rgba(0,180,100,0.09)',  bd:'rgba(0,200,120,0.35)'  },
-        ];
-        const dealSubChips = [
-          { deal:'Job In Hand', count:jihCount,    c:'rgba(255,210,60,0.90)',  bg:'rgba(200,150,0,0.12)',  bd:'rgba(220,170,0,0.40)'  },
-          { deal:'Tender',      count:tenderCount, c:'rgba(80,200,255,0.90)',  bg:'rgba(30,140,255,0.10)', bd:'rgba(60,180,255,0.38)'  },
-        ];
+      {/* ── Status chips + Export Excel (type filters moved to left sidebar) ── */}
+      {!isEmbedded && (() => {
         const exportCsv = () => {
-          const headers = ['ID','Status','Req Status','Project','Client','Main Contractor','Consultant','Estimator','Deal','Value (AED)','Lead Time','Submitted By','Submitted Date','Approved Date','Total Timeline'];
+          const headers = ['ID','Status','Req Status','Project','Client','Main Contractor','Consultant','Estimator','Deal','Value (AED)','Lead Time','Submitted By','Request Date','Approved Date','Total Timeline'];
           const rows = filtered.map(r => {
             const fmsDays = ms => { if(!ms||ms<0)return''; const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000); return h>23?`${Math.floor(h/24)}d ${h%24}h`:`${h}h ${m}m`; };
             let startMs = r.submittedAt ? new Date(r.submittedAt).getTime() : null;
@@ -10546,63 +11235,72 @@ const Dashboard = ({
           const a = document.createElement('a'); a.href=url; a.download=`EstimationDashboard_${new Date().toISOString().slice(0,10)}.csv`; a.click();
           URL.revokeObjectURL(url);
         };
+        const pendingEstCount  = requests.filter(r => r.status === 'Pending Estimation').length;
+        const pendingApprCount = requests.filter(r => r.reqStatus === 'pending-director').length;
+        const unassignedCount  = requests.filter(r => !r.estimator).length;
+        const rfiCount         = requests.filter(r => r.reqStatus === 'rfi').length;
+        const approvedCount    = requests.filter(r => r.directorAction === 'approved' || r.reqStatus === 'completed').length;
+        const statusChips = [
+          { key:'pending-estimation', label:'Pending Estimation', count:pendingEstCount,  c:'rgba(220,165,0,0.90)',   bg:'rgba(220,165,0,0.10)',  bd:'rgba(220,165,0,0.30)'   },
+          { key:'pending-approval',   label:'Pending Approval',   count:pendingApprCount, c:'rgba(180,130,255,0.90)', bg:'rgba(140,80,255,0.10)', bd:'rgba(180,130,255,0.30)' },
+          { key:'unassigned',         label:'Unassigned',         count:unassignedCount,  c:'rgba(150,190,255,0.85)', bg:'rgba(60,100,200,0.10)', bd:'rgba(100,160,255,0.28)' },
+          { key:'rfi',                label:'RFI',                count:rfiCount,         c:'rgba(251,191,36,0.90)',  bg:'rgba(180,120,0,0.10)',  bd:'rgba(251,191,36,0.35)'  },
+          { key:'approved',           label:'Approved',           count:approvedCount,    c:'rgba(52,211,153,0.90)',  bg:'rgba(0,180,100,0.09)',  bd:'rgba(0,200,120,0.35)'   },
+        ];
+        const jihCount    = requests.filter(r => r.status === 'Pending Estimation' && r.deal === 'Job In Hand').length;
+        const tenderCount = requests.filter(r => r.status === 'Pending Estimation' && r.deal === 'Tender').length;
         return (
           <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:16}}>
-            {/* Main filter chips row */}
+            {/* Status chips row */}
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-            {chips.map(ch => {
-              const active = dashFilter === ch.key;
-              return (
-                <button key={ch.key} onClick={()=>{ setDashFilter(active ? '' : ch.key); setPendingEstDealFilter(''); }}
-                  style={{display:'flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:100,border:`1px solid ${active?ch.bd:'rgba(255,255,255,0.10)'}`,background:active?ch.bg:'rgba(255,255,255,0.03)',color:active?ch.c:'rgba(255,255,255,0.38)',fontFamily:F,fontSize:'0.72rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}>
-                  {ch.label}
-                  <span style={{fontSize:'0.68rem',fontWeight:800,padding:'1px 6px',borderRadius:100,background:active?ch.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.07)',color:active?ch.c:'rgba(255,255,255,0.35)'}}>{ch.count}</span>
-                </button>
-              );
-            })}
-            <div style={{flex:1}}/>
-            <button onClick={exportCsv}
-              style={{display:'flex',alignItems:'center',gap:7,padding:'6px 16px',borderRadius:8,border:'1px solid rgba(52,211,153,0.30)',background:'rgba(52,211,153,0.07)',color:'rgba(52,211,153,0.85)',fontFamily:F,fontSize:'0.72rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}
-              onMouseEnter={e=>{e.currentTarget.style.background='rgba(52,211,153,0.16)';e.currentTarget.style.borderColor='rgba(52,211,153,0.55)';}}
-              onMouseLeave={e=>{e.currentTarget.style.background='rgba(52,211,153,0.07)';e.currentTarget.style.borderColor='rgba(52,211,153,0.30)';}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export Excel
-            </button>
-            </div>{/* end main chips row */}
-
-            {/* Sub-filter row — only when Pending Estimation is active */}
-            {dashFilter === 'pending-estimation' && (
-              <div style={{display:'flex',alignItems:'center',gap:6,paddingLeft:4}}>
-                <span style={{fontSize:'0.52rem',letterSpacing:'0.14em',textTransform:'uppercase',
-                  color:'rgba(220,165,0,0.45)',fontWeight:700,flexShrink:0}}>Deal ›</span>
-                {dealSubChips.map(sc => {
-                  const on = pendingEstDealFilter === sc.deal;
+              {statusChips.map(sc => {
+                const active = statusFilter === sc.key;
+                return (
+                  <button key={sc.key} onClick={()=>{const nf=active?'':sc.key;setStatusFilter(nf);if(nf!=='pending-estimation')setPendingEstDealFilter('');}}
+                    style={{display:'flex',alignItems:'center',gap:6,padding:'5px 14px',borderRadius:100,border:`1px solid ${active?sc.bd:'rgba(255,255,255,0.08)'}`,background:active?sc.bg:'rgba(255,255,255,0.03)',color:active?sc.c:'rgba(255,255,255,0.30)',fontFamily:F,fontSize:'0.72rem',fontWeight:active?700:500,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',flexShrink:0}}>
+                    <span style={{width:4,height:4,borderRadius:'50%',background:active?sc.c:'rgba(255,255,255,0.20)',flexShrink:0,transition:'all 0.15s',boxShadow:active?`0 0 5px ${sc.c}`:'none'}}/>
+                    {sc.label}
+                    <span style={{fontSize:'0.68rem',fontWeight:800,padding:'1px 6px',borderRadius:100,background:active?sc.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.06)',color:active?sc.c:'rgba(255,255,255,0.28)'}}>{sc.count}</span>
+                  </button>
+                );
+              })}
+              <div style={{flex:1}}/>
+              <button onClick={exportCsv}
+                style={{display:'flex',alignItems:'center',gap:7,padding:'6px 16px',borderRadius:8,border:'1px solid rgba(52,211,153,0.30)',background:'rgba(52,211,153,0.07)',color:'rgba(52,211,153,0.85)',fontFamily:F,fontSize:'0.72rem',fontWeight:700,cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em',flexShrink:0}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(52,211,153,0.16)';e.currentTarget.style.borderColor='rgba(52,211,153,0.55)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(52,211,153,0.07)';e.currentTarget.style.borderColor='rgba(52,211,153,0.30)';}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export Excel
+              </button>
+            </div>
+            {/* Deal sub-filter — shown only when Pending Estimation is active */}
+            {statusFilter === 'pending-estimation' && (
+              <div style={{display:'flex',alignItems:'center',gap:8,paddingLeft:2,flexWrap:'wrap'}}>
+                <span style={{fontSize:'0.52rem',letterSpacing:'0.16em',textTransform:'uppercase',color:'rgba(255,255,255,0.22)',fontWeight:600,fontFamily:F,flexShrink:0}}>DEAL ›</span>
+                {[
+                  {val:'',            label:'All',         count:pendingEstCount,  c:'rgba(220,165,0,0.80)',   bd:'rgba(220,165,0,0.30)',  bg:'rgba(220,165,0,0.08)'},
+                  {val:'Job In Hand', label:'Job In Hand', count:jihCount,         c:'rgba(255,210,60,0.90)',  bd:'rgba(200,150,0,0.45)',  bg:'rgba(180,120,0,0.14)'},
+                  {val:'Tender',      label:'Tender',      count:tenderCount,      c:'rgba(80,190,255,0.90)',  bd:'rgba(40,140,255,0.40)', bg:'rgba(20,80,200,0.12)'},
+                ].map(d => {
+                  const da = pendingEstDealFilter === d.val;
                   return (
-                    <button key={sc.deal}
-                      onClick={()=>setPendingEstDealFilter(on ? '' : sc.deal)}
-                      style={{display:'flex',alignItems:'center',gap:5,
-                        padding:'3px 11px',borderRadius:100,
-                        border:`1px solid ${on ? sc.bd : 'rgba(255,255,255,0.10)'}`,
-                        background: on ? sc.bg : 'rgba(255,255,255,0.03)',
-                        color: on ? sc.c : 'rgba(255,255,255,0.38)',
-                        fontFamily:F,fontSize:'0.68rem',fontWeight:on?700:500,
-                        cursor:'pointer',outline:'none',transition:'all 0.15s',letterSpacing:'0.04em'}}>
-                      <span style={{width:5,height:5,borderRadius:'50%',background:on?sc.c:'rgba(255,255,255,0.25)',flexShrink:0,
-                        boxShadow:on?`0 0 5px ${sc.c}`:'none',transition:'all 0.15s'}}/>
-                      {sc.deal}
-                      <span style={{fontSize:'0.64rem',fontWeight:800,padding:'0px 5px',borderRadius:100,
-                        background:on?sc.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.07)',
-                        color:on?sc.c:'rgba(255,255,255,0.35)'}}>{sc.count}</span>
+                    <button key={d.val||'all'} onClick={()=>setPendingEstDealFilter(da?'':d.val)}
+                      style={{display:'flex',alignItems:'center',gap:5,padding:'3px 11px',borderRadius:100,
+                        border:`1px solid ${da?d.bd:'rgba(255,255,255,0.08)'}`,
+                        background:da?d.bg:'rgba(255,255,255,0.02)',
+                        color:da?d.c:'rgba(255,255,255,0.28)',
+                        fontFamily:F,fontSize:'0.68rem',fontWeight:da?700:500,
+                        cursor:'pointer',outline:'none',transition:'all 0.14s',letterSpacing:'0.04em',flexShrink:0}}>
+                      <span style={{width:4,height:4,borderRadius:'50%',flexShrink:0,
+                        background:da?d.c:'rgba(255,255,255,0.20)',
+                        boxShadow:da?`0 0 5px ${d.c}`:'none',transition:'all 0.14s'}}/>
+                      {d.label}
+                      <span style={{fontSize:'0.62rem',fontWeight:800,padding:'0px 5px',borderRadius:100,
+                        background:da?d.c.replace(/[\d.]+\)$/,'0.18)'):'rgba(255,255,255,0.06)',
+                        color:da?d.c:'rgba(255,255,255,0.24)'}}>{d.count}</span>
                     </button>
                   );
                 })}
-                {pendingEstDealFilter && (
-                  <button onClick={()=>setPendingEstDealFilter('')}
-                    style={{fontSize:'0.58rem',color:'rgba(255,255,255,0.35)',background:'transparent',
-                      border:'none',cursor:'pointer',outline:'none',fontFamily:F,padding:'2px 4px'}}>
-                    ✕ Clear
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -10979,7 +11677,9 @@ const Dashboard = ({
             const caRejected = r.directorAction === 'rejected';
             const caRevised  = r.directorAction === 'revised';
             const isApproved = r.directorAction === 'approved' || r.reqStatus === 'completed';
-            const dashUnread = viewMode==='estimator' ? _unreadCount(r.conversation, r.id, 'sales') : 0;
+            const myEstName = (STAFF_NAMES[userCode?.toUpperCase()] || '').toLowerCase();
+            const isMyRequest = myEstName && (r.estimator||'').toLowerCase() === myEstName;
+            const dashUnread = (viewMode==='estimator' && isMyRequest) ? _unreadCount(r.conversation, r.id, 'sales') : 0;
             const dealC = r.deal==='Job In Hand'?'rgba(255,210,60,0.85)':r.deal==='Tender'?'rgba(80,190,255,0.85)':r.deal==='Budget'?'rgba(52,211,153,0.85)':'rgba(168,85,247,0.85)';
             const dealBd = r.deal==='Job In Hand'?'rgba(200,150,0,0.30)':r.deal==='Tender'?'rgba(40,140,255,0.25)':r.deal==='Budget'?'rgba(16,185,129,0.25)':'rgba(130,60,220,0.25)';
             const cardBg = caRejected?'rgba(200,40,40,0.08)':caRevised?'rgba(180,30,100,0.09)':isApproved?'rgba(0,180,100,0.07)':'rgba(255,255,255,0.04)';
@@ -10994,7 +11694,7 @@ const Dashboard = ({
             })();
             return (
               <div key={r.id}
-                onClick={()=>{ setOpen(realIdx); if(viewMode==='estimator') markDashSeen(r.id); }}
+                onClick={()=>{ setOpen(r.id); onOpenChange && onOpenChange(r.id); if(viewMode==='estimator') markDashSeen(r.id); }}
                 style={{position:'relative',background:cardBg,border:`1px solid ${cardBd}`,borderRadius:12,padding:'14px 16px',cursor:'pointer',transition:'all 0.16s',display:'flex',flexDirection:'column',gap:10}}
                 onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 28px rgba(0,0,0,0.32)';}}
                 onMouseLeave={e=>{e.currentTarget.style.background=cardBg;e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}>
@@ -11024,7 +11724,17 @@ const Dashboard = ({
                 <div style={{display:'flex',flexDirection:'column',gap:3}}>
                   {r.client && <span style={{fontSize:'0.70rem',color:'rgba(255,255,255,0.52)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>🏢 {r.client}</span>}
                   {r.mainContractor && <span style={{fontSize:'0.66rem',color:'rgba(255,255,255,0.38)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>🏗 {r.mainContractor}</span>}
+                  {r.address && <span style={{fontSize:'0.62rem',color:'rgba(255,255,255,0.32)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>📍 {r.address}</span>}
+                  {r.numDoors && <span style={{fontSize:'0.62rem',color:'rgba(200,220,255,0.45)',whiteSpace:'nowrap'}}>🚪 {r.numDoors} door{Number(r.numDoors)!==1?'s':''}</span>}
                 </div>
+
+                {/* RFI comment — visible in card view */}
+                {r.reqStatus === 'rfi' && r.rfiRemark && (
+                  <div style={{background:'rgba(251,191,36,0.07)',border:'1px solid rgba(251,191,36,0.28)',borderRadius:6,padding:'7px 10px',display:'flex',flexDirection:'column',gap:3}}>
+                    <span style={{fontSize:'0.46rem',fontWeight:800,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(251,191,36,0.75)'}}>RFI — Estimator Comment</span>
+                    <span style={{fontSize:'0.68rem',color:'rgba(255,220,120,0.82)',lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{r.rfiRemark}</span>
+                  </div>
+                )}
 
                 {/* Divider */}
                 <div style={{height:1,background:'rgba(255,255,255,0.07)'}}/>
@@ -11060,20 +11770,26 @@ const Dashboard = ({
         </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:6,overflowX:'auto'}}>
+          <style>{`
+            .dash-col-sep > * { border-right: 1px dashed rgba(255,255,255,0.18); padding-right: 6px; }
+            .dash-col-sep > *:last-child { border-right: none; padding-right: 0; }
+          `}</style>
           {/* ── Column headers ── */}
-          <div style={{display:'grid',gridTemplateColumns:COL,gap:10,padding:'6px 16px',paddingRight:viewMode==='director'?44:16,minWidth:'fit-content',alignItems:'start'}}>
+          <div className="dash-col-sep" style={{display:'grid',gridTemplateColumns:COL,gap:10,padding:'6px 16px',paddingRight:viewMode==='director'?44:16,minWidth:'fit-content',alignItems:'start'}}>
             <ColHdr colKey="id"            label="Req #"/>
             <ColHdr colKey="status"        label="Status"/>
             <ColHdr colKey="proj"          label="Project"/>
             <ColHdr colKey="mainContractor"label="Main Contractor"/>
             <ColHdr colKey="consultant"    label="Consultant"/>
             <ColHdr colKey="client"        label="Client"/>
-            <ColHdr colKey="submittedBy"   label="Requested By"/>
+            <ColHdr colKey="salesPerson"   label="Sales Person"/>
+            <ColHdr colKey="projValue"     label="Value (AED)" align="right"/>
             <ColHdr colKey="estimator"     label="Estimator"/>
-            <ColHdr colKey="submittedDate" label="Submitted Date"/>
+            <ColHdr colKey="numDoors"      label="# Doors" align="right"/>
+            <ColHdr colKey="address"       label="Location"/>
+            <ColHdr colKey="submittedDate" label="Request Date"/>
             <ColHdr colKey="approvedDate"  label="Approved Date"/>
             <ColHdr colKey="timeline"      label="Total Timeline"/>
-            <ColHdr colKey="projValue"     label="Value (AED)" align="right"/>
           </div>
           {(hasAnyColFilter || sortCol) && (
             <div style={{display:'flex',alignItems:'center',gap:8,padding:'4px 16px',flexWrap:'wrap'}}>
@@ -11099,7 +11815,9 @@ const Dashboard = ({
           {/* ── Rows ── */}
           {sorted.map(r => {
             const realIdx = requests.indexOf(r);
-            const dashUnread = viewMode==='estimator' ? _unreadCount(r.conversation, r.id, 'sales') : 0;
+            const myEstNameL = (STAFF_NAMES[userCode?.toUpperCase()] || '').toLowerCase();
+            const isMyReqL = myEstNameL && (r.estimator||'').toLowerCase() === myEstNameL;
+            const dashUnread = (viewMode==='estimator' && isMyReqL) ? _unreadCount(r.conversation, r.id, 'sales') : 0;
             const caRejected = r.directorAction === 'rejected';
             const caRevised  = r.directorAction === 'revised';
             const needsAction = (caRevised) && viewMode === 'estimator';
@@ -11108,8 +11826,8 @@ const Dashboard = ({
             const rowBdHov = caRejected ? 'rgba(255,90,90,0.60)'  : caRevised ? 'rgba(255,100,180,0.65)' : 'rgba(255,255,255,0.14)';
             return (
               <div key={r.id} style={{position:'relative'}}>
-              <div style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:rowBg,border:`1px solid ${rowBd}`,borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s,border-color 0.2s',cursor:'pointer',minWidth:'fit-content'}}
-                onClick={()=>{ setOpen(realIdx); if(viewMode==='estimator') markDashSeen(r.id); }}
+              <div className="dash-col-sep" style={{display:'grid',gridTemplateColumns:COL,gap:10,alignItems:'start',background:rowBg,border:`1px solid ${rowBd}`,borderRadius:8,padding:'11px 16px',paddingRight: viewMode==='director' ? 44 : 16,transition:'background 0.2s,border-color 0.2s',cursor:'pointer',minWidth:'fit-content'}}
+                onClick={()=>{ setOpen(r.id); onOpenChange && onOpenChange(r.id); if(viewMode==='estimator') markDashSeen(r.id); }}
                 onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.07)';e.currentTarget.style.borderColor=rowBdHov;}}
                 onMouseLeave={e=>{e.currentTarget.style.background=rowBg;e.currentTarget.style.borderColor=rowBd;}}>
 
@@ -11156,6 +11874,9 @@ const Dashboard = ({
                   {r.requestType==='finalPrice' && (
                     <span style={{fontSize:'0.52rem',color:'rgba(52,211,153,0.80)',fontWeight:600,letterSpacing:'0.06em'}}>FINAL</span>
                   )}
+                  {r.reqStatus==='rfi' && r.rfiRemark && (
+                    <span style={{fontSize:'0.52rem',color:'rgba(255,220,80,0.85)',fontStyle:'italic',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',lineHeight:1.4,marginTop:2}}>💬 {r.rfiRemark}</span>
+                  )}
                 </div>
 
                 {/* Project */}
@@ -11170,16 +11891,24 @@ const Dashboard = ({
                 {/* Client */}
                 <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.client||'—'}</span>
 
-                {/* Requested By */}
-                <div style={{display:'flex',flexDirection:'column',gap:1,overflow:'hidden'}}>
-                  <span style={{fontSize:'0.74rem',color:'rgba(255,255,255,0.60)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.submittedBy||'—'}</span>
-                  {r.salesPerson && <span style={{fontSize:'0.58rem',color:'rgba(255,200,80,0.65)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.salesPerson}</span>}
-                </div>
+                {/* Sales Person */}
+                <span style={{fontSize:'0.74rem',color:r.salesPerson?'rgba(255,200,80,0.85)':'rgba(255,255,255,0.22)',fontStyle:r.salesPerson?'normal':'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.salesPerson||'—'}</span>
+
+                {/* Value (AED) */}
+                <span style={{fontSize:'0.72rem',color:r.projValue?'rgba(255,230,100,0.85)':'rgba(255,255,255,0.2)',fontWeight:r.projValue?600:400,textAlign:'right',whiteSpace:'nowrap',fontFamily:'monospace'}}>
+                  {r.projValue ? Math.round(Number(r.projValue)).toLocaleString('en-AE') : '—'}
+                </span>
 
                 {/* Estimator */}
                 <span style={{fontSize:'0.72rem',color:r.estimator?'rgba(100,180,255,0.85)':'rgba(255,255,255,0.22)',fontStyle:r.estimator?'normal':'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.estimator||'Unassigned'}</span>
 
-                {/* Submitted Date */}
+                {/* # Doors */}
+                <span style={{fontSize:'0.72rem',color:r.numDoors?'rgba(255,255,255,0.70)':'rgba(255,255,255,0.20)',fontFamily:'monospace',textAlign:'right',whiteSpace:'nowrap'}}>{r.numDoors||'—'}</span>
+
+                {/* Location */}
+                <span style={{fontSize:'0.68rem',color:'rgba(255,255,255,0.50)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.address||'—'}</span>
+
+                {/* Request Date */}
                 {(() => {
                   let d = null;
                   if (r.submittedAt) d = new Date(r.submittedAt);
@@ -11245,10 +11974,6 @@ const Dashboard = ({
                   );
                 })()}
 
-                {/* Value (AED) */}
-                <span style={{fontSize:'0.72rem',color:r.projValue?'rgba(255,230,100,0.85)':'rgba(255,255,255,0.2)',fontWeight:r.projValue?600:400,textAlign:'right',whiteSpace:'nowrap',fontFamily:'monospace'}}>
-                  {r.projValue ? Math.round(Number(r.projValue)).toLocaleString('en-AE') : '—'}
-                </span>
               </div>
 
               {/* Delete icon — absolute overlay, director only */}
@@ -11300,7 +12025,7 @@ const Dashboard = ({
               </button>
               <button
                 disabled={deleteCode.toLowerCase()!=='xepa'}
-                onClick={()=>{ if(deleteCode.toLowerCase()==='xepa'){onDelete(deleteConfirm);setDeleteConfirm(null);setDeleteCode('');setOpen(null);} }}
+                onClick={()=>{ if(deleteCode.toLowerCase()==='xepa'){onDelete(deleteConfirm);setDeleteConfirm(null);setDeleteCode('');setOpen(null);onOpenChange&&onOpenChange(null);} }}
                 style={{padding:'8px 20px',borderRadius:7,background:deleteCode.toLowerCase()==='xepa'?'rgba(200,40,40,0.25)':'rgba(255,255,255,0.03)',border:`1px solid ${deleteCode.toLowerCase()==='xepa'?'rgba(220,60,60,0.55)':'rgba(255,255,255,0.08)'}`,color:deleteCode.toLowerCase()==='xepa'?'rgba(255,100,100,0.95)':'rgba(255,255,255,0.20)',cursor:deleteCode.toLowerCase()==='xepa'?'pointer':'not-allowed',fontFamily:F,fontSize:'0.82rem',fontWeight:700,outline:'none',transition:'all 0.2s'}}
                 onMouseEnter={e=>{if(deleteCode.toLowerCase()==='xepa')e.currentTarget.style.background='rgba(200,40,40,0.38)';}}
                 onMouseLeave={e=>{if(deleteCode.toLowerCase()==='xepa')e.currentTarget.style.background='rgba(200,40,40,0.25)';}}>
@@ -11310,6 +12035,9 @@ const Dashboard = ({
           </div>
         </div>
       )}
+
+      </div>
+      )}{/* ── end MAIN SCROLLABLE CONTENT ── */}
     </div>
   );
 };
@@ -11330,14 +12058,31 @@ const Analyse = ({ requests }) => {
   const F = "'Inter',sans-serif";
 
   // ── Derived stats ──────────────────────────────────────────────────────────
-  const total       = requests.length;
+  // Helper: extract base request ID by stripping _R\d+ / _F\d+ revision suffixes
+  const baseId = id => (id || '').replace(/(_R\d+|_F\d+)+$/, '');
+
+  // De-duplicate revisions: for each base request, keep only the latest entry
+  // so AX0146, AX0146_R1, AX0146_R2 count as 1 project, valued at the last revision.
+  const uniqueBaseMap = {};
+  requests.forEach(r => {
+    const base = baseId(r.id);
+    const prev = uniqueBaseMap[base];
+    // Prefer entries with a projValue; otherwise take the latest by submittedAt
+    if (!prev || (r.submittedAt || '') > (prev.submittedAt || '')) {
+      uniqueBaseMap[base] = r;
+    }
+  });
+  const uniqueRequests = Object.values(uniqueBaseMap);
+
+  const total       = uniqueRequests.length;
   const pending     = requests.filter(r => r.reqStatus === 'not-started' || r.reqStatus === 'inprogress').length;
   const awaitDir    = requests.filter(r => r.reqStatus === 'pending-director').length;
   const approved    = requests.filter(r => r.directorAction === 'approved').length;
   const rejected    = requests.filter(r => r.directorAction === 'rejected').length;
   const revised     = requests.filter(r => r.requestType === 'revised').length;
   const finalPrice  = requests.filter(r => r.requestType === 'finalPrice').length;
-  const withValue   = requests.filter(r => r.projValue && Number(r.projValue) > 0);
+  // Value totals use de-duplicated unique requests with latest projValue per base ID
+  const withValue   = uniqueRequests.filter(r => r.projValue && Number(r.projValue) > 0);
   const totalValue  = withValue.reduce((s, r) => s + Number(r.projValue), 0);
   const avgValue    = withValue.length ? totalValue / withValue.length : 0;
   const withMargin  = requests.filter(r => r.margin && Number(r.margin) > 0);
@@ -11786,7 +12531,7 @@ function ToolOverlay({ onClose }) {
       {/* iframe — always mounted so it loads; hidden behind overlays */}
       <iframe
         key={status === 'loading' ? 'load' : 'loaded'}
-        src="https://ai92apex-338841056432.us-west1.run.app"
+        src="https://apex95-338841056432.us-west1.run.app"
         style={{
           flex:1, width:'100%', border:'none', background:'#fff',
           opacity: status === 'ready' ? 1 : 0,
@@ -11813,8 +12558,8 @@ function ToolOverlay({ onClose }) {
 function DirectToolModal({ onClose, userCode }) {
   const [status, setStatus] = useState('loading');
   const toolUrl = userCode
-    ? `https://ai92apex-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
-    : 'https://ai92apex-338841056432.us-west1.run.app';
+    ? `https://apex95-338841056432.us-west1.run.app?code=${encodeURIComponent(userCode)}`
+    : 'https://apex95-338841056432.us-west1.run.app';
   return (
     <>
       {/* Full-screen glassy surface */}
@@ -11981,6 +12726,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const location = useLocation();
 
   const [intro,setIntro] = useState(true);
+  const isEmbedded = new URLSearchParams(location.search).get('mode') === 'embed';
   const [userRole, setUserRole] = useState(() => {
     if (initialRole) return initialRole;
     if (location.pathname.startsWith('/estimation')) return 'estimator';
@@ -12022,6 +12768,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
      view = (userRole === 'estimator' || userRole === 'director') ? 'dashboard' : 'landing';
   }
 
+
   // Access-code gate state
   const [tseGate, setTseGate] = useState(null);        // null | pending view name
   const [estDashGranted, setEstDashGranted] = useState(false); // EST gate for dashboard
@@ -12061,7 +12808,11 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     
     const targetPath = viewMap[newView] !== undefined ? viewMap[newView] : '';
     // Maintain the base path depending on if they logged in as Sales or Estimator
-    const basePath = location.pathname.startsWith('/sales') ? '/sales' : '/estimation';
+    const basePath = location.pathname.startsWith('/sales')
+      ? '/sales'
+      : location.pathname.startsWith('/estimation-hub/estimation')
+      ? '/estimation-hub/estimation'
+      : '/estimation';
     
     if (targetPath === '') {
         navigate(basePath);
@@ -12085,6 +12836,12 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
     onBack();
   };
 
+  const _basePath = () => location.pathname.startsWith('/sales')
+    ? '/sales'
+    : location.pathname.startsWith('/estimation-hub/estimation')
+    ? '/estimation-hub/estimation'
+    : '/estimation';
+
   // Smart back — NavBar ← Back navigates to previous logical screen
   const handleNavBack = () => {
     if (view === 'revisedForm')       setView('revisedSearch');
@@ -12096,6 +12853,36 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
   const [id,setId] = useState('');
   const [requests,setRequests] = useState([]);
   const visibleRequests = requests.filter(r => !r.deletedAt);
+
+  // Listen for filter changes sent by EstimationHub via postMessage (no iframe reload)
+  useEffect(() => {
+    if (!isEmbedded) return;
+    const handler = (e) => {
+      if (e.data?.type === 'apex_set_filter') setDashFilter(e.data.filter ?? '');
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [isEmbedded]); // eslint-disable-line
+
+  // Post sidebar counts to parent EstimationHub when running in embedded iframe
+  useEffect(() => {
+    if (!isEmbedded || !visibleRequests.length) return;
+    try {
+      window.parent.postMessage({
+        type: 'apex_hub_counts',
+        counts: {
+          '':            visibleRequests.length,
+          'new':         visibleRequests.filter(r => !r.requestType || r.requestType === 'new').length,
+          'revise':      visibleRequests.filter(r => r.requestType === 'revised').length,
+          'discount':    visibleRequests.filter(r => r.requestType === 'discount').length,
+          'final':       visibleRequests.filter(r => r.requestType === 'finalPrice').length,
+          'out-of-scope':visibleRequests.filter(r => r.reqStatus === 'out-of-scope').length,
+          '__open__':    visibleRequests.filter(r => r.status === 'Pending Estimation' || !r.estimator).length,
+        },
+      }, '*');
+    } catch {}
+  }, [isEmbedded, requests]); // eslint-disable-line
+
   const [diaryEntries, setDiaryEntries] = useState([]);
   const [docUploadProgress, setDocUploadProgress] = useState(null); // null | [{name,size,status,url}]
   const [pendingSubmit, setPendingSubmit]           = useState(null); // {formData, newId, uploadedDocs}
@@ -12194,7 +12981,13 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
         if (res.ok) {
           currentEtag.current = res.headers.get('ETag') || null;
           const data = await res.json();
-          setRequests(await hydrateIDB(data.requests || []));
+          // Backfill appLink / spLink for requests created before this feature
+          const rawReqs = (data.requests || []).map(r => ({
+            ...r,
+            appLink: r.appLink || appLink(r.id),
+            spLink:  r.spLink  || spLink(r.id),
+          }));
+          setRequests(await hydrateIDB(rawReqs));
           setDiaryEntries(data.diaryEntries || []);
           return;
         }
@@ -12291,7 +13084,7 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
             setToasts(prev => [...prev, ...newMsgs.map((m,i) => ({ id:base+i, ...m }))]);
           }
 
-          // Fire toast for sales when estimator cancels (out-of-scope)
+          // Fire toast for sales when estimator cancels (out-of-scope) or sends RFI
           if (userRole === 'sales') {
             const seenOos = (() => { try { return JSON.parse(localStorage.getItem('apex_seen_oos')||'{}'); } catch { return {}; } })();
             const oosToasts = [];
@@ -12301,6 +13094,14 @@ export default function AIEstimation({ onBack, onNavigate, initialRole, initialC
                 if (r.oosNotification.tsMs > lastSeen && r.oosNotification.tsMs > appStartMs.current) {
                   oosToasts.push({ reqId:r.id, client:r.client, proj:r.proj, type:'oos', text: r.outScopeRemark || '' });
                   seenOos[r.id] = r.oosNotification.tsMs;
+                }
+              }
+              if (r.reqStatus === 'rfi' && r.rfiNotification?.tsMs) {
+                const key = `rfi_${r.id}`;
+                const lastSeen = seenOos[key] || 0;
+                if (r.rfiNotification.tsMs > lastSeen && r.rfiNotification.tsMs > appStartMs.current) {
+                  oosToasts.push({ reqId:r.id, client:r.client, proj:r.proj, type:'rfi', text: r.rfiRemark || '' });
+                  seenOos[key] = r.rfiNotification.tsMs;
                 }
               }
             });
@@ -12379,7 +13180,7 @@ const runDocUploads = async (formData, newId, docFiles, completionCallback) => {
   const uploadedDocs = [];
   for (let i = 0; i < docFiles.length; i++) {
     setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'uploading' } : p));
-    const url = await uploadToAzure(docFiles[i], newId);
+    const url = await uploadToSharePoint(docFiles[i], newId);
     setDocUploadProgress(prev => prev.map((p, idx) => idx === i ? { ...p, status: 'done', url: url || null } : p));
     uploadedDocs.push({ name: docFiles[i].name, type: docFiles[i].type, url: url || null, verified: !!url });
   }
@@ -12404,6 +13205,8 @@ const handleSubmit = async (formData) => {
       directorAction: null, directorNote: '', rejectionCycles: [],
       timeline: [{ event:'submitted', ts:new Date().toISOString(), tsMs:Date.now(), label:'Request Submitted', by: formData.submittedBy||'' }],
       documentUrl: `https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_CONTAINER}/${newId}/`,
+      appLink:     appLink(newId),
+      spLink:      spLink(newId),
     };
     setRequests(prev => [entry, ...prev]);
     setView('relax');
@@ -12413,7 +13216,7 @@ const handleSubmit = async (formData) => {
     // Background uploads — silent, no error shown
     const uploadedDocs = [];
     for (const file of docFiles) {
-      const url = await uploadToAzure(file, newId);
+      const url = await uploadToSharePoint(file, newId);
       uploadedDocs.push({ name: file.name, type: file.type, url: url || null, verified: !!url });
     }
 
@@ -12469,13 +13272,20 @@ const handleSubmit = async (formData) => {
 
   const handleRevisedSubmit = async (formData) => {
     const origId = formData.originalId;
-    const existingRevisions = origId ? latestRequestsRef.current.filter(r => r.originalId === origId && r.requestType === 'revised').length : 0;
-    const newId = origId ? `${origId}_R${existingRevisions + 1}` : nextRequestId();
+    // Always derive the base ID by stripping any existing _R\d+ suffix so that
+    // revising AX0146_R1 produces AX0146_R2, not AX0146_R1_R1.
+    const baseId = origId ? origId.replace(/_R\d+$/, '') : null;
+    const existingRevisions = baseId ? latestRequestsRef.current.filter(r => {
+      const rBase = (r.id || '').replace(/_R\d+$/, '');
+      return rBase === baseId && r.requestType === 'revised';
+    }).length : 0;
+    const newId = baseId ? `${baseId}_R${existingRevisions + 1}` : nextRequestId();
     const docFiles = formData.docFiles || [];
 
     const finaliseRevisedSubmit = (fData, nId, uDocs) => {
-      const origEntry = fData.originalId
-        ? latestRequestsRef.current.find(r => r.id === fData.originalId)
+      // Look up the original using baseId so we always find the root request
+      const origEntry = baseId
+        ? latestRequestsRef.current.find(r => r.id === baseId)
         : null;
       const autoEstimator = origEntry?.estimator || null;
       const nowTs = new Date().toISOString();
@@ -12483,6 +13293,7 @@ const handleSubmit = async (formData) => {
       const entry = {
         id: nId,
         ...fData,
+        originalId: baseId,   // always point to base request, not a prior revision
         docs: uDocs,
         status: 'Pending Estimation',
         date: new Date().toLocaleDateString('en-GB'),
@@ -12568,8 +13379,8 @@ const handleSubmit = async (formData) => {
       let verified = false;
 
       if (docFiles[i]) {
-        url = await uploadToAzure(docFiles[i], newId, docFiles[i].name);
-        verified = url ? await verifyAzureBlob(url) : false;
+        url = await uploadToSharePoint(docFiles[i], newId, docFiles[i].name);
+        verified = url ? await verifyFileUrl(url) : false;
       }
 
       const status = verified ? 'done' : 'error';
@@ -12596,14 +13407,18 @@ const handleSubmit = async (formData) => {
         />
       )}
 
-      {/* NN logo — faint watermark across all screens */}
-      <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
-      </div>
-      {/* RoleLogin only when no role AND not in a guest-accessible view */}
-      {!userRole && !['landing','form','revisedSearch','revisedForm','finalPriceSearch','finalPriceForm','relax','loading','results','dashboard','openRequests','estOverview'].includes(view) && <RoleLogin onLogin={handleRoleLogin}/>}
-      <NavBar view={view} setView={setView} navProtected={navProtected} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation/AIapextool','_blank','noopener,noreferrer')}
-        onDirectorAccess={(code='STAR')=>{ setUserRole('director'); setUserCode(code); setView('dashboard'); }}/>
+      {/* NN logo — hidden in embedded mode */}
+      {!isEmbedded && (
+        <div style={{position:'fixed',inset:0,zIndex:101,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <img src="/NN.png" alt="" style={{width:'min(420px,55vw)',opacity:0.06,userSelect:'none',filter:'brightness(10) saturate(0)'}}/>
+        </div>
+      )}
+      {/* NavBar hidden in embedded mode */}
+      {!isEmbedded && (
+        <NavBar view={view} setView={setView} navProtected={navProtected} onHome={onBack} onBack={handleNavBack} userRole={userRole} userCode={userCode} onLogout={handleLogout} onDirectTool={()=>window.open('https://wonderful-flower-020202300.7.azurestaticapps.net/estimation-hub/estimation/AIapextool','_blank','noopener,noreferrer')}
+          onDirectorAccess={(code='STAR')=>{ setUserRole('director'); setUserCode(code); setView('dashboard'); }}
+          searchQ={q} setSearchQ={setQ} onSearch={handleSearch}/>
+      )}
 
       {/* ── Floating AI Bot button — landing only, estimator & director ── */}
       {view === 'landing' && (userRole === 'estimator' || userRole === 'director') && (
@@ -12629,50 +13444,37 @@ const handleSubmit = async (formData) => {
         </>
       )}
 
-      {/* ── AI Tool Direct — fixed top center-right, in navbar zone ── */}
-{((userRole && userRole !== 'sales') || (!userRole && view === 'dashboard')) && (
-  <a href="/estimation/AIapextool"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="arch-tab arch-tab-tool"
-    style={{
-      position:'fixed', top:0, right:220, zIndex:9501,
-      backdropFilter:'blur(20px)',
-    }}
-  >
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-    ✦ AI Tool Direct
-  </a>
-)}
 
       {directOpen && <DirectToolModal onClose={()=>setDirectOpen(false)} userCode={userCode}/>}
 
       <style>{`@keyframes toolFadeIn { from{opacity:0} to{opacity:1} }`}</style>
-      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} onDashboard={()=>setView('dashboard')} onOverview={()=>setView('estOverview')} onOpenReqs={()=>setView('openRequests')} onAnalyse={()=>setView('analyse')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
+      {view==='landing'           && <Landing onNew={()=>setView('form')} onRevised={()=>setView('revisedSearch')} onFinalPrice={()=>setView('finalPriceSearch')} onDashboard={()=>setView('dashboard')} onOverview={()=>setView('estOverview')} onOpenReqs={()=>setView('openRequests')} onAnalyse={()=>setView('analyse')} q={q} setQ={setQ} onGo={handleSearch} onDirectTool={()=>window.open('/estimation-hub/estimation/AIapextool','_blank','noopener,noreferrer')} userRole={userRole}/>}
       {view==='form'              && <Form onSubmit={handleSubmit} onBack={()=>setView('landing')} docUploadProgress={docUploadProgress}/>}
       {view==='revisedSearch'     && <RevisedSearch requests={visibleRequests} onSelect={r=>{setRevisedSource(r);setView('revisedForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='revisedForm'       && revisedSource && <RevisedForm original={revisedSource} onSubmit={handleRevisedSubmit} onBack={()=>setView('revisedSearch')}/>}
       {view==='finalPriceSearch'  && <FinalPriceSearch requests={visibleRequests} onSelect={r=>{setFinalPriceSource(r);setView('finalPriceForm');}} onBack={()=>setView('landing')} userRole={userRole} userCode={userCode}/>}
       {view==='finalPriceForm'    && finalPriceSource && <FinalPriceForm original={finalPriceSource} onSubmit={handleFinalPriceSubmit} onBack={()=>setView('finalPriceSearch')}/>}
       {view==='relax'          && <RelaxScreen onAnother={()=>setView('form')} onHome={()=>setView('landing')} docUploadProgress={docUploadProgress} onRetry={retryDocUploads}/>}
-      {view==='openRequests' && <OpenRequests requests={visibleRequests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole}/>}
+      {view==='openRequests' && <OpenRequests requests={visibleRequests} onUpdate={updateRequest} onDelete={deleteRequest} userCode={userCode} userRole={userRole} isEmbedded={isEmbedded}/>}
       {view==='dashboard' && <Dashboard
           requests={visibleRequests}
           onUpdate={updateRequest}
           onDelete={deleteRequest}
           initialViewMode={userRole==='director'?'director':'estimator'}
-          onDirectTool={()=>window.open('/estimation/AIapextool','_blank','noopener,noreferrer')}
+          onDirectTool={()=>window.open('/estimation-hub/estimation/AIapextool','_blank','noopener,noreferrer')}
           onOverview={()=>setView('estOverview')}
+          onOpenReqs={()=>setView('openRequests')}
           docUploadProgress={docUploadProgress}
           setDocUploadProgress={setDocUploadProgress}
           setPendingSubmit={setPendingSubmit}
           retryDocUploads={retryDocUploads}
           pendingSubmit={pendingSubmit}
+          userCode={userCode}
+          isEmbedded={isEmbedded}
       />}
       {view==='estOverview'  && <EstRequestOverview requests={visibleRequests}/>}
       {view==='myTeam'       && <EstimationTeamView requests={visibleRequests}/>}
-      {tseGate && <TseAccessModal pendingView={tseGate} onSuccess={()=>{ const v=tseGate; setTseGate(null); setView(v); }} onCancel={()=>setTseGate(null)}/>}
-      {view==='dashboard' && !estDashGranted && userRole !== 'director' && <TseAccessModal pendingView='dashboard' onSuccess={()=>setEstDashGranted(true)} onCancel={()=>navigate(-1)}/>}
+      {/* access code gates removed */}
       {view==='analyse'      && <Analyse requests={visibleRequests}/>}
       {view==='salesDashboard' && <SalesDashboard
           requests={visibleRequests}
